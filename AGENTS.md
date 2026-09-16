@@ -35,3 +35,7 @@ These rules strengthen the policy above and apply to every agent and task.
 - docs/engineering/DEFINITION-OF-DONE.md
 - docs/engineering/AI-CODING-GUARDRAILS.md
 - docs/engineering/BRANCHING-AND-REVIEW.md
+- docs/engineering/AGENT-ROLES.md
+- docs/engineering/TASK-HANDOFF-PROTOCOL.md
+- docs/engineering/REVIEW-WORKFLOW.md
+- docs/engineering/CURRENT-HANDOFF.md
