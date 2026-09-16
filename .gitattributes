@@ -1,0 +1,9 @@
+# Normalize text in Git without selecting a framework.
+* text=auto
+*.md text eol=lf
+.gitignore text eol=lf
+.editorconfig text eol=lf
+.gitattributes text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
