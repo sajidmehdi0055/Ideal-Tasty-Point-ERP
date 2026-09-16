@@ -1,78 +1,88 @@
-# Current Handoff
+# Current Handoff — INV-READY-001 (B-01/B-02 Update)
 
-Task: WF-001 — Formal multi-agent workflow documentation
-Date: 2026-09-16
-Current branch: docs/multi-agent-workflow
-Workspace: existing repository checkout; single writer, read-only independent reviewer.
-Baseline: 1cefc9b — chore: establish ERP foundation and AI development guardrails.
-State: All acceptance criteria verified. Independent review completed — no blockers. Evidence-record re-review completed. Ready for owner commit authorization.
+Date: 2026-09-17 (updated). Branch: docs/inventory-implementation-readiness.
+Base revision: 64f0af203846afb1ba9958f3148fe110c5155735.
+Candidate: seven new/modified readiness and decision documents plus this handoff record; nothing staged.
+State: B-01 and B-02 applied per owner instruction. Consistency check in progress. No implementation authorization.
 
-## Scope and authority
+## Task scope and identities
 
-Owner explicitly requested these four workflow documents and necessary root AGENTS.md references. Scope is shared engineering documentation only. No business requirements, approved decisions, architecture ownership, application code, DB changes, or dependencies may be changed by this task.
+Owner provided explicit approved decisions for B-01 (S-01 scope) and B-02 (mandatory Item Master fields and Primary Type rule). Manager applied these decisions to the existing readiness package. Sources: owner's explicit instruction on 2026-09-17, inventory-module.md v0.2, ADR-0001, and the prior readiness documents. Root Manager is documentation author and local checker. Independent review: pending for this update.
 
-Acceptance criteria — all satisfied:
+Allowed files created (this update):
+- docs/decisions/ADR-0002-s01-scope-definition.md
+- docs/decisions/ADR-0003-item-master-mandatory-fields.md
 
-1. Six roles documented — AGENT-ROLES.md: Manager/Lead, Architecture & Database, Backend, Frontend/UI, QA/Testing, Security & Code Review.
-2. Manager is primary owner interface — AGENT-ROLES.md and TASK-HANDOFF-PROTOCOL.md: owner communicates only with Manager; specialists report to Manager.
-3. Specialists have explicit bounded scope — AGENT-ROLES.md: each role has responsibility and limits columns; scope enforcement rules in all workflow docs.
-4. Implementation and final review are separate — REVIEW-WORKFLOW.md Independence section; AGENT-ROLES.md limits; DEFINITION-OF-DONE.md gate 6.
-5. Every handoff records branch, scope, files, checks, risks, next action — TASK-HANDOFF-PROTOCOL.md Required fields section.
+Allowed files modified (this update):
+- docs/engineering/inventory-open-decisions.md — B-01/B-02 moved from blocking to settled
+- docs/engineering/inventory-implementation-plan.md — S-01 prerequisites and entry gates updated
+- docs/requirements/inventory-acceptance-criteria.md — AC-01/AC-02 updated with approved fields/types
+- docs/architecture/inventory-data-model-draft.md — Item entity updated with mandatory fields
+- docs/engineering/CURRENT-HANDOFF.md — this evidence record
 
-## Assignments and files changed
+Exclusions: existing approved requirements (inventory-module.md), existing ADR-0001, root AGENTS.md, global architecture, README, application code, framework/runtime/database/dependencies. DB/data changes: none. Installs: none. Git staging/commit: not authorized and not performed.
 
-Manager/documentation implementer: root agent (prior session).
-Independent reviewer: requirements_review agent (prior session), read-only review — no blockers found.
-Evidence-record re-review: Manager agent (current session), verified factual accuracy against all source files.
-QA: implementer document checks supplemented by independent review; no application exists.
+## B-01 and B-02 closure summary
 
-Created (untracked):
-- docs/engineering/AGENT-ROLES.md
-- docs/engineering/TASK-HANDOFF-PROTOCOL.md
-- docs/engineering/REVIEW-WORKFLOW.md
-- docs/engineering/CURRENT-HANDOFF.md
+### B-01 — S-01 Scope (ADR-0002, CLOSED)
 
-Modified (unstaged):
-- AGENTS.md — four reference links added to Engineering reference documents section (lines 38–41).
+S-01 includes only: Item Master create/edit, Primary Item Type assignment, mandatory field validation, system Item ID/Code generation, and already-approved create/edit permissions. Excludes: stock balances, pack conversions, expiry, lots, transfers, physical counts, reorder logic, duplicate merge, and other later-slice functionality.
 
-No other files changed. Requirements, decisions, architecture, README, and existing engineering guardrails verified unchanged.
+### B-02 — Mandatory Fields and Primary Type Rule (ADR-0003, CLOSED)
 
-## Checks performed
+Required fields: Item Name, Primary Item Type (exactly one), Base UOM, Brand value/status (actual brand or "Generic / No Brand"), system-generated Item ID/Code. Active status defaults automatically. Four approved types: Raw Material, WIP/Semi-Finished, Finished/Selling Product, Direct Purchase & Sale Item. No multiple primary types; future operational behavior uses secondary capabilities/flags.
 
-| Check | Result | Evidence |
+## Remaining blockers for S-01
+
+| Blocker | Status | Impact |
 |---|---|---|
-| Branch verification | PASSED | `git branch --show-current` → `docs/multi-agent-workflow` |
-| Working tree status | PASSED | Only 5 expected files appear: 4 untracked, 1 modified |
-| AGENTS.md diff scope | PASSED | Diff contains only four reference links; no policy/guardrail changes |
-| Protected files unchanged | PASSED | `git diff --exit-code` on requirements/, decisions/, architecture/, README.md, and existing engineering docs — exit code 0 |
-| Whitespace check | PASSED | `git diff --check` — no errors (CRLF warning is pre-existing) |
-| Cross-reference resolution | PASSED | All inter-document references resolve to existing files |
-| Source consistency | PASSED | Documents align with AGENTS.md guardrails, DEFINITION-OF-DONE.md, BRANCHING-AND-REVIEW.md, and AI-CODING-GUARDRAILS.md |
-| Acceptance criteria | PASSED | All five criteria verified; see Scope section above |
-| Independent review | PASSED | requirements_review agent: no blockers, no findings |
-| Application tests/lint/type checks | NOT APPLICABLE | Documentation-only change; no application toolchain; independent reviewer agreed |
-| DB/data changes | NONE | — |
-| Dependencies added | NONE | — |
+| Approved technical architecture | BLOCKING | No technology stack, database, framework, or application architecture approved. Universal gate for all coding. |
+| Identity/security design | BLOCKING | Authentication and authorization system needed to enforce Owner/Manager permissions. |
+| B-09 audit detail (S-01 portion) | LOW RISK | Auditability principle is settled (ADR-0001). S-01 create/edit permissions settled via INV-11. Exact audit payload is a technical design choice within the approved principle; not a business decision blocker for S-01. |
 
-## Risks and limitations
+B-03 through B-11 remain open but do NOT block S-01 — they affect later slices only.
 
-- Role documents do not install persistent agents or guarantee six concurrent workers. Runtime capacity determines scheduling; independent review remains mandatory.
-- Actual module boundaries and remaining Inventory decisions (D-01 through D-11) are not decided by these documents.
-- No technology stack, database schema, or application code is authorized by this task.
-- The pre-existing CRLF line-ending inconsistency in AGENTS.md is outside this task's scope.
+## Checks and risks
+
+Initial branch verification: docs/inventory-implementation-readiness confirmed. Working tree contained 5 untracked + 1 modified as expected from prior task. All source documents read before changes. Changes limited to approved B-01/B-02 application scope.
+
+Protected files: git diff --exit-code to be run on inventory-module.md, ADR-0001, AGENTS.md, README.md, global architecture — must show no changes.
+Application tests/lint/type checks: NOT APPLICABLE — documentation-only with no application toolchain.
+DB/data changes: none. Dependencies: none.
+
+Risks: technical architecture approval remains the primary gate before any coding. B-02 sub-questions (brand maintenance permissions, UOM precision/rounding, used-conversion edits, duplicate matching) remain open for later slices but do not block S-01. Current practices/proposals are not implementation approval. No business rule was invented.
 
 ## Next recommended action
 
-Owner to review the five changed files and authorize staging and commit. Do not stage, commit, push, install, or begin application coding without authorization.
+Owner to review the updated readiness package, verify consistency, and authorize staging and commit. Do not stage, commit, push, install, or begin application coding without authorization.
 
 Proposed commit message:
 
 ```
-docs: define multi-agent roles and handoff workflow
+docs: close B-01/B-02 decisions and update Inventory readiness for S-01
 
-- AGENT-ROLES.md: six operating roles with responsibilities, limits, and independence rules
-- TASK-HANDOFF-PROTOCOL.md: task brief, handoff fields, states, and escalation
-- REVIEW-WORKFLOW.md: review steps, independence, evidence, and documentation-only rules
-- CURRENT-HANDOFF.md: WF-001 evidence record for this documentation task
-- AGENTS.md: reference links to the four new engineering documents
+- ADR-0002: S-01 scope approved (Item Master create/edit/type/validation/ID only)
+- ADR-0003: mandatory fields and single Primary Item Type rule settled
+- inventory-open-decisions.md: B-01/B-02 moved to settled section
+- inventory-implementation-plan.md: S-01 prerequisites and entry gates updated
+- inventory-acceptance-criteria.md: AC-01/AC-02 updated with approved fields/types
+- inventory-data-model-draft.md: Item entity updated with mandatory fields
+- CURRENT-HANDOFF.md: evidence record for B-01/B-02 closure
 ```
+
+---
+
+## Historical handoff records (retained below)
+
+### INV-READY-001 — Original Readiness Package
+
+Date: 2026-09-17. Branch: docs/inventory-implementation-readiness.
+Base revision: 64f0af203846afb1ba9958f3148fe110c5155735.
+State: documentation QA completed; independent reviews PASS. Owner review pending at time of B-01/B-02 update.
+Created: inventory-acceptance-criteria.md, inventory-module-boundary.md, inventory-data-model-draft.md, inventory-implementation-plan.md, inventory-open-decisions.md, CURRENT-HANDOFF.md. Independent reviewers: requirements_review (PASS), architecture_review (PASS). No outstanding findings at time of update.
+
+### WF-001 — Multi-Agent Workflow Documentation
+
+Date: 2026-09-16. Branch: docs/multi-agent-workflow. Baseline: 1cefc9b.
+State: completed and merged (commit 5728edb, merged at 64f0af2).
+Created: AGENT-ROLES.md, TASK-HANDOFF-PROTOCOL.md, REVIEW-WORKFLOW.md, CURRENT-HANDOFF.md. Modified: AGENTS.md (references only). Independent reviewer: requirements_review (PASS).
