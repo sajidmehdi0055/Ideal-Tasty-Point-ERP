@@ -17,3 +17,9 @@ Desktop.ini
 *.log
 /tmp/
 /temp/
+
+# Node build and local development artifacts
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo

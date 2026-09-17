@@ -1,4 +1,61 @@
-# Current Handoff — ARCH-001 (Architecture + Security Approved)
+# Current Handoff — S-01-IMPL-001 (Inventory S-01 Backend Implementation Verified)
+
+Date: 2026-09-18. Branch: feat/inv-s01-item-master. Base: 663662e.
+Authority: current explicit S-01 implementation instruction; ADR-0001..0006; INV-11/12; approved AC-01/02/11 and applicable PC-09 (see docs/engineering/inventory-s01-implementation.md for full traceability).
+Roles: Claude Code = primary implementation agent (this record). Codex = next independent reviewer (not yet run). Google Antigravity = third-priority fallback/review; was the original implementer of the backend/ source under review here and is stopped/not modifying the repository during this record.
+
+## Scope of this record
+
+Covers: (1) correcting a `backend/package.json` manifest inconsistency discovered during independent review (drifted to a stale/foreign version mismatching `package-lock.json`, installed `node_modules`, `backend/README.md`, and the implemented source — see git diff for the single-file fix), and (2) full technical verification of the pre-existing Inventory S-01 Item Master backend (`backend/`) against a real PostgreSQL instance. No business rule, requirement, or ADR was changed. No S-01 scope expansion. Files touched by Claude Code in this record: `backend/package.json` only (dependency/script correction). All other `backend/` source, tests, and migration were pre-existing and unmodified.
+
+## Environment used for verification
+
+- Docker Desktop 29.8.0 (WSL2 backend, Ubuntu WSL distro) newly installed on this Windows 11 workstation by the owner for this verification.
+- `docker compose -f backend/compose.yaml up -d postgres` → container `ideal-tasty-point-s01-dev-postgres-1`, image `postgres:17` (actual server: PostgreSQL 17.11), bound to `127.0.0.1:5432` only, reported `healthy`.
+- Database `erp_local` (created by compose) used for `DATABASE_URL`/`migrate:check`; database `erp_test` (created manually via `psql` inside the container, matching `.env.example`'s documented convention) used for `TEST_DATABASE_URL`. Both accessed via the `postgres` superuser for local, disposable, loopback-only verification — never a production or shared connection.
+- No dedicated runtime role was provisioned for this record (not required for `migrate:check`/`test:integration`; `scripts/runtime-grants.sql` remains the documented path for actually running `npm run dev`, out of scope here).
+
+## package.json correction
+
+Before: `backend/package.json` contained an inconsistent, older dependency/script set (fastify ^4.28.1, zod ^3.23.8, pg-mem, @fastify/cors, split `@typescript-eslint/*` packages, missing `test:unit`/`test:integration`/`migrate:check` scripts) that matched neither `package-lock.json` nor the installed `node_modules` nor the implemented source (e.g. `src/inventory/domain/item.ts` uses `z.uuid()`, valid only in Zod v4).
+
+After: `backend/package.json` restored to match `package-lock.json`'s root manifest exactly (dotenv ^17.4.2, fastify ^5.12.5, pg ^8.23.0, zod ^4.6.5; devDependencies @types/node ^22.20.3, @types/pg ^8.23.1, eslint ^10.10.0, node-pg-migrate ^9.0.0, tsx ^4.23.13, typescript ~5.9.3, typescript-eslint ^8.70.0, vitest ^5.0.1); scripts restored to `typecheck` (runs both `tsconfig.json` and `tsconfig.test.json`), `lint` (lints `src` and `tests`), `test:unit`, `test:integration`, `migrate`, `migrate:check` — all using `node --env-file-if-exists=.env node_modules/node-pg-migrate/bin/node-pg-migrate.js`, no shell-specific `$VAR` syntax, verified Windows/PowerShell-compatible. `npm ci --ignore-scripts` confirms package.json/package-lock.json/node_modules are in sync (exit 0, 0 vulnerabilities).
+
+## Verification results (all executed, not assumed)
+
+| Check | Command | Result |
+|---|---|---|
+| Dependency reconciliation | `npm ci --ignore-scripts` | PASS — 221 packages, 0 vulnerabilities |
+| Typecheck | `npm run typecheck` | PASS — `tsc --noEmit` (src) and `tsc -p tsconfig.test.json` (tests) both clean |
+| Lint | `npm run lint` | PASS — ESLint over `src` and `tests`, 0 issues |
+| Unit tests | `npm run test:unit` | PASS — 82/82 tests (Fastify inject, mocked repository) |
+| Migration dry-run | `DATABASE_URL=...erp_local npm run migrate:check` | PASS — real PostgreSQL 17.11, single migration `202609170001_inventory_s01` planned cleanly, dry-run only |
+| Integration tests | `TEST_DATABASE_URL=...erp_test npm run test:integration` | PASS — 11/11 tests against real PostgreSQL 17.11 (no mock/pg-mem). Covers: migration idempotency, atomic create/edit with audit snapshots, 24-way concurrent cross-branch item_code uniqueness, row-locked concurrent edits preserving disjoint fields, cross-branch update denial, manual item_code/identity mutation rejection at the DB layer, mandatory-field/single-type DB constraints, audit UPDATE/DELETE/TRUNCATE rejection even from the schema-owner connection, restricted runtime-role privilege limits (sequence reset, trigger disable, truncate, delete all denied), transactional rollback on audit-insert failure without recycling the consumed code, and six-digit-boundary code growth |
+| Build | `npm run build` | PASS — `tsc` clean |
+
+No check was reported PASS without executing to completion. No PostgreSQL check was substituted with pg-mem or another in-memory emulator.
+
+## S-01 acceptance-criteria coverage (evidence-backed)
+
+AC-01 (mandatory fields, both roles), AC-02 (exactly one Primary Item Type) — unit + integration tests. O-01 (global item_code uniqueness independent of branch_id) — 24-way concurrent integration test. O-02 (ITM-###### sequence, no manual override, no COUNT/MAX) — migration trigger + integration tests (manual insert/edit rejection, six-digit growth). O-03 (injected AuthContext only, no client-controlled header) — unit tests (spoofed header rejection, service-level bypass attempts). INV-11/PC-09 (Owner/Manager only, other roles/blank context denied) — unit tests. AC-11 (immutable append-only audit, same-transaction atomicity, rollback on audit failure) — integration tests. branch_id awareness (update scoped by id+branch, cross-branch 404, audit branch match) — integration tests. Out of scope and not implemented, per ADR-0002: archive/deactivate, stock, transfers, purchasing, expiry/lots, production, POS/KDS, costing, reorder, Redis, full auth/session, customer/rider/waiter apps — confirmed absent from `backend/src`.
+
+## Security/authorization review (source-level, by implementer; independent review still required)
+
+Parameterized queries throughout `pg-item-repository.ts`/`item-audit.ts` (no string-built SQL) — no SQL injection surface found. `requireItemEditor` re-validates role/context on every request independent of transport; no header-derived trust path exists in `src/`. Row-level `FOR UPDATE` lock on edit prevents lost updates under concurrency (verified). Sequence-based code generation avoids COUNT/MAX races (verified under load). DB triggers enforce audit/identity immutability even against the schema-owner connection (verified), and runtime-role grants exclude destructive privileges (verified). Error handler logs only error name, never SQL/connection-string detail (verified by unit test asserting no secret leakage in 500 responses). This is the implementer's own review and does not substitute for Codex's independent pass.
+
+## Remaining issues / blockers
+
+None found in this verification pass. Outstanding, pre-existing, out-of-scope items unrelated to this record: the architecture/security-baseline "overall consistency FAIL" findings from ARCH-001 below remain unresolved and are not S-01 blockers (S-01's own identity/security requirements were already satisfied per ADR-0005 §"Relation to S-01"). No dedicated runtime DB role was created in this session (not required for the checks run); required before any real `npm run dev` usage.
+
+## Next recommended action
+
+Independent review by Codex, per the project's agent priority order. Do not merge to main. Do not stage/commit beyond the bounded S-01 file set until that review completes, unless the owner directs otherwise.
+
+---
+
+## Historical handoff records
+
+### ARCH-001 — Architecture Proposal (prior state)
 
 Date: 2026-09-17 (updated). Branch: docs/architecture-decision-proposal.
 Base revision: 5ed0690 (Merge branch 'docs/inventory-implementation-readiness').

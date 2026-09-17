@@ -1,0 +1,20 @@
+import { randomUUID } from 'node:crypto';
+import type { PoolClient } from 'pg';
+import type { AuthContext } from '../../auth/context.js';
+import type { Item } from '../domain/item.js';
+
+export async function appendItemAudit(
+  client: PoolClient,
+  auth: AuthContext,
+  action: 'CREATE' | 'UPDATE',
+  before: Item | null,
+  after: Item,
+): Promise<void> {
+  await client.query(
+    `INSERT INTO inventory_audit
+       (id, item_id, branch_id, actor_id, actor_role, action, before_data, after_data)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb)`,
+    [randomUUID(), after.id, auth.branchId, auth.userId, auth.role, action,
+      before === null ? null : JSON.stringify(before), JSON.stringify(after)],
+  );
+}
