@@ -1,8 +1,33 @@
 # Architecture Record
 
-Status: Framework only; no application architecture approved.
+Status: **Approved technology stack** (ADR-0004, 2026-09-17). Detailed component design pending per-slice implementation authorization.
 
-This file organizes future architecture decisions. It does not select a framework, database, deployment model, module ownership, API, event bus, or dependency. Existing requirements remain unchanged. Business authority comes from explicit user instructions, approved requirements, and recorded decisions with their approval status preserved.
+This file records approved architecture decisions and organizes future detailed design. It does not authorize application coding — each slice requires separate explicit authorization. Business authority comes from explicit user instructions, approved requirements, and recorded decisions.
+
+## Approved technology stack (ADR-0004)
+
+| Layer | Approved choice |
+|---|---|
+| Frontend | React (Vite) + Tailwind CSS + PWA (service worker + IndexedDB) |
+| Backend | Node.js + Fastify (TypeScript) |
+| Primary database | PostgreSQL |
+| Session/cache/pub-sub | Redis |
+| API style | REST + OpenAPI spec + WebSocket (Socket.io) |
+| Language | TypeScript throughout (frontend + backend) |
+| Deployment | Hybrid — Docker Compose (dev/staging) + cloud/local production |
+| Multi-branch | Shared PostgreSQL database with branch_id / tenant-aware separation |
+| Offline strategy | Critical operations local-first; automatic sync on reconnect; full offline NOT required |
+| Client strategy | PWA first; native mobile apps may be introduced later where required |
+
+See docs/decisions/ADR-0004-technical-architecture-proposal.md for full decision record.
+
+## Approved identity and security baseline (ADR-0005)
+
+JWT with refresh tokens; RBAC + per-user overrides; branch-scoped access; least-privilege; API-level enforcement; separate staff/customer identity scopes; audit trail; security log separation; no plaintext secrets; offline permission cache for operational actions only; high-risk actions blocked offline.
+
+See docs/architecture/identity-security-baseline.md and docs/decisions/ADR-0005-identity-security-baseline.md.
+
+## This file organizes future architecture decisions
 
 ## Required sections for a future architecture proposal
 
