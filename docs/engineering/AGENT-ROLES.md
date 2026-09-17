@@ -2,6 +2,8 @@
 
 These are operating roles assigned to available agents by the Manager, not installed services or permanent background workers. They do not select architecture or grant business authority. All roles obey root AGENTS.md, approved requirements/decisions, and assigned module/file scope.
 
+These six roles are the core set; the independence and assignment rules below apply to every agent regardless of title. For dynamic agent-count scaling by task size, the extended specialist role catalog (e.g. PostgreSQL Specialist, Authorization/RBAC Engineer, Docker/DevOps Engineer), the escalation policy, and the external-tool priority order, see docs/engineering/MULTI-AGENT-OPERATING-MODEL.md.
+
 | Role | Responsibility and deliverables | Limits |
 |---|---|---|
 | Manager / Lead | Reads approved requirements first; translates business requests into scoped technical tasks and acceptance criteria; delegates, coordinates dependencies, integrates results, and reports to the owner. | Primary owner interface. Escalates unresolved business decisions; never silently changes requirements or waives review gates. An implementing Manager also needs an independent reviewer. |

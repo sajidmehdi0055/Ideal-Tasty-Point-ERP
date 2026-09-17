@@ -1,4 +1,23 @@
-# Current Handoff — ARCH-001 (Architecture + Security Approved)
+# Current Handoff — GOV-001 (Multi-Agent Operating Model Persisted)
+
+Date: 2026-09-18. Branch: docs/multi-agent-operating-model. Base: main (663662e).
+Documentation-only governance task: formalized the already-owner-approved Manager-led multi-agent operating model as a permanent repository standard, so future sessions apply it automatically. Application tests/lint/type checks: NOT APPLICABLE (documentation only, no application toolchain touched).
+
+Files created: docs/engineering/MULTI-AGENT-OPERATING-MODEL.md — dynamic agent-count scaling by task size, an extended specialist role catalog (additive to AGENT-ROLES.md's six core roles), the escalation policy (routine-vs-owner-escalation list), the Agent Execution Report format, and the external-tool priority order (Claude Code primary, Codex second for independent review/backup implementation, Google Antigravity third fallback) with an explicit clause that this priority never reduces reviewer independence.
+
+Files modified: AGENTS.md (one new bullet under the top policy referencing dynamic scaling and linking the new doc; one new line in the reference-document list) — no existing guardrail text changed or removed. docs/engineering/AGENT-ROLES.md (one added cross-reference sentence). docs/engineering/CURRENT-HANDOFF.md (this record).
+
+No business requirement, ADR, or existing guardrail was changed. No conflicts found with AGENTS.md or the existing engineering docs (TASK-HANDOFF-PROTOCOL.md, REVIEW-WORKFLOW.md, BRANCHING-AND-REVIEW.md, DEFINITION-OF-DONE.md, AI-CODING-GUARDRAILS.md, AGENT-ROLES.md) — the new document defers to them for independence, handoff, branching, and completion rules rather than restating or altering those rules. Independent review of this documentation-only change is still required before any merge, per REVIEW-WORKFLOW.md's documentation-only applicability clause.
+
+## Next recommended action
+
+Independent documentation review (source fidelity, contradiction, and scope check against AGENTS.md and the linked engineering docs), then owner decision on merge. Do not merge to main without that review and explicit authorization.
+
+---
+
+## Historical handoff records
+
+### ARCH-001 (Architecture + Security Approved)
 
 Date: 2026-09-17 (updated). Branch: docs/architecture-decision-proposal.
 Base revision: 5ed0690 (Merge branch 'docs/inventory-implementation-readiness').
