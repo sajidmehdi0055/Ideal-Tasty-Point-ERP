@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens — single source of truth for color, radius and shadow.
+ * Tailwind v4 generates utilities straight from these `@theme` variables
+ * (e.g. `--color-primary-600` -> `bg-primary-600`/`text-primary-600`), so
+ * screens should reach for those generated utilities instead of one-off
+ * hex/px values, and stay visually consistent automatically.
+ */
+@theme {
+  /* Brand / primary actions */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+
+  /* Neutral surfaces, borders and text (named to avoid `bg-surface`-style
+     collisions with Tailwind's own utility names) */
+  --color-canvas: #ffffff;
+  --color-canvas-muted: #f8fafc;
+  --color-line: #e2e8f0;
+  --color-ink: #0f172a;
+  --color-ink-muted: #64748b;
+
+  /* Semantic status colors (used by StatusBadge and inline messages) */
+  --color-success-50: #ecfdf5;
+  --color-success-600: #059669;
+  --color-success-700: #047857;
+  --color-warning-50: #fffbeb;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+  --color-danger-50: #fef2f2;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+  --color-info-50: #f0f9ff;
+  --color-info-600: #0284c7;
+  --color-info-700: #0369a1;
+  --color-neutral-50: #f8fafc;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+
+  /* Consistent control/card corner radius */
+  --radius-control: 0.5rem;
+  --radius-card: 0.75rem;
+
+  /* Consistent elevation */
+  --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.06), 0 1px 3px 0 rgb(15 23 42 / 0.08);
+  --shadow-dropdown: 0 4px 6px -1px rgb(15 23 42 / 0.1), 0 2px 4px -2px rgb(15 23 42 / 0.08);
+  --shadow-modal: 0 20px 25px -5px rgb(15 23 42 / 0.15), 0 8px 10px -6px rgb(15 23 42 / 0.1);
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-canvas-muted text-ink antialiased;
+}
