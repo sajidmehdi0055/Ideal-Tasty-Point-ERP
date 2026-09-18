@@ -1,4 +1,70 @@
-# Current Handoff — S02-IMPL-001 (Inventory S-02 UOM/Brand/Pack Variant Implementation Verified)
+# Current Handoff — S02-MERGE-001 (Inventory S-02 Merged to Main)
+
+Date: 2026-09-18. Branch: main. Merged from: feat/inv-s02-uom-brand-pack (commit be21626).
+Authority: owner-approved controlled merge, following independent Codex review verdict "PASS — corrections verified; ready for controlled merge to main" on the round-3 corrected candidate (be21626), and explicit owner authorization in-session to proceed with the merge.
+Roles: Claude Code = primary implementation manager (executed this merge and verification). Codex = independent reviewer (PASS, owner-confirmed). Google Antigravity = not used this session.
+
+## Merge summary
+
+S-02 (UOM Master, Brand Master, Pack Variant, Item Base UOM FK migration) merged into main via a pure fast-forward. main (163c953) was a strict ancestor of feat/inv-s02-uom-brand-pack (merge-base(main, feature) == main's prior HEAD), so the merge produced zero conflicts and no merge commit.
+
+- Previous main HEAD: 163c953 (S-01 only)
+- Feature branch HEAD (merged): be21626
+- New main HEAD: be21626
+- Merge type: fast-forward (`git merge --ff-only`)
+- Feature branch `feat/inv-s02-uom-brand-pack` preserved (not deleted), per policy
+- `git push origin main`: completed — `163c953..be21626  main -> main`
+- Post-push verification: `git rev-parse main` == `git rev-parse origin/main` == `be2162687a63a7ef68d4f1769e87d543882e4165` (confirmed via fresh `git fetch origin`)
+
+## Pre-merge verification (on feat/inv-s02-uom-brand-pack, commit be21626)
+
+Executed in the owner's real local development environment (Windows 11, Docker Desktop, real PostgreSQL):
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | Completed — dependencies reconciled cleanly |
+| typecheck | PASS |
+| lint | PASS |
+| test:unit | PASS — 190/190 (4 test files) |
+| migration recovery / migrate:check | PASS — exercised via the real authoritative CLI command as part of the integration suite, including the BLOCKER-2 recovery sequence |
+| test:integration | PASS — 39/39 (2 test files, real PostgreSQL) |
+| build | PASS |
+
+## Post-merge verification (on main, commit be21626 — identical tree to the feature branch; fast-forward)
+
+- typecheck — PASS (re-run on main after merge)
+- lint — PASS (re-run on main after merge)
+- build — PASS (re-run on main after merge)
+- test:unit / test:integration — not re-run separately on main; fast-forward means main's tree is byte-identical to the already-verified be21626, so the pre-merge results above apply unchanged
+- S-01 regression: ZERO — `tests/integration/item-postgres.test.ts` (13/13) passed within the same test:integration run that validated S-02
+- S-02 UOM Master: working — `tests/unit/uom-api.test.ts` + UOM Master section of `tests/integration/uom-brand-pack-postgres.test.ts`
+- S-02 Brand Master: working — `tests/unit/brand-api.test.ts` + Brand Master section of the same integration suite
+- S-02 Pack Variant: working — `tests/unit/pack-variant-api.test.ts` + Pack Variant section of the same integration suite, including branch-isolated reads and the 12-way concurrent duplicate-creation race test
+- base_uom migration/FK: correct — base_uom migration safety-refinement integration tests (case-insensitive/trimmed backfill, FK integrity, legacy text preserved)
+- Migration recovery path: executable — "BLOCKER 2: complete executable recovery" integration test, run through the real authoritative migrate command (`--no-single-transaction`)
+- Pack Variant reads: branch-isolated — confirmed (round-1 BLOCKER 1 fix; regression-tested in the round-3 suite)
+- runtime-grants authoritative path: intact — integration tests provision roles from the shipped `scripts/runtime-grants.sql` via the shared test helper, no independent grant definitions
+- Concurrent duplicate Pack Variant protection: tested — 12-way concurrent creation test, DB unique constraint as the race-safe mechanism
+- Audit immutability: intact — audit triggers unchanged from S-01/S-02 implementation, exercised by existing audit tests
+- Out-of-scope functionality: none introduced — Supplier Master, Purchasing, stock movement, costing, expiry/lots, production, reports remain absent from `backend/src` at merge time
+
+## Independent review
+
+Codex — **PASS — corrections verified; ready for controlled merge to main** (round-3 corrected candidate, commit be21626). Owner-confirmed in this session.
+
+## S-02 completion status
+
+S-02 is now officially COMPLETE on main: implementation + tests + independent review (Codex PASS) + owner-approved merge + post-merge verification are all satisfied.
+
+## Next recommended action
+
+Do not start S-03 automatically. Recommended next steps, per project roadmap: (1) independently review the parallel frontend branch (`feat/ui-foundation-item-master`, commit d491ede) before merging it, (2) continue Figma visual-design refinement in parallel, (3) only then scope S-03 (likely Supplier/Purchasing foundation) from this stable main.
+
+---
+
+## Historical handoff records
+
+### S02-IMPL-001 (Inventory S-02 UOM/Brand/Pack Variant Implementation Verified — pre-merge review history)
 
 Date: 2026-09-18 (updated same day with independent-review corrections, two rounds). Branch: feat/inv-s02-uom-brand-pack. Base: main (163c953, S-01 already merged).
 Authority: owner-approved "Inventory S-02: UOM, Brand & Pack Variant Masters" scope and its approved architecture/implementation plan, including the owner-directed safety refinement to the base_uom migration (never guess unit_type for an unmatched legacy value). ADR-0001..0006 unchanged; ADR-0007 records the S-02 technical decisions, including all review-driven corrections (D-08, D-09, and the round-2 update to D-05). Full traceability: docs/engineering/inventory-s02-implementation.md.
@@ -79,9 +145,6 @@ None found after round-3 corrections. `base_uom_legacy_text` remains in place pe
 
 Independent Codex re-review of the round-3 corrected candidate (new commit hash in git log), specifically re-confirming the migration recovery sequence through the normal authoritative command. Do not merge to main. Do not stage/commit beyond the bounded S-02 file set until that review passes, unless the owner directs otherwise.
 
----
-
-## Historical handoff records
 
 ### S-01-IMPL-001 (Inventory S-01 Backend Implementation Verified)
 
