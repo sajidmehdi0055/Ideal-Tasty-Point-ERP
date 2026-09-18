@@ -7,6 +7,9 @@ import { buildApp } from '../../src/app.js';
 import type { AuthContext } from '../../src/auth/context.js';
 import type { Item, ItemInput } from '../../src/inventory/domain/item.js';
 import { PgItemRepository } from '../../src/inventory/persistence/pg-item-repository.js';
+import { PgUomRepository } from '../../src/inventory/persistence/pg-uom-repository.js';
+import { PgBrandRepository } from '../../src/inventory/persistence/pg-brand-repository.js';
+import { PgPackVariantRepository } from '../../src/inventory/persistence/pg-pack-variant-repository.js';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 if (!connectionString) throw new Error('TEST_DATABASE_URL is required for real PostgreSQL integration tests');
@@ -16,9 +19,13 @@ const role = `inv_s01_app_${suffix}`;
 const admin = new Pool({ connectionString, options: `-c search_path=${schema}` });
 const runtime = new Pool({ connectionString, options: `-c search_path=${schema} -c role=${role}`, max: 12 });
 const repository = new PgItemRepository(runtime);
+const uomRepository = new PgUomRepository(runtime);
+const brandRepository = new PgBrandRepository(runtime);
+const packVariantRepository = new PgPackVariantRepository(runtime);
 const owner: AuthContext = { userId: 'owner-a', role: 'OWNER', branchId: 'branch-a' };
 const manager: AuthContext = { userId: 'manager-b', role: 'MANAGER', branchId: 'branch-b' };
 const input: ItemInput = { item_name: 'Rice', primary_item_type: 'RAW_MATERIAL', base_uom: 'kg', brand: 'Generic / No Brand' };
+const KG_UOM_ID = 'a0000000-0000-4000-8000-000000000001';
 let migrationsApplied = 0;
 let migrationsRepeated = -1;
 
@@ -34,28 +41,39 @@ beforeAll(async () => {
   } finally { client.release(); }
   await admin.query(`CREATE ROLE ${role} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT`);
   await admin.query(`GRANT USAGE ON SCHEMA ${schema} TO ${role}`);
-  await admin.query(`GRANT SELECT ON item_master, inventory_audit TO ${role}`);
-  await admin.query(`GRANT INSERT (id, branch_id, item_name, primary_item_type, base_uom, brand),
-    UPDATE (item_name, primary_item_type, base_uom, brand, updated_at) ON item_master TO ${role}`);
+  await admin.query(`GRANT SELECT ON item_master, inventory_audit, uom_master, brand_master, pack_variant TO ${role}`);
+  await admin.query(`GRANT INSERT (id, branch_id, item_name, primary_item_type, base_uom_id, brand),
+    UPDATE (item_name, primary_item_type, base_uom_id, brand, updated_at) ON item_master TO ${role}`);
   await admin.query(`GRANT INSERT ON inventory_audit TO ${role}`);
   await admin.query(`GRANT USAGE ON SEQUENCE item_code_seq TO ${role}`);
+  await admin.query(`GRANT INSERT (id, name, unit_type), UPDATE (name, unit_type, active, updated_at) ON uom_master TO ${role}`);
+  await admin.query(`GRANT INSERT ON uom_audit TO ${role}`);
+  await admin.query(`GRANT INSERT (id, name), UPDATE (name, active, updated_at) ON brand_master TO ${role}`);
+  await admin.query(`GRANT INSERT ON brand_audit TO ${role}`);
+  await admin.query(`GRANT INSERT (id, item_id, brand_id, pack_uom_id, conversion_factor),
+    UPDATE (conversion_factor, active, updated_at) ON pack_variant TO ${role}`);
+  await admin.query(`GRANT INSERT ON pack_variant_audit TO ${role}`);
 });
 
 afterAll(async () => { await runtime.end(); await admin.end(); });
 
+function buildTestApp(auth: AuthContext) {
+  return buildApp({ repository, uomRepository, brandRepository, packVariantRepository, authProvider: async () => auth });
+}
+
 describe('S-01 real PostgreSQL migration and persistence', () => {
-  it('applies SQL migration once and re-running is a no-op', () => {
-    expect(migrationsApplied).toBe(1);
+  it('applies SQL migrations once and re-running is a no-op', () => {
+    expect(migrationsApplied).toBe(2);
     expect(migrationsRepeated).toBe(0);
   });
 
   it('creates and edits through HTTP with atomic immutable audit snapshots', async () => {
-    const app = buildApp({ repository, authProvider: async () => owner });
+    const app = buildTestApp(owner);
     try {
       const created = await app.inject({ method: 'POST', url: '/api/inventory/items', payload: input });
       expect(created.statusCode).toBe(201);
       const item = created.json<Item>();
-      expect(item).toMatchObject({ ...input, branch_id: owner.branchId, active: true });
+      expect(item).toMatchObject({ ...input, base_uom: 'KG', branch_id: owner.branchId, active: true });
       expect(item.item_code).toMatch(/^ITM-\d{6,}$/);
       const edited = await app.inject({ method: 'PATCH', url: `/api/inventory/items/${item.id}`, payload: { brand: 'Approved Brand' } });
       expect(edited.statusCode).toBe(200);
@@ -93,10 +111,16 @@ describe('S-01 real PostgreSQL migration and persistence', () => {
     expect(audit.rows[0].n).toBe(1);
   });
 
+  it('rejects an unresolvable base_uom without persisting an item', async () => {
+    await expect(repository.create({ ...input, base_uom: 'Not A Real Unit' }, owner)).rejects.toMatchObject({ status: 400, code: 'INVALID_BASE_UOM' });
+    await expect(repository.update((await repository.create(input, owner)).id, { base_uom: 'Not A Real Unit' }, owner))
+      .rejects.toMatchObject({ status: 400, code: 'INVALID_BASE_UOM' });
+  });
+
   it('rejects manual code insertion and identity/branch/code edits in PostgreSQL', async () => {
     const item = await repository.create(input, owner);
-    await expect(admin.query(`INSERT INTO item_master (id,item_code,branch_id,item_name,primary_item_type,base_uom,brand)
-      VALUES ($1,'ITM-999999','branch-a','Rice','RAW_MATERIAL','kg','Generic / No Brand')`, [randomUUID()])).rejects.toThrow('system generated');
+    await expect(admin.query(`INSERT INTO item_master (id,item_code,branch_id,item_name,primary_item_type,base_uom_id,brand)
+      VALUES ($1,'ITM-999999','branch-a','Rice','RAW_MATERIAL',$2,'Generic / No Brand')`, [randomUUID(), KG_UOM_ID])).rejects.toThrow('system generated');
     for (const [column, value] of [['item_code', 'ITM-999999'], ['branch_id', 'other'], ['id', randomUUID()]]) {
       await expect(admin.query(`UPDATE item_master SET ${column}=$1 WHERE id=$2`, [value, item.id])).rejects.toThrow('immutable');
     }
@@ -106,18 +130,24 @@ describe('S-01 real PostgreSQL migration and persistence', () => {
   });
 
   it('enforces required values and exactly one approved primary type in the database', async () => {
-    for (const [name, type, uom, brand, branch] of [
-      ['', 'RAW_MATERIAL', 'kg', 'Generic / No Brand', 'branch-a'],
-      ['Rice', 'INVALID', 'kg', 'Generic / No Brand', 'branch-a'],
-      ['Rice', 'RAW_MATERIAL,WIP_SEMI_FINISHED', 'kg', 'Generic / No Brand', 'branch-a'],
-      ['Rice', 'RAW_MATERIAL', '', 'Generic / No Brand', 'branch-a'],
-      ['Rice', 'RAW_MATERIAL', 'kg', '', 'branch-a'],
-      ['Rice', 'RAW_MATERIAL', 'kg', 'Generic / No Brand', ''],
-      [null, 'RAW_MATERIAL', 'kg', 'Generic / No Brand', 'branch-a'],
+    for (const [name, type, brand, branch] of [
+      ['', 'RAW_MATERIAL', 'Generic / No Brand', 'branch-a'],
+      ['Rice', 'INVALID', 'Generic / No Brand', 'branch-a'],
+      ['Rice', 'RAW_MATERIAL,WIP_SEMI_FINISHED', 'Generic / No Brand', 'branch-a'],
+      ['Rice', 'RAW_MATERIAL', '', 'branch-a'],
+      ['Rice', 'RAW_MATERIAL', 'Generic / No Brand', ''],
+      [null, 'RAW_MATERIAL', 'Generic / No Brand', 'branch-a'],
     ]) {
-      await expect(admin.query(`INSERT INTO item_master (id,item_name,primary_item_type,base_uom,brand,branch_id)
-        VALUES ($1,$2,$3,$4,$5,$6)`, [randomUUID(), name, type, uom, brand, branch])).rejects.toThrow();
+      await expect(admin.query(`INSERT INTO item_master (id,item_name,primary_item_type,base_uom_id,brand,branch_id)
+        VALUES ($1,$2,$3,$4,$5,$6)`, [randomUUID(), name, type, KG_UOM_ID, brand, branch])).rejects.toThrow();
     }
+  });
+
+  it('enforces base_uom_id NOT NULL and FK integrity in the database', async () => {
+    await expect(admin.query(`INSERT INTO item_master (id,item_name,primary_item_type,base_uom_id,brand,branch_id)
+      VALUES ($1,'Rice','RAW_MATERIAL',NULL,'Generic / No Brand','branch-a')`, [randomUUID()])).rejects.toThrow();
+    await expect(admin.query(`INSERT INTO item_master (id,item_name,primary_item_type,base_uom_id,brand,branch_id)
+      VALUES ($1,'Rice','RAW_MATERIAL',$2,'Generic / No Brand','branch-a')`, [randomUUID(), randomUUID()])).rejects.toThrow();
   });
 
   it('rejects audit update, delete and truncate even with the schema-owner connection', async () => {

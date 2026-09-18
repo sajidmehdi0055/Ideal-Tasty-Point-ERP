@@ -1,4 +1,61 @@
-# Current Handoff — S-01-IMPL-001 (Inventory S-01 Backend Implementation Verified)
+# Current Handoff — S02-IMPL-001 (Inventory S-02 UOM/Brand/Pack Variant Implementation Verified)
+
+Date: 2026-09-18. Branch: feat/inv-s02-uom-brand-pack. Base: main (163c953, S-01 already merged).
+Authority: owner-approved "Inventory S-02: UOM, Brand & Pack Variant Masters" scope and its approved architecture/implementation plan, including the owner-directed safety refinement to the base_uom migration (never guess unit_type for an unmatched legacy value). ADR-0001..0006 unchanged; new ADR-0007 records the S-02 technical decisions. Full traceability: docs/engineering/inventory-s02-implementation.md.
+Roles: Claude Code = primary implementation agent (this record, Manager-led per the persisted multi-agent operating model). Codex = next independent reviewer (not yet run). Google Antigravity = third-priority fallback/review, not used this session.
+
+## Scope of this record
+
+New: `backend/migrations/202609180001_inventory_s02_uom_brand_pack.sql`; domain/application/persistence/API modules for UOM, Brand, Pack Variant (`uom.ts`/`brand.ts`/`pack-variant.ts` and their repository/service/persistence/route counterparts); `persistence/transaction.ts` (shared transaction helper, extracted from `pg-item-repository.ts` to avoid triplicating it); `tests/unit/{uom,brand,pack-variant}-api.test.ts`; `tests/integration/uom-brand-pack-postgres.test.ts`; `docs/decisions/ADR-0007-...md`; `docs/engineering/inventory-s02-implementation.md`.
+
+Modified: `backend/src/app.ts`, `server.ts` (wire the three new services/repositories/routes); `backend/src/inventory/persistence/pg-item-repository.ts` (resolves `base_uom` string <-> `base_uom_id` FK internally; `ItemRepository` interface and `item-service.ts` unchanged — no behavior change to Item beyond the base_uom resolution); `backend/src/inventory/api/routes.ts` renamed to `item-routes.ts` for naming consistency with the three new route files; `tests/unit/item-api.test.ts` (setup helper only, now passes the three new required-but-unused repositories to `buildApp`; zero behavioral changes, all 82 original assertions unchanged); `tests/integration/item-postgres.test.ts` (grants updated for `base_uom_id`/new tables, migration-count assertion now 2, two new tests for base_uom resolution/FK integrity, all 11 original tests unchanged); `backend/scripts/runtime-grants.sql`; `backend/README.md`; root `README.md`; `docs/requirements/inventory-acceptance-criteria.md` (AC-04 status note appended, original approved wording unchanged).
+
+No business rule, requirement, or existing ADR was changed. No S-02 scope expansion — Supplier Master, Purchase Orders, GRN, Supplier Ledger, Payments, Purchase Rate History, Rate Alerts, Stock In/Out, Transfers, Kitchen Issues, Lots/Expiry, Reorder, Stock Valuation, Moving Average/actual-batch costing, Barcode/QR, Production/Recipe, and Reports/Dashboards are all confirmed absent from `backend/src`.
+
+## Environment used for verification
+
+Same Docker Desktop 29.8.0 / PostgreSQL 17.11 container (`ideal-tasty-point-s01-dev-postgres-1`) already running from S-01 verification, still healthy throughout this session. `erp_local` for `DATABASE_URL`/`migrate:check`; `erp_test` for `TEST_DATABASE_URL`. The migration-safety tests additionally create their own short-lived, self-contained schemas (dropped after each test) to control exact migration sequencing (apply only S-01, insert fixture rows, then apply S-02) — never touching `erp_local`/`erp_test`'s own schemas.
+
+## base_uom migration safety refinement — verified twice
+
+1. **Manually**, before writing any application code: applied both migrations to a fresh schema (clean seed + backfill), then separately applied only S-01 to a second fresh schema, inserted a fixture item with `base_uom = 'Nonexistent Unit XYZ'`, and ran the S-02 migration — it halted with `S-02 base_uom migration halted: 1 unmatched legacy base_uom value(s) ... [Nonexistent Unit XYZ] ... never guessed ...` and rolled back atomically (confirmed via `information_schema`: no `uom_master`/`brand_master`/`pack_variant` tables exist, `item_master.base_uom` column untouched).
+2. **As an automated integration test** (`tests/integration/uom-brand-pack-postgres.test.ts`, "S-02 base_uom migration safety refinement" describe block): the same two scenarios (successful case-insensitive/trimmed backfill; safe halt + atomic rollback on an unmatched value), both passing.
+
+## Verification results (all executed, not assumed)
+
+| Check | Command | Result |
+|---|---|---|
+| Dependency reconciliation | `npm ci --ignore-scripts` | PASS |
+| Typecheck | `npm run typecheck` | PASS — `tsc --noEmit` (src) and `tsc -p tsconfig.test.json` (tests) both clean |
+| Lint | `npm run lint` | PASS — 0 issues |
+| Unit tests | `npm run test:unit` | PASS — 187/187 (82 original item tests unchanged + 105 new: 43 UOM, 33 Brand, 29 Pack Variant) |
+| Migration dry-run | `DATABASE_URL=...erp_local npm run migrate:check` | PASS — both migrations listed and printed cleanly, dry-run only |
+| Integration tests | `TEST_DATABASE_URL=...erp_test npm run test:integration` | PASS — 34/34 across 2 files (13 in `item-postgres.test.ts`: 11 original unchanged + 2 new; 21 in `uom-brand-pack-postgres.test.ts`, including both migration-safety scenarios), all against real PostgreSQL 17.11, no mocks |
+| Build | `npm run build` | PASS — `tsc` clean |
+
+One test bug was found and fixed during this session (not an implementation defect): the migration-safety-halt integration test initially reused a Postgres connection with an aborted transaction for follow-up assertions; fixed by issuing an explicit `ROLLBACK` on that connection before releasing it back to the pool. No implementation code was changed to make this pass.
+
+## S-02 acceptance-criteria coverage (evidence-backed)
+
+Full detail in docs/engineering/inventory-s02-implementation.md's Requirement coverage table. Summary: UOM Master seed/custom/duplicate-protection/unit_type — unit + integration tests. Item Base UOM FK migration with safety refinement — direct migration testing + integration tests + full S-01 regression. Brand Master global/no-forced-join-table — schema + integration test (Item<->Brand relationship derivable only through Pack Variant rows). Pack Variant identity/conversion/no-redundant-branch_id/cross-branch-denial/duplicate-protection/zero-variant-item-validity — unit + integration tests, including a real cross-branch denial proof. Authorization/audit reuse — direct reuse of `requireItemEditor` and the existing immutable-audit trigger function, verified via the same test patterns S-01 already established.
+
+## Security/authorization review (source-level, by implementer; independent review still required)
+
+Parameterized queries throughout every new repository (no string-built SQL). `requireItemEditor` reused unchanged on every new route — no new trust path. Pack Variant branch enforcement verified under a real integration test, not just declared. `conversion_factor` transported as a decimal string end-to-end specifically to avoid a float-precision hole at the API boundary. Duplicate-name races (UOM, Brand) and exact-duplicate Pack Variant races proven safe under real concurrent PostgreSQL load (`Promise.allSettled` against the real DB), not just asserted. DB triggers enforce audit/identity immutability on every new table even against the schema-owner connection (verified). This is the implementer's own review and does not substitute for Codex's independent pass.
+
+## Remaining issues / blockers
+
+None found in this verification pass. `base_uom_legacy_text` remains in place per the approved one-cycle safety-net design (ADR-0007 D-06) — its eventual drop is explicitly deferred, not a defect. No dedicated runtime DB role was created for the three new tables in this session (not required for the checks run); `scripts/runtime-grants.sql` is updated and ready for when one is provisioned.
+
+## Next recommended action
+
+Independent review by Codex, per the project's agent priority order. Do not merge to main. Do not stage/commit beyond the bounded S-02 file set until that review completes, unless the owner directs otherwise.
+
+---
+
+## Historical handoff records
+
+### S-01-IMPL-001 (Inventory S-01 Backend Implementation Verified)
 
 Date: 2026-09-18. Branch: feat/inv-s01-item-master. Base: 663662e.
 Authority: current explicit S-01 implementation instruction; ADR-0001..0006; INV-11/12; approved AC-01/02/11 and applicable PC-09 (see docs/engineering/inventory-s01-implementation.md for full traceability).
@@ -52,10 +109,6 @@ None found in this verification pass. Outstanding, pre-existing, out-of-scope it
 Independent review by Codex, per the project's agent priority order. Do not merge to main. Do not stage/commit beyond the bounded S-01 file set until that review completes, unless the owner directs otherwise.
 
 *(Historical note added at merge time, not part of the original record above: Codex subsequently reviewed commit 3a964af and returned PASS — ready for controlled merge to main. The merge was performed with explicit owner approval. Everything above this note is preserved exactly as originally written.)*
-
----
-
-## Historical handoff records
 
 ### GOV-001 (Multi-Agent Operating Model Persisted)
 
