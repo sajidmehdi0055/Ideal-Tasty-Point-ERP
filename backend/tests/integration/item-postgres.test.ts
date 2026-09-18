@@ -1,7 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { resolve } from 'node:path';
 import { Pool } from 'pg';
-import { runner } from 'node-pg-migrate';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../../src/app.js';
 import type { AuthContext } from '../../src/auth/context.js';
@@ -11,6 +9,7 @@ import { PgUomRepository } from '../../src/inventory/persistence/pg-uom-reposito
 import { PgBrandRepository } from '../../src/inventory/persistence/pg-brand-repository.js';
 import { PgPackVariantRepository } from '../../src/inventory/persistence/pg-pack-variant-repository.js';
 import { applyRuntimeGrants } from './helpers/runtime-grants.js';
+import { runAuthoritativeMigrate } from './helpers/migrate-cli.js';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 if (!connectionString) throw new Error('TEST_DATABASE_URL is required for real PostgreSQL integration tests');
@@ -27,19 +26,13 @@ const owner: AuthContext = { userId: 'owner-a', role: 'OWNER', branchId: 'branch
 const manager: AuthContext = { userId: 'manager-b', role: 'MANAGER', branchId: 'branch-b' };
 const input: ItemInput = { item_name: 'Rice', primary_item_type: 'RAW_MATERIAL', base_uom: 'kg', brand: 'Generic / No Brand' };
 const KG_UOM_ID = 'a0000000-0000-4000-8000-000000000001';
-let migrationsApplied = 0;
-let migrationsRepeated = -1;
 
 beforeAll(async () => {
   // Unique NEW schema/NOLOGIN role only. Never truncate or drop pre-existing data.
   await admin.query(`CREATE SCHEMA ${schema}`);
-  const client = await admin.connect();
-  try {
-    const options = { dbClient: client, schema, migrationsSchema: schema, migrationsTable: 'pgmigrations',
-      dir: resolve('migrations'), direction: 'up' as const, log: () => undefined };
-    migrationsApplied = (await runner(options)).length;
-    migrationsRepeated = (await runner(options)).length;
-  } finally { client.release(); }
+  // Applies via the real node-pg-migrate CLI binary, the same authoritative
+  // command `npm run migrate` runs (see tests/integration/helpers/migrate-cli.ts).
+  await runAuthoritativeMigrate(connectionString, schema);
   await admin.query(`CREATE ROLE ${role} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT`);
   // Single authoritative grant source (MINOR 2): executes the actual shipped
   // scripts/runtime-grants.sql rather than a hand-duplicated grant list, so
@@ -54,9 +47,18 @@ function buildTestApp(auth: AuthContext) {
 }
 
 describe('S-01 real PostgreSQL migration and persistence', () => {
-  it('applies SQL migrations once and re-running is a no-op', () => {
-    expect(migrationsApplied).toBe(3); // S-01 + S-02 Migration A (UOM/Brand) + S-02 Migration B (item base_uom FK / Pack Variant)
-    expect(migrationsRepeated).toBe(0);
+  it('applies all three migrations via the real authoritative command, and re-running is a no-op', async () => {
+    const appliedNames = (await admin.query('SELECT name FROM pgmigrations ORDER BY name')).rows.map(r => r.name);
+    expect(appliedNames).toEqual([
+      '202609170001_inventory_s01',
+      '202609180001_inventory_s02_uom_brand',
+      '202609180002_inventory_s02_item_base_uom_pack_variant',
+    ]);
+    // Re-running the same authoritative command against an up-to-date schema
+    // must be a genuine no-op: same migrations recorded, nothing duplicated.
+    await runAuthoritativeMigrate(connectionString, schema);
+    const afterRerun = (await admin.query('SELECT name FROM pgmigrations ORDER BY name')).rows.map(r => r.name);
+    expect(afterRerun).toEqual(appliedNames);
   });
 
   it('creates and edits through HTTP with atomic immutable audit snapshots', async () => {

@@ -1,7 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { resolve } from 'node:path';
 import { Pool } from 'pg';
-import { runner } from 'node-pg-migrate';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../../src/app.js';
 import type { AuthContext } from '../../src/auth/context.js';
@@ -11,6 +9,7 @@ import { PgBrandRepository } from '../../src/inventory/persistence/pg-brand-repo
 import { PgPackVariantRepository } from '../../src/inventory/persistence/pg-pack-variant-repository.js';
 import type { ItemInput } from '../../src/inventory/domain/item.js';
 import { applyRuntimeGrants } from './helpers/runtime-grants.js';
+import { runAuthoritativeMigrate } from './helpers/migrate-cli.js';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 if (!connectionString) throw new Error('TEST_DATABASE_URL is required for real PostgreSQL integration tests');
@@ -18,22 +17,20 @@ if (!connectionString) throw new Error('TEST_DATABASE_URL is required for real P
 const SEEDED_UOM_NAMES = ['KG', 'GRAM', 'LITER', 'ML', 'PCS', 'PACKET', 'BOX', 'BAG', 'TIN', 'CARTON', 'CRATE', 'BOTTLE'];
 const GENERIC_BRAND_NAME = 'Generic / No Brand';
 
-async function migrateSchema(schemaSuffix: string, count?: number) {
+/** Creates a fresh, empty, uniquely-named schema. Migrating it is the caller's
+ * job, via runAuthoritativeMigrate -- the real CLI, never a bespoke runner
+ * invocation -- so every test exercises the exact same authoritative command. */
+async function createTestSchema(schemaSuffix: string): Promise<{ schema: string; admin: Pool }> {
   const schema = `inv_s02_test_${schemaSuffix}`;
   const admin = new Pool({ connectionString, options: `-c search_path=${schema}` });
   await admin.query(`CREATE SCHEMA ${schema}`);
-  const client = await admin.connect();
-  try {
-    const applied = await runner({
-      dbClient: client, schema, migrationsSchema: schema, migrationsTable: 'pgmigrations',
-      dir: resolve('migrations'), direction: 'up', log: () => undefined,
-      ...(count === undefined ? {} : { count }),
-    });
-    return { schema, admin, applied };
-  } finally {
-    await client.query('ROLLBACK').catch(() => undefined);
-    client.release();
-  }
+  return { schema, admin };
+}
+
+/** A failed child_process invocation's stdout/stderr/message, concatenated for assertions. */
+function describeChildProcessError(error: unknown): string {
+  const e = error as { stdout?: string; stderr?: string; message?: string };
+  return `${e.stdout ?? ''}${e.stderr ?? ''}${e.message ?? ''}`;
 }
 
 describe('S-02 UOM/Brand/Pack Variant Masters (real PostgreSQL)', () => {
@@ -52,11 +49,9 @@ describe('S-02 UOM/Brand/Pack Variant Masters (real PostgreSQL)', () => {
 
   beforeAll(async () => {
     await admin.query(`CREATE SCHEMA ${schema}`);
-    const client = await admin.connect();
-    try {
-      await runner({ dbClient: client, schema, migrationsSchema: schema, migrationsTable: 'pgmigrations',
-        dir: resolve('migrations'), direction: 'up', log: () => undefined });
-    } finally { client.release(); }
+    // Applies via the real node-pg-migrate CLI binary, the same authoritative
+    // command `npm run migrate` runs (see tests/integration/helpers/migrate-cli.ts).
+    await runAuthoritativeMigrate(connectionString, schema);
     await admin.query(`CREATE ROLE ${role} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT`);
     // Single authoritative grant source (MINOR 2): executes the actual shipped
     // scripts/runtime-grants.sql rather than a hand-duplicated grant list, so
@@ -359,11 +354,15 @@ describe('S-02 UOM/Brand/Pack Variant Masters (real PostgreSQL)', () => {
   });
 });
 
-describe('S-02 base_uom migration safety refinement (split migrations, isolated schemas)', () => {
-  it('Migration A (UOM/Brand) commits independently and Migration B backfills existing S-01 items, case-insensitively and trimmed', async () => {
-    // Apply S-01 + Migration A only (2 of 3 files).
-    const { schema, admin } = await migrateSchema(`${randomUUID().replaceAll('-', '')}_ok`, 2);
+describe('S-02 base_uom migration safety refinement (real authoritative CLI command, isolated schemas)', () => {
+  const S01_MIGRATION = '202609170001_inventory_s01';
+
+  it('Migration A (UOM/Brand) commits independently and Migration B backfills existing S-01 items, case-insensitively and trimmed, via the real authoritative command', async () => {
+    const { schema, admin } = await createTestSchema(`${randomUUID().replaceAll('-', '')}_ok`);
     try {
+      // Precondition: as if only S-01 had ever been applied.
+      await runAuthoritativeMigrate(connectionString, schema, S01_MIGRATION);
+
       const fixtures = [
         { id: randomUUID(), base_uom: 'kg' },
         { id: randomUUID(), base_uom: ' KG ' },
@@ -376,12 +375,10 @@ describe('S-02 base_uom migration safety refinement (split migrations, isolated 
           [fixture.id, fixture.base_uom],
         );
       }
-      // Apply the remaining migration (Migration B).
-      const client = await admin.connect();
-      try {
-        await runner({ dbClient: client, schema, migrationsSchema: schema, migrationsTable: 'pgmigrations',
-          dir: resolve('migrations'), direction: 'up', log: () => undefined });
-      } finally { client.release(); }
+
+      // The actual command under test: one real invocation, applying whatever
+      // is pending (Migration A then Migration B), exactly like `npm run migrate`.
+      await runAuthoritativeMigrate(connectionString, schema);
 
       const rows = (await admin.query(
         `SELECT im.id, im.base_uom_legacy_text, um.name AS resolved_name
@@ -399,30 +396,31 @@ describe('S-02 base_uom migration safety refinement (split migrations, isolated 
     }
   });
 
-  it('BLOCKER 2: halts safely without guessing unit_type when a legacy base_uom has no match, while Migration A (uom_master/brand_master) stays committed', async () => {
-    const { schema, admin } = await migrateSchema(`${randomUUID().replaceAll('-', '')}_fail`, 2);
+  it('BLOCKER 2: halts safely without guessing unit_type when a legacy base_uom has no match, while Migration A (uom_master/brand_master) stays committed, via the real authoritative command', async () => {
+    const { schema, admin } = await createTestSchema(`${randomUUID().replaceAll('-', '')}_fail`);
     try {
+      await runAuthoritativeMigrate(connectionString, schema, S01_MIGRATION);
       await admin.query(
         `INSERT INTO item_master (id, branch_id, item_name, primary_item_type, base_uom, brand)
          VALUES ($1, 'branch-a', 'Mystery Item', 'RAW_MATERIAL', 'Nonexistent Unit XYZ', 'Generic / No Brand')`,
         [randomUUID()],
       );
-      const client = await admin.connect();
+
       let caught: unknown;
       try {
-        await runner({ dbClient: client, schema, migrationsSchema: schema, migrationsTable: 'pgmigrations',
-          dir: resolve('migrations'), direction: 'up', log: () => undefined });
+        await runAuthoritativeMigrate(connectionString, schema);
       } catch (error) {
         caught = error;
-        await client.query('ROLLBACK').catch(() => undefined);
-      } finally { client.release(); }
-
+      }
       expect(caught).toBeDefined();
-      expect(String((caught as Error).message)).toContain('Nonexistent Unit XYZ');
-      expect(String((caught as Error).message)).toMatch(/never.*guess/i);
+      const output = describeChildProcessError(caught);
+      expect(output).toContain('Nonexistent Unit XYZ');
+      expect(output).toMatch(/never.*guess/i);
 
-      // Migration A already committed as its own, separate, prior migration --
-      // only Migration B's own transaction rolled back.
+      // Migration A committed as its own, separate, already-applied migration --
+      // confirmed via pgmigrations, not inferred -- and only Migration B failed.
+      const appliedNames = (await admin.query('SELECT name FROM pgmigrations ORDER BY name')).rows.map(r => r.name);
+      expect(appliedNames).toEqual([S01_MIGRATION, '202609180001_inventory_s02_uom_brand']);
       const uomCount = await admin.query('SELECT count(*)::int AS n FROM uom_master');
       expect(uomCount.rows[0].n).toBe(12);
       const brandCount = await admin.query(`SELECT count(*)::int AS n FROM brand_master WHERE name=$1`, [GENERIC_BRAND_NAME]);
@@ -444,11 +442,13 @@ describe('S-02 base_uom migration safety refinement (split migrations, isolated 
     }
   });
 
-  it('BLOCKER 2: complete executable recovery -- classify the missing UOM explicitly, re-run Migration B, backfill succeeds', async () => {
-    // Step 1: apply Migration A (and S-01).
-    const { schema, admin } = await migrateSchema(`${randomUUID().replaceAll('-', '')}_recover`, 2);
+  it('BLOCKER 2: complete executable recovery -- start from S-01, run the real authoritative command, classify the missing UOM, rerun the SAME command, backfill succeeds', async () => {
+    // Step a: start from S-01 database state.
+    const { schema, admin } = await createTestSchema(`${randomUUID().replaceAll('-', '')}_recover`);
     try {
-      // Step 2: prepare a legacy item containing an unknown UOM.
+      await runAuthoritativeMigrate(connectionString, schema, S01_MIGRATION);
+
+      // Prepare a legacy item containing an unknown UOM.
       const itemId = randomUUID();
       await admin.query(
         `INSERT INTO item_master (id, branch_id, item_name, primary_item_type, base_uom, brand)
@@ -456,37 +456,35 @@ describe('S-02 base_uom migration safety refinement (split migrations, isolated 
         [itemId],
       );
 
-      // Step 3: run Migration B and confirm safe halt.
-      const firstAttempt = await admin.connect();
+      // Step b/c/d: run the normal authoritative migration command. Migration A
+      // must commit; Migration B must halt on the unknown legacy UOM.
       let haltError: unknown;
       try {
-        await runner({ dbClient: firstAttempt, schema, migrationsSchema: schema, migrationsTable: 'pgmigrations',
-          dir: resolve('migrations'), direction: 'up', log: () => undefined });
+        await runAuthoritativeMigrate(connectionString, schema);
       } catch (error) {
         haltError = error;
-        await firstAttempt.query('ROLLBACK').catch(() => undefined);
-      } finally { firstAttempt.release(); }
+      }
       expect(haltError).toBeDefined();
-      expect(String((haltError as Error).message)).toContain('Firkin');
+      expect(describeChildProcessError(haltError)).toContain('Firkin');
 
-      // Step 4: confirm uom_master still exists (Migration A untouched).
+      // Step e: verify uom_master exists with seeded rows, Migration A recorded, Migration B not.
+      const appliedAfterHalt = (await admin.query('SELECT name FROM pgmigrations ORDER BY name')).rows.map(r => r.name);
+      expect(appliedAfterHalt).toEqual([S01_MIGRATION, '202609180001_inventory_s02_uom_brand']);
       const uomCountAfterHalt = await admin.query('SELECT count(*)::int AS n FROM uom_master');
       expect(uomCountAfterHalt.rows[0].n).toBe(12);
 
-      // Step 5: add the custom UOM explicitly with a chosen unit_type.
+      // Step f: explicitly insert/classify the missing UOM with the correct chosen unit_type.
       const firkinId = randomUUID();
       await admin.query(`INSERT INTO uom_master (id, name, unit_type) VALUES ($1, 'Firkin', 'PACKAGING')`, [firkinId]);
 
-      // Step 6: rerun Migration B.
-      const secondAttempt = await admin.connect();
-      let secondApplied: Array<{ name: string }> = [];
-      try {
-        secondApplied = await runner({ dbClient: secondAttempt, schema, migrationsSchema: schema, migrationsTable: 'pgmigrations',
-          dir: resolve('migrations'), direction: 'up', log: () => undefined });
-      } finally { secondAttempt.release(); }
-      expect(secondApplied.map(m => m.name)).toEqual(['202609180002_inventory_s02_item_base_uom_pack_variant']);
+      // Step g: rerun the SAME normal authoritative migration command.
+      await runAuthoritativeMigrate(connectionString, schema);
 
-      // Step 7: confirm successful backfill, FK, preserved legacy text, and valid Item behavior.
+      // Step h: Migration B must now succeed (recorded as applied).
+      const appliedAfterRecovery = (await admin.query('SELECT name FROM pgmigrations ORDER BY name')).rows.map(r => r.name);
+      expect(appliedAfterRecovery).toEqual([S01_MIGRATION, '202609180001_inventory_s02_uom_brand', '202609180002_inventory_s02_item_base_uom_pack_variant']);
+
+      // Step i: confirm successful backfill, FK, preserved legacy text, Pack Variant structures, and valid Item behavior.
       const resolved = await admin.query(
         `SELECT im.base_uom_id, im.base_uom_legacy_text, um.name AS resolved_name
          FROM item_master im JOIN uom_master um ON um.id = im.base_uom_id WHERE im.id = $1`,
@@ -499,6 +497,12 @@ describe('S-02 base_uom migration safety refinement (split migrations, isolated 
         `SELECT 1 FROM pg_constraint WHERE conname = 'item_master_base_uom_fk' AND conrelid = 'item_master'::regclass`,
       );
       expect(fkCheck.rows).toHaveLength(1);
+
+      const packVariantTables = (await admin.query(
+        `SELECT table_name FROM information_schema.tables WHERE table_schema=$1 AND table_name IN ('pack_variant', 'pack_variant_audit')`,
+        [schema],
+      )).rows.map(r => r.table_name);
+      expect(packVariantTables.sort()).toEqual(['pack_variant', 'pack_variant_audit']);
 
       // Valid Item behavior: the recovered item is usable through the repository like any other.
       // Roles are cluster-wide (not dropped by DROP SCHEMA), so the name must

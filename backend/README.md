@@ -85,13 +85,15 @@ S-02 ships as **two ordered migrations**, specifically so recovery from an unrec
 - `202609180001_inventory_s02_uom_brand.sql` ("Migration A"): creates and seeds `uom_master`/`brand_master` only. Commits on its own.
 - `202609180002_inventory_s02_item_base_uom_pack_variant.sql` ("Migration B"): backfills `item_master.base_uom_id` from the existing `base_uom` text by a case-insensitive/trimmed match against `uom_master`, then creates `pack_variant`. Depends on Migration A already being applied.
 
-If any legacy `base_uom` value has **no** match, Migration B halts with a clear list of the unmatched value(s) and rolls back — but only *its own* transaction. Migration A, already a separate, already-committed migration, is untouched. Recovery is a real, executable procedure:
+Splitting the files is necessary but not sufficient: node-pg-migrate's `up` command defaults to `--single-transaction` (`true`), which wraps **every pending migration in one invocation into a single outer transaction** — so without an explicit override, a batch run still rolls Migration A back along with Migration B on any failure, exactly as if there had been only one file. Both `migrate` and `migrate:check` in `package.json` therefore pass **`--no-single-transaction`** explicitly; this is the one authoritative place that setting is controlled, and every migration-applying path (normal execution, the dry-run check, and the integration test suite, which spawns this same CLI binary with the same flags rather than using the programmatic API independently — see `tests/integration/helpers/migrate-cli.ts`) goes through it.
 
-1. Run `npm run migrate` (Migration A applies; Migration B halts and lists the unmatched value(s)).
+If any legacy `base_uom` value has **no** match, Migration B halts with a clear list of the unmatched value(s) and rolls back — but only *its own* transaction. Migration A, already a separate, already-committed migration, is untouched. Recovery is a real, executable procedure using the exact same command you'd normally run:
+
+1. Run `npm run migrate` (Migration A applies and commits; Migration B halts and lists the unmatched value(s); the command exits non-zero).
 2. As the migration owner, `INSERT` the missing value into `uom_master` directly, choosing its `unit_type` deliberately — never guessed by anything automated.
-3. Run `npm run migrate` again. Migration B was never marked applied, so it retries and this time backfills successfully.
+3. Run `npm run migrate` again — the same command, unmodified. Migration B was never marked applied, so it retries and this time backfills successfully.
 
-See `tests/integration/uom-brand-pack-postgres.test.ts`'s "base_uom migration safety refinement" describe block for the automated proof: successful backfill, Migration A surviving a Migration B halt, and the complete apply → halt → classify → re-run → succeed recovery sequence end to end against real PostgreSQL.
+See `tests/integration/uom-brand-pack-postgres.test.ts`'s "base_uom migration safety refinement" describe block for the automated proof, driven entirely through the real CLI binary (not a bespoke runner invocation): successful backfill, Migration A surviving a Migration B halt, and the complete start-from-S-01 → run → halt → verify → classify → rerun-the-same-command → succeed → verify recovery sequence end to end against real PostgreSQL.
 
 ## Verification
 
