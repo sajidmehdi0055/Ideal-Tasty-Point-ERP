@@ -1,8 +1,15 @@
 -- Run with psql as migration owner, after creating a dedicated non-owner login:
--- psql ... -v runtime_role=inv_s01_runtime -f scripts/runtime-grants.sql
+-- psql ... -v runtime_role=inv_s01_runtime -v schema_name=public -f scripts/runtime-grants.sql
+-- schema_name is the schema migrations were applied to ("public" for a normal
+-- deployment). This is the single authoritative grant source for both real
+-- deployment and integration tests: tests pass their own per-run isolated
+-- schema name here instead of duplicating these grants inline. Every other
+-- statement below references tables unqualified and relies on the running
+-- connection's search_path (already scoped to schema_name) to resolve them,
+-- so only this one explicit "SCHEMA public" reference needed parameterizing.
 -- Role creation/password provisioning is deliberately external; do not embed secrets.
 -- This script grants no role membership, ownership, DDL, DELETE or TRUNCATE.
-GRANT USAGE ON SCHEMA public TO :"runtime_role";
+GRANT USAGE ON SCHEMA :"schema_name" TO :"runtime_role";
 
 GRANT SELECT ON item_master, uom_master, brand_master, pack_variant TO :"runtime_role";
 

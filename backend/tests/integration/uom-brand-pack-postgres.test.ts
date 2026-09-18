@@ -10,6 +10,7 @@ import { PgUomRepository } from '../../src/inventory/persistence/pg-uom-reposito
 import { PgBrandRepository } from '../../src/inventory/persistence/pg-brand-repository.js';
 import { PgPackVariantRepository } from '../../src/inventory/persistence/pg-pack-variant-repository.js';
 import type { ItemInput } from '../../src/inventory/domain/item.js';
+import { applyRuntimeGrants } from './helpers/runtime-grants.js';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 if (!connectionString) throw new Error('TEST_DATABASE_URL is required for real PostgreSQL integration tests');
@@ -29,7 +30,10 @@ async function migrateSchema(schemaSuffix: string, count?: number) {
       ...(count === undefined ? {} : { count }),
     });
     return { schema, admin, applied };
-  } finally { client.release(); }
+  } finally {
+    await client.query('ROLLBACK').catch(() => undefined);
+    client.release();
+  }
 }
 
 describe('S-02 UOM/Brand/Pack Variant Masters (real PostgreSQL)', () => {
@@ -54,19 +58,15 @@ describe('S-02 UOM/Brand/Pack Variant Masters (real PostgreSQL)', () => {
         dir: resolve('migrations'), direction: 'up', log: () => undefined });
     } finally { client.release(); }
     await admin.query(`CREATE ROLE ${role} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT`);
-    await admin.query(`GRANT USAGE ON SCHEMA ${schema} TO ${role}`);
-    await admin.query(`GRANT SELECT ON item_master, inventory_audit, uom_master, brand_master, pack_variant TO ${role}`);
-    await admin.query(`GRANT INSERT (id, branch_id, item_name, primary_item_type, base_uom_id, brand),
-      UPDATE (item_name, primary_item_type, base_uom_id, brand, updated_at) ON item_master TO ${role}`);
-    await admin.query(`GRANT INSERT ON inventory_audit TO ${role}`);
-    await admin.query(`GRANT USAGE ON SEQUENCE item_code_seq TO ${role}`);
-    await admin.query(`GRANT INSERT (id, name, unit_type), UPDATE (name, unit_type, active, updated_at) ON uom_master TO ${role}`);
-    await admin.query(`GRANT INSERT ON uom_audit TO ${role}`);
-    await admin.query(`GRANT INSERT (id, name), UPDATE (name, active, updated_at) ON brand_master TO ${role}`);
-    await admin.query(`GRANT INSERT ON brand_audit TO ${role}`);
-    await admin.query(`GRANT INSERT (id, item_id, brand_id, pack_uom_id, conversion_factor),
-      UPDATE (conversion_factor, active, updated_at) ON pack_variant TO ${role}`);
-    await admin.query(`GRANT INSERT ON pack_variant_audit TO ${role}`);
+    // Single authoritative grant source (MINOR 2): executes the actual shipped
+    // scripts/runtime-grants.sql rather than a hand-duplicated grant list, so
+    // tests and deployment cannot silently drift apart. Every test below that
+    // exercises create/update through itemRepository/uomRepository/
+    // brandRepository/packVariantRepository (all built on `runtime`, which
+    // only has these shipped grants) is itself proof the shipped grants are
+    // sufficient for real application use; the dedicated test in "Runtime
+    // privilege limits" below proves they are not more than sufficient.
+    await applyRuntimeGrants(admin, role, schema);
   });
 
   afterAll(async () => { await runtime.end(); await admin.end(); });
@@ -198,6 +198,25 @@ describe('S-02 UOM/Brand/Pack Variant Masters (real PostgreSQL)', () => {
       await expect(packVariantRepository.create(payload, owner)).rejects.toMatchObject({ status: 409, code: 'DUPLICATE_PACK_VARIANT' });
     });
 
+    it('MINOR 3: races many identical concurrent create attempts -- exactly one succeeds, the DB unique constraint is the final race-safe protection', async () => {
+      const item = await itemRepository.create(itemInput, owner);
+      const brand = await brandRepository.create({ name: 'Race Condition Brand' }, owner);
+      const tin = (await admin.query(`SELECT id FROM uom_master WHERE name='TIN'`)).rows[0];
+      const payload = { item_id: item.id, brand_id: brand.id, pack_uom_id: tin.id, conversion_factor: '7' };
+      const attempts = 12;
+      const results = await Promise.allSettled(Array.from({ length: attempts }, () => packVariantRepository.create(payload, owner)));
+      const fulfilled = results.filter(r => r.status === 'fulfilled');
+      const rejected = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(attempts - 1);
+      for (const r of rejected) expect(r.reason).toMatchObject({ status: 409, code: 'DUPLICATE_PACK_VARIANT' });
+      const stored = await admin.query(
+        'SELECT count(*)::int AS n FROM pack_variant WHERE item_id=$1 AND brand_id=$2 AND pack_uom_id=$3 AND conversion_factor=$4',
+        [item.id, brand.id, tin.id, '7'],
+      );
+      expect(stored.rows[0].n).toBe(1);
+    });
+
     it('rejects references to a nonexistent brand or pack UOM', async () => {
       const item = await itemRepository.create(itemInput, owner);
       const tin = (await admin.query(`SELECT id FROM uom_master WHERE name='TIN'`)).rows[0];
@@ -247,6 +266,57 @@ describe('S-02 UOM/Brand/Pack Variant Masters (real PostgreSQL)', () => {
     });
   });
 
+  describe('BLOCKER 1: Pack Variant list is branch-isolated', () => {
+    it('GET/list only ever returns the caller branch\'s pack variants, never another branch\'s', async () => {
+      const app = buildApp({ repository: itemRepository, uomRepository, brandRepository, packVariantRepository, authProvider: async () => owner });
+      try {
+        const tin = (await admin.query(`SELECT id FROM uom_master WHERE name='TIN'`)).rows[0];
+        const brand = await brandRepository.create({ name: 'Cross Branch List Brand' }, owner);
+
+        // Branch A: item + pack variant, created/owned by `owner` (branch-a).
+        const itemA = await itemRepository.create(itemInput, owner);
+        const variantA = await packVariantRepository.create(
+          { item_id: itemA.id, brand_id: brand.id, pack_uom_id: tin.id, conversion_factor: '11' }, owner,
+        );
+
+        // Branch B: a *separate* item created directly under `manager` (branch-b),
+        // with its own pack variant -- proves the leak scenario the review found.
+        const itemB = await itemRepository.create(itemInput, manager);
+        const variantB = await packVariantRepository.create(
+          { item_id: itemB.id, brand_id: brand.id, pack_uom_id: tin.id, conversion_factor: '22' }, manager,
+        );
+        expect(variantB).not.toBeNull();
+
+        // Authenticate as Owner for Branch A and list.
+        const response = await app.inject({ method: 'GET', url: '/api/inventory/pack-variants' });
+        expect(response.statusCode).toBe(200);
+        const listed = response.json<Array<{ id: string; item_id: string }>>();
+        const listedIds = listed.map(v => v.id);
+
+        expect(listedIds).toContain(variantA!.id);
+        expect(listedIds).not.toContain(variantB!.id);
+        expect(listed.every(v => v.item_id !== itemB.id)).toBe(true);
+      } finally { await app.close(); }
+    });
+
+    it('repository.list itself never returns another branch\'s pack variants, independent of the HTTP layer', async () => {
+      const tin = (await admin.query(`SELECT id FROM uom_master WHERE name='TIN'`)).rows[0];
+      const brand = await brandRepository.create({ name: 'Repo Level List Brand' }, owner);
+      const itemA = await itemRepository.create(itemInput, owner);
+      const itemB = await itemRepository.create(itemInput, manager);
+      const variantA = await packVariantRepository.create({ item_id: itemA.id, brand_id: brand.id, pack_uom_id: tin.id, conversion_factor: '33' }, owner);
+      const variantB = await packVariantRepository.create({ item_id: itemB.id, brand_id: brand.id, pack_uom_id: tin.id, conversion_factor: '44' }, manager);
+
+      const forOwner = await packVariantRepository.list(owner);
+      const forManager = await packVariantRepository.list(manager);
+
+      expect(forOwner.map(v => v.id)).toContain(variantA!.id);
+      expect(forOwner.map(v => v.id)).not.toContain(variantB!.id);
+      expect(forManager.map(v => v.id)).toContain(variantB!.id);
+      expect(forManager.map(v => v.id)).not.toContain(variantA!.id);
+    });
+  });
+
   describe('Zero-Pack-Variant items and S-01 compatibility', () => {
     it('keeps an item with no pack variants fully valid', async () => {
       const item = await itemRepository.create(itemInput, owner);
@@ -266,12 +336,33 @@ describe('S-02 UOM/Brand/Pack Variant Masters (real PostgreSQL)', () => {
       await expect(runtime.query('TRUNCATE brand_audit')).rejects.toThrow('permission denied');
       await expect(runtime.query('TRUNCATE pack_variant_audit')).rejects.toThrow('permission denied');
     });
+
+    it('MINOR 2: the shipped runtime-grants.sql alone is sufficient for a full create+edit cycle on every S-02 entity', async () => {
+      // `runtime` in this file carries ONLY the grants applied via
+      // scripts/runtime-grants.sql (see beforeAll) -- no test-only extra
+      // grants exist. A full, real, end-to-end cycle succeeding here is
+      // direct proof the shipped file is deployable as-is.
+      const uom = await uomRepository.create({ name: 'Grant Proof Uom', unit_type: 'PACKAGING' }, owner);
+      await uomRepository.update(uom.id, { active: false }, owner);
+      const brand = await brandRepository.create({ name: 'Grant Proof Brand' }, owner);
+      await brandRepository.update(brand.id, { active: false }, owner);
+      const item = await itemRepository.create(itemInput, owner);
+      await itemRepository.update(item.id, { item_name: 'Grant Proof Item' }, owner);
+      const tin = (await admin.query(`SELECT id FROM uom_master WHERE name='TIN'`)).rows[0];
+      const variant = await packVariantRepository.create(
+        { item_id: item.id, brand_id: brand.id, pack_uom_id: tin.id, conversion_factor: '9' }, owner,
+      );
+      await packVariantRepository.update(variant!.id, { active: false }, owner);
+      const list = await packVariantRepository.list(owner);
+      expect(list.map(v => v.id)).toContain(variant!.id);
+    });
   });
 });
 
-describe('S-02 base_uom migration safety refinement (isolated schemas)', () => {
-  it('backfills existing S-01 items to the matching seeded UOM, case-insensitively and trimmed', async () => {
-    const { schema, admin } = await migrateSchema(`${randomUUID().replaceAll('-', '')}_ok`, 1);
+describe('S-02 base_uom migration safety refinement (split migrations, isolated schemas)', () => {
+  it('Migration A (UOM/Brand) commits independently and Migration B backfills existing S-01 items, case-insensitively and trimmed', async () => {
+    // Apply S-01 + Migration A only (2 of 3 files).
+    const { schema, admin } = await migrateSchema(`${randomUUID().replaceAll('-', '')}_ok`, 2);
     try {
       const fixtures = [
         { id: randomUUID(), base_uom: 'kg' },
@@ -285,6 +376,7 @@ describe('S-02 base_uom migration safety refinement (isolated schemas)', () => {
           [fixture.id, fixture.base_uom],
         );
       }
+      // Apply the remaining migration (Migration B).
       const client = await admin.connect();
       try {
         await runner({ dbClient: client, schema, migrationsSchema: schema, migrationsTable: 'pgmigrations',
@@ -307,8 +399,8 @@ describe('S-02 base_uom migration safety refinement (isolated schemas)', () => {
     }
   });
 
-  it('halts safely, without guessing unit_type, when a legacy base_uom has no match — and rolls back atomically', async () => {
-    const { schema, admin } = await migrateSchema(`${randomUUID().replaceAll('-', '')}_fail`, 1);
+  it('BLOCKER 2: halts safely without guessing unit_type when a legacy base_uom has no match, while Migration A (uom_master/brand_master) stays committed', async () => {
+    const { schema, admin } = await migrateSchema(`${randomUUID().replaceAll('-', '')}_fail`, 2);
     try {
       await admin.query(
         `INSERT INTO item_master (id, branch_id, item_name, primary_item_type, base_uom, brand)
@@ -322,9 +414,6 @@ describe('S-02 base_uom migration safety refinement (isolated schemas)', () => {
           dir: resolve('migrations'), direction: 'up', log: () => undefined });
       } catch (error) {
         caught = error;
-        // node-pg-migrate leaves the failed migration's transaction aborted on
-        // this connection; reset it before the pool can hand the connection
-        // back out for the assertions below.
         await client.query('ROLLBACK').catch(() => undefined);
       } finally { client.release(); }
 
@@ -332,18 +421,105 @@ describe('S-02 base_uom migration safety refinement (isolated schemas)', () => {
       expect(String((caught as Error).message)).toContain('Nonexistent Unit XYZ');
       expect(String((caught as Error).message)).toMatch(/never.*guess/i);
 
-      // Atomic rollback: nothing from the failed S-02 migration should exist.
+      // Migration A already committed as its own, separate, prior migration --
+      // only Migration B's own transaction rolled back.
+      const uomCount = await admin.query('SELECT count(*)::int AS n FROM uom_master');
+      expect(uomCount.rows[0].n).toBe(12);
+      const brandCount = await admin.query(`SELECT count(*)::int AS n FROM brand_master WHERE name=$1`, [GENERIC_BRAND_NAME]);
+      expect(brandCount.rows[0].n).toBe(1);
+
+      // Migration B's own objects/changes must NOT exist.
       const tables = (await admin.query(
         `SELECT table_name FROM information_schema.tables WHERE table_schema=$1 ORDER BY table_name`, [schema],
       )).rows.map(r => r.table_name);
-      expect(tables).not.toContain('uom_master');
-      expect(tables).not.toContain('brand_master');
       expect(tables).not.toContain('pack_variant');
       const columns = (await admin.query(
         `SELECT column_name FROM information_schema.columns WHERE table_schema=$1 AND table_name='item_master'`, [schema],
       )).rows.map(r => r.column_name);
       expect(columns).toContain('base_uom');
       expect(columns).not.toContain('base_uom_id');
+    } finally {
+      await admin.query(`DROP SCHEMA ${schema} CASCADE`);
+      await admin.end();
+    }
+  });
+
+  it('BLOCKER 2: complete executable recovery -- classify the missing UOM explicitly, re-run Migration B, backfill succeeds', async () => {
+    // Step 1: apply Migration A (and S-01).
+    const { schema, admin } = await migrateSchema(`${randomUUID().replaceAll('-', '')}_recover`, 2);
+    try {
+      // Step 2: prepare a legacy item containing an unknown UOM.
+      const itemId = randomUUID();
+      await admin.query(
+        `INSERT INTO item_master (id, branch_id, item_name, primary_item_type, base_uom, brand)
+         VALUES ($1, 'branch-a', 'Recoverable Item', 'RAW_MATERIAL', 'Firkin', 'Generic / No Brand')`,
+        [itemId],
+      );
+
+      // Step 3: run Migration B and confirm safe halt.
+      const firstAttempt = await admin.connect();
+      let haltError: unknown;
+      try {
+        await runner({ dbClient: firstAttempt, schema, migrationsSchema: schema, migrationsTable: 'pgmigrations',
+          dir: resolve('migrations'), direction: 'up', log: () => undefined });
+      } catch (error) {
+        haltError = error;
+        await firstAttempt.query('ROLLBACK').catch(() => undefined);
+      } finally { firstAttempt.release(); }
+      expect(haltError).toBeDefined();
+      expect(String((haltError as Error).message)).toContain('Firkin');
+
+      // Step 4: confirm uom_master still exists (Migration A untouched).
+      const uomCountAfterHalt = await admin.query('SELECT count(*)::int AS n FROM uom_master');
+      expect(uomCountAfterHalt.rows[0].n).toBe(12);
+
+      // Step 5: add the custom UOM explicitly with a chosen unit_type.
+      const firkinId = randomUUID();
+      await admin.query(`INSERT INTO uom_master (id, name, unit_type) VALUES ($1, 'Firkin', 'PACKAGING')`, [firkinId]);
+
+      // Step 6: rerun Migration B.
+      const secondAttempt = await admin.connect();
+      let secondApplied: Array<{ name: string }> = [];
+      try {
+        secondApplied = await runner({ dbClient: secondAttempt, schema, migrationsSchema: schema, migrationsTable: 'pgmigrations',
+          dir: resolve('migrations'), direction: 'up', log: () => undefined });
+      } finally { secondAttempt.release(); }
+      expect(secondApplied.map(m => m.name)).toEqual(['202609180002_inventory_s02_item_base_uom_pack_variant']);
+
+      // Step 7: confirm successful backfill, FK, preserved legacy text, and valid Item behavior.
+      const resolved = await admin.query(
+        `SELECT im.base_uom_id, im.base_uom_legacy_text, um.name AS resolved_name
+         FROM item_master im JOIN uom_master um ON um.id = im.base_uom_id WHERE im.id = $1`,
+        [itemId],
+      );
+      expect(resolved.rows).toHaveLength(1);
+      expect(resolved.rows[0]).toMatchObject({ base_uom_id: firkinId, base_uom_legacy_text: 'Firkin', resolved_name: 'Firkin' });
+
+      const fkCheck = await admin.query(
+        `SELECT 1 FROM pg_constraint WHERE conname = 'item_master_base_uom_fk' AND conrelid = 'item_master'::regclass`,
+      );
+      expect(fkCheck.rows).toHaveLength(1);
+
+      // Valid Item behavior: the recovered item is usable through the repository like any other.
+      // Roles are cluster-wide (not dropped by DROP SCHEMA), so the name must
+      // be genuinely unique per run, and it is explicitly dropped afterward.
+      const runtimeRole = `inv_s02_recover_app_${randomUUID().replaceAll('-', '')}`;
+      await admin.query(`CREATE ROLE ${runtimeRole} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT`);
+      try {
+        await applyRuntimeGrants(admin, runtimeRole, schema);
+        const runtime = new Pool({ connectionString, options: `-c search_path=${schema} -c role=${runtimeRole}` });
+        try {
+          const repository = new PgItemRepository(runtime);
+          const owner: AuthContext = { userId: 'owner-a', role: 'OWNER', branchId: 'branch-a' };
+          const updated = await repository.update(itemId, { item_name: 'Recovered and usable' }, owner);
+          expect(updated).toMatchObject({ item_name: 'Recovered and usable', base_uom: 'Firkin' });
+        } finally { await runtime.end(); }
+      } finally {
+        // DROP ROLE alone fails while the role still holds granted privileges;
+        // DROP OWNED BY revokes them (and drops anything it owns) first.
+        await admin.query(`DROP OWNED BY ${runtimeRole}`);
+        await admin.query(`DROP ROLE ${runtimeRole}`);
+      }
     } finally {
       await admin.query(`DROP SCHEMA ${schema} CASCADE`);
       await admin.end();

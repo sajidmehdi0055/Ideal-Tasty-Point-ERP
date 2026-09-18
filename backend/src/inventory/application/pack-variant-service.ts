@@ -23,7 +23,7 @@ export class PackVariantService {
   }
 
   async list(context: unknown) {
-    requireItemEditor(context);
-    return this.repository.list();
+    const auth = requireItemEditor(context);
+    return this.repository.list(auth);
   }
 }

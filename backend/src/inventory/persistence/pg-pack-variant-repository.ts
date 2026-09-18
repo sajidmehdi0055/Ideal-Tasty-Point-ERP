@@ -89,8 +89,16 @@ export class PgPackVariantRepository implements PackVariantRepository {
     }
   }
 
-  async list(): Promise<PackVariant[]> {
-    const result = await this.pool.query<PackVariantRow>(`SELECT ${PACK_VARIANT_COLUMNS} FROM pack_variant ORDER BY created_at`);
+  async list(auth: AuthContext): Promise<PackVariant[]> {
+    // Pack Variant carries no branch_id of its own; scope the read the same
+    // way create/update do, via the referenced item's branch, so no cross-
+    // branch pack variant can be listed.
+    const result = await this.pool.query<PackVariantRow>(
+      `SELECT ${PACK_VARIANT_COLUMNS.split(', ').map(c => `pv.${c}`).join(', ')}
+       FROM pack_variant pv JOIN item_master im ON im.id = pv.item_id
+       WHERE im.branch_id = $1 ORDER BY pv.created_at`,
+      [auth.branchId],
+    );
     return result.rows.map(toPackVariant);
   }
 }

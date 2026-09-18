@@ -15,7 +15,7 @@ Run commands from backend/. Use Node 24 and `npm ci --ignore-scripts`.
 1. Supply a local `POSTGRES_PASSWORD`, then `docker compose up -d postgres`. Compose binds PostgreSQL only to loopback and contains no default password. Docker is optional if a compatible local PostgreSQL instance already exists; it is not installed automatically.
 2. Provision an empty development database and a dedicated runtime login using your local PostgreSQL administrator. Keep administrator/migration credentials separate from API credentials. Do not use a superuser or table owner for the API.
 3. Set `DATABASE_URL` to the migration-owner connection for `npm run migrate:check`, then `npm run migrate`. These commands default to up migrations only. Never apply to a production or existing business database without a separate migration approval.
-4. As owner, grant the dedicated runtime login privileges with `psql ... -v runtime_role=YOUR_RUNTIME_ROLE -f scripts/runtime-grants.sql`. The login must not inherit elevated memberships, own schema/tables, or have sequence UPDATE privilege. The grant file does not create accounts or passwords.
+4. As owner, grant the dedicated runtime login privileges with `psql ... -v runtime_role=YOUR_RUNTIME_ROLE -v schema_name=public -f scripts/runtime-grants.sql`. The login must not inherit elevated memberships, own schema/tables, or have sequence UPDATE privilege. The grant file does not create accounts or passwords. This is the single authoritative grant source: integration tests execute this same file (substituting their own per-run isolated schema for `schema_name`) instead of duplicating grant statements — see `tests/integration/helpers/runtime-grants.ts`.
 5. Set API `DATABASE_URL` to the runtime login (see .env.example), then `npm run dev` or `npm run build` and `npm start`.
 
 The standalone server binds to 127.0.0.1 and intentionally denies mutations with 401 until a trusted AuthContext provider is composed into `buildApp`. This is a backend slice, not a deployable public authentication system. Tests inject trusted contexts directly. There is no X-Auth-Context/header-to-role shortcut. A future trusted authentication adapter can provide current user/role/authorized branch without coupling domain logic to JWT or sessions.
@@ -66,7 +66,7 @@ Global, standalone catalog — not nested under Item. The S-02 migration seeds t
 
 `conversion_factor` is transported as a **decimal string** end-to-end (e.g. `"16"`, `"16.5"`), never a JSON number, so the `NUMERIC(18,6)` "never float" guarantee holds at the API boundary too. Must be `> 0`; up to 6 fractional digits. Represents "1 of this pack = conversion_factor × the item's Base UOM" — it never redefines the item's Base UOM itself.
 
-Pack Variant carries no `branch_id` of its own; branch ownership is enforced through the referenced item. Creating or editing a variant for an item that does not belong to the caller's authorized branch returns the same 404 as a missing item (`ITEM_NOT_FOUND` / `PACK_VARIANT_NOT_FOUND`), never leaking cross-branch existence. A bogus `brand_id`/`pack_uom_id` returns `400 INVALID_REFERENCE`. An exact duplicate (same item + brand + pack UOM + conversion factor) returns `409 DUPLICATE_PACK_VARIANT`; different conversion factors for the same item/brand/pack UOM are explicitly allowed (different pack sizes).
+Pack Variant carries no `branch_id` of its own; branch ownership is enforced through the referenced item — for create/update via the same item lookup, and for `GET`/list via a `JOIN` to `item_master` filtered by the caller's `AuthContext.branchId`, so listing only ever returns pack variants belonging to the caller's own branch. Creating or editing a variant for an item that does not belong to the caller's authorized branch returns the same 404 as a missing item (`ITEM_NOT_FOUND` / `PACK_VARIANT_NOT_FOUND`), never leaking cross-branch existence. A bogus `brand_id`/`pack_uom_id` returns `400 INVALID_REFERENCE`. An exact duplicate (same item + brand + pack UOM + conversion factor) returns `409 DUPLICATE_PACK_VARIANT` — including under concurrent duplicate creation attempts, where the database's unique constraint is the final race-safe protection (exactly one attempt succeeds); different conversion factors for the same item/brand/pack UOM are explicitly allowed (different pack sizes).
 
 ## Data and audit
 
@@ -78,9 +78,20 @@ Create and edit append actor, role, branch, action, before/after snapshots and t
 
 The down migration intentionally fails instead of deleting history. Correct deployed schema/data using an independently reviewed forward migration. Test schemas/data are isolated and retained; no existing business data is reset.
 
-### base_uom migration safety
+### base_uom migration safety and recovery
 
-The S-02 migration backfills every existing item's `base_uom` text to `base_uom_id` by a case-insensitive/trimmed match against `uom_master`. If any legacy value has **no** match, the migration halts with a clear list of the unmatched value(s) and rolls back atomically — it never guesses a `unit_type` for an unrecognized unit. Add the missing UOM explicitly (with a deliberately chosen `unit_type`) and re-run. See `tests/integration/uom-brand-pack-postgres.test.ts`'s "migration safety refinement" tests for the automated proof of both the successful-backfill and the safe-failure path.
+S-02 ships as **two ordered migrations**, specifically so recovery from an unrecognized legacy value is actually executable, not just documented:
+
+- `202609180001_inventory_s02_uom_brand.sql` ("Migration A"): creates and seeds `uom_master`/`brand_master` only. Commits on its own.
+- `202609180002_inventory_s02_item_base_uom_pack_variant.sql` ("Migration B"): backfills `item_master.base_uom_id` from the existing `base_uom` text by a case-insensitive/trimmed match against `uom_master`, then creates `pack_variant`. Depends on Migration A already being applied.
+
+If any legacy `base_uom` value has **no** match, Migration B halts with a clear list of the unmatched value(s) and rolls back — but only *its own* transaction. Migration A, already a separate, already-committed migration, is untouched. Recovery is a real, executable procedure:
+
+1. Run `npm run migrate` (Migration A applies; Migration B halts and lists the unmatched value(s)).
+2. As the migration owner, `INSERT` the missing value into `uom_master` directly, choosing its `unit_type` deliberately — never guessed by anything automated.
+3. Run `npm run migrate` again. Migration B was never marked applied, so it retries and this time backfills successfully.
+
+See `tests/integration/uom-brand-pack-postgres.test.ts`'s "base_uom migration safety refinement" describe block for the automated proof: successful backfill, Migration A surviving a Migration B halt, and the complete apply → halt → classify → re-run → succeed recovery sequence end to end against real PostgreSQL.
 
 ## Verification
 

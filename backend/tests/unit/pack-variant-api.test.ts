@@ -110,3 +110,33 @@ describe('S-02 Pack Variant authorization', () => {
     expect((await denied.inject({ method: 'GET', url: '/api/inventory/pack-variants' })).statusCode).toBe(403);
   });
 });
+
+describe('S-02 Pack Variant list is branch-scoped (BLOCKER 1)', () => {
+  it('passes the caller\'s validated AuthContext to repository.list, not just a role check', async () => {
+    const manager: AuthContext = { userId: 'manager-9', role: 'MANAGER', branchId: 'branch-9' };
+    const { app, repository } = setup(manager);
+    expect((await app.inject({ method: 'GET', url: '/api/inventory/pack-variants' })).statusCode).toBe(200);
+    expect(repository.list).toHaveBeenCalledWith(manager);
+    expect(repository.list).toHaveBeenCalledTimes(1);
+  });
+
+  it('two callers from different branches trigger two independently-scoped repository.list calls', async () => {
+    const branchA: AuthContext = { userId: 'user-a', role: 'OWNER', branchId: 'branch-a' };
+    const branchB: AuthContext = { userId: 'user-b', role: 'OWNER', branchId: 'branch-b' };
+    const { app: appA, repository: repoA } = setup(branchA);
+    const { app: appB, repository: repoB } = setup(branchB);
+    await appA.inject({ method: 'GET', url: '/api/inventory/pack-variants' });
+    await appB.inject({ method: 'GET', url: '/api/inventory/pack-variants' });
+    expect(repoA.list).toHaveBeenCalledWith(branchA);
+    expect(repoB.list).toHaveBeenCalledWith(branchB);
+  });
+
+  it('service.list forwards auth even when called directly, bypassing HTTP', async () => {
+    const { repository } = setup();
+    const { PackVariantService } = await import('../../src/inventory/application/pack-variant-service.js');
+    const service = new PackVariantService(repository);
+    const branchC: AuthContext = { userId: 'user-c', role: 'MANAGER', branchId: 'branch-c' };
+    await service.list(branchC);
+    expect(repository.list).toHaveBeenCalledWith(branchC);
+  });
+});

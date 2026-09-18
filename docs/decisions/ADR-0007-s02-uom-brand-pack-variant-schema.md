@@ -1,9 +1,11 @@
 # ADR-0007: S-02 UOM/Brand/Pack Variant Schema and Migration Safety Decisions
 
-Date: 2026-09-18
+Date: 2026-09-18 (updated same day after independent Codex review, commit 989208c — FAIL, 2 BLOCKER + 3 MINOR findings, corrected)
 Status: **APPROVED — owner-selected 2026-09-18**
 Scope: Inventory S-02 (UOM, Brand & Pack Variant Masters). Records the technical decisions made within the owner-approved S-02 scope and architecture/implementation plan; does not itself grant new business authority.
 Approval source: Owner-approved S-02 architecture/implementation plan on 2026-09-18, including the owner-directed safety refinement to the base_uom migration.
+
+**Update note:** D-05 originally described a single combined migration; independent review found its documented recovery path ("add the missing UOM then rerun") was not actually executable, because the single transaction rolled back `uom_master` along with everything else on failure. D-05 below now describes the corrected, actually-executable two-migration design. D-08 and D-09 are new, added for the same review's Pack Variant branch-isolation and runtime-grants-drift findings. D-01 through D-04, D-06, D-07 are unchanged from the original approval.
 
 ## Approved decisions
 
@@ -23,9 +25,18 @@ Approval source: Owner-approved S-02 architecture/implementation plan on 2026-09
 
 `pack_variant.conversion_factor` is `NUMERIC(18,6)`, `CHECK (conversion_factor > 0)`. At the API boundary it is validated and transported as a decimal **string** (e.g. `"16"`, `"16.5"`), never a JSON number — a JSON number is already a JS float the instant it is parsed, which would silently break the "never float" requirement even with a `NUMERIC` column underneath. This keeps the guarantee end-to-end, not only at rest in PostgreSQL.
 
-### D-05 — base_uom migration: never guess unit_type for an unmatched legacy value (owner-directed safety refinement)
+### D-05 — base_uom migration: never guess unit_type for an unmatched legacy value, split into two executable-recovery migrations
 
-The migration backfills `item_master.base_uom_id` from the existing free-text `base_uom` by a case-insensitive/trimmed match against `uom_master`. If any legacy value has no match, the migration halts inside a `DO` block, raising an exception that lists every unmatched value, **before** `base_uom_id` is ever set `NOT NULL` or FK-constrained. Because the whole migration file runs as one transaction, a halt here rolls back atomically — no partial schema state, no guessed `unit_type` ever committed. Verified directly (manual migration run against real PostgreSQL, confirmed atomic rollback) and by an automated integration test that seeds an unmatched fixture row before invoking the migration.
+The migration backfills `item_master.base_uom_id` from the existing free-text `base_uom` by a case-insensitive/trimmed match against `uom_master`. If any legacy value has no match, the migration halts inside a `DO` block, raising an exception that lists every unmatched value, **before** `base_uom_id` is ever set `NOT NULL` or FK-constrained.
+
+This is split across two ordered migration files, each its own transaction, specifically so the documented recovery path is actually executable rather than just aspirational:
+
+- **Migration A** (`202609180001_inventory_s02_uom_brand.sql`): creates and seeds `uom_master` and `brand_master` (plus their audit tables and immutability triggers) only. Commits independently of anything item-related.
+- **Migration B** (`202609180002_inventory_s02_item_base_uom_pack_variant.sql`): performs the `base_uom` backfill/safety-check, then creates `pack_variant`/`pack_variant_audit`. Depends on Migration A already having run.
+
+Because each file is node-pg-migrate's own transaction, a halt inside Migration B rolls back **only** Migration B — Migration A's `uom_master`/`brand_master` remain committed and queryable. The recovery path is therefore real: an operator can `INSERT` the missing UOM into the still-existing `uom_master` with a deliberately chosen `unit_type`, then re-run migrations; Migration B picks up from where it left off (it was never marked applied) and this time backfills successfully.
+
+Verified three ways against real PostgreSQL: (1) manually, before any test code existed, running the full halt → inspect → insert → re-run sequence by hand; (2) an automated integration test proving Migration A survives a Migration B halt; (3) a separate automated integration test executing the complete 7-step recovery sequence end to end (apply A, insert unmatched fixture, halt B, confirm `uom_master` intact, insert the missing UOM, re-run B, confirm backfill + FK + preserved legacy text + the recovered item is fully usable through the repository).
 
 ### D-06 — Legacy base_uom text preserved one release cycle, not dropped
 
@@ -34,6 +45,14 @@ The original `base_uom` column is renamed to `base_uom_legacy_text` (nullable, u
 ### D-07 — Minimal read endpoints for the three new masters
 
 `GET /api/inventory/uoms`, `/brands`, `/pack-variants` (list, Owner/Manager gated, same as create/edit) were added even though not explicitly itemized in the original endpoint list. Reference/catalog data that can only be created and never listed is not practically usable — this is a routine technical-completeness call within the approved "core frame" scope, not a new business capability. No read access was extended to any role beyond Owner/Manager, since no other role's inventory access has been approved yet (open item B-09/PC-09).
+
+### D-08 — Pack Variant list must be branch-scoped through the same item join as create/update (review correction)
+
+Independent review found `PackVariantRepository.list()` returned every branch's pack variants — the service validated the caller's role but never used `AuthContext.branchId` to filter the read, while `create`/`update` already correctly scoped through `item_master.branch_id`. This was a genuine cross-branch read exposure, not a documentation gap. Fixed by changing `list(auth: AuthContext)` to `JOIN pack_variant` to `item_master` and filter `WHERE item_master.branch_id = auth.branchId`, exactly mirroring `update`'s existing join. `pack-variant-service.ts` now forwards the validated `AuthContext` from `requireItemEditor` into `repository.list(auth)` instead of discarding it after the role check. All Pack Variant read paths were reviewed; `list()` was the only one (create/update already returned only the affected, branch-checked row).
+
+### D-09 — Integration tests execute the shipped runtime-grants.sql, not a duplicated grant list (review correction)
+
+Independent review found the integration test harness re-typed its own `GRANT` statements instead of exercising `scripts/runtime-grants.sql`, and that this had already drifted (the test grants included `SELECT` on audit tables that the shipped script never grants, since the application only ever inserts into audit tables). Fixed by adding `tests/integration/helpers/runtime-grants.ts`, which reads the actual shipped file and substitutes its two psql variables (`:"runtime_role"`, `:"schema_name"` — see below) the same way `psql -v` would, then executes it as-is. `runtime-grants.sql` itself gained a `:"schema_name"` variable (previously a hardcoded `GRANT USAGE ON SCHEMA public`) so the one file serves both a real deployment (`schema_name=public`) and a test's own per-run isolated schema without needing two versions. Every test that exercises `create`/`update` through the `runtime`-role connection is itself running proof that the shipped grants suffice; a dedicated test additionally proves a full create+edit cycle across all four entities using only those shipped grants. Audit-content inspection in tests uses the admin/schema-owner connection, never the runtime role, matching real deployment (the application only ever inserts into audit tables, never reads them back).
 
 ## Consequences and limits
 
@@ -46,8 +65,10 @@ This ADR does not decide: Supplier Master or any Purchasing/Rate-History schema 
 | D-01, D-02 | "no redundant branch_id" on Pack Variant; branch ownership via referenced item |
 | D-03 | "Reuse append-only/immutable audit approach from S-01 wherever appropriate" |
 | D-04 | "conversion_factor must be NUMERIC, never float" |
-| D-05, D-06 | Owner-directed base_uom migration safety refinement |
+| D-05, D-06 | Owner-directed base_uom migration safety refinement, made executable |
 | D-07 | Implicit usability requirement for "custom UOM creation", "Brand create/edit/list", "Pack Variant create/edit/list" |
+| D-08 | Review-found cross-branch Pack Variant read exposure |
+| D-09 | Review-found runtime-grants duplication/drift |
 
 ## Validation
 

@@ -10,6 +10,7 @@ import { PgItemRepository } from '../../src/inventory/persistence/pg-item-reposi
 import { PgUomRepository } from '../../src/inventory/persistence/pg-uom-repository.js';
 import { PgBrandRepository } from '../../src/inventory/persistence/pg-brand-repository.js';
 import { PgPackVariantRepository } from '../../src/inventory/persistence/pg-pack-variant-repository.js';
+import { applyRuntimeGrants } from './helpers/runtime-grants.js';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 if (!connectionString) throw new Error('TEST_DATABASE_URL is required for real PostgreSQL integration tests');
@@ -40,19 +41,10 @@ beforeAll(async () => {
     migrationsRepeated = (await runner(options)).length;
   } finally { client.release(); }
   await admin.query(`CREATE ROLE ${role} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT`);
-  await admin.query(`GRANT USAGE ON SCHEMA ${schema} TO ${role}`);
-  await admin.query(`GRANT SELECT ON item_master, inventory_audit, uom_master, brand_master, pack_variant TO ${role}`);
-  await admin.query(`GRANT INSERT (id, branch_id, item_name, primary_item_type, base_uom_id, brand),
-    UPDATE (item_name, primary_item_type, base_uom_id, brand, updated_at) ON item_master TO ${role}`);
-  await admin.query(`GRANT INSERT ON inventory_audit TO ${role}`);
-  await admin.query(`GRANT USAGE ON SEQUENCE item_code_seq TO ${role}`);
-  await admin.query(`GRANT INSERT (id, name, unit_type), UPDATE (name, unit_type, active, updated_at) ON uom_master TO ${role}`);
-  await admin.query(`GRANT INSERT ON uom_audit TO ${role}`);
-  await admin.query(`GRANT INSERT (id, name), UPDATE (name, active, updated_at) ON brand_master TO ${role}`);
-  await admin.query(`GRANT INSERT ON brand_audit TO ${role}`);
-  await admin.query(`GRANT INSERT (id, item_id, brand_id, pack_uom_id, conversion_factor),
-    UPDATE (conversion_factor, active, updated_at) ON pack_variant TO ${role}`);
-  await admin.query(`GRANT INSERT ON pack_variant_audit TO ${role}`);
+  // Single authoritative grant source (MINOR 2): executes the actual shipped
+  // scripts/runtime-grants.sql rather than a hand-duplicated grant list, so
+  // tests and deployment cannot silently drift apart.
+  await applyRuntimeGrants(admin, role, schema);
 });
 
 afterAll(async () => { await runtime.end(); await admin.end(); });
@@ -63,7 +55,7 @@ function buildTestApp(auth: AuthContext) {
 
 describe('S-01 real PostgreSQL migration and persistence', () => {
   it('applies SQL migrations once and re-running is a no-op', () => {
-    expect(migrationsApplied).toBe(2);
+    expect(migrationsApplied).toBe(3); // S-01 + S-02 Migration A (UOM/Brand) + S-02 Migration B (item base_uom FK / Pack Variant)
     expect(migrationsRepeated).toBe(0);
   });
 
