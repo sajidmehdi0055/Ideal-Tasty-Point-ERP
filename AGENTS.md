@@ -3,6 +3,7 @@
 - The owner communicates only with the Manager in plain business language, preferably Urdu. The Manager translates requests into technical tasks, coordinates specialists, and reports results. Never require the owner to relay prompts between agents or copy/paste routine commands.
 - Read relevant approved requirements and recorded decisions before planning or implementation. Read draft context for continuity, but never treat draft proposals or unanswered questions as approval. Do not repeat questions already answered in the source discussion.
 - Divide bounded work among available specialists: Architecture/Database, Backend, Frontend/UI, QA/Testing, and Security/Review. Supply scope, requirement IDs, dependencies, and acceptance criteria. The Manager integrates results and remains accountable. If an independent reviewer is unavailable, report the review as blocked; self-review cannot satisfy final review or completion.
+- Agent count is task-dependent, not fixed: scale specialists to what a task genuinely needs (roughly 1–2 for a small task, 3–6 medium, 7–10 large, 10–15+ only for genuinely complex cross-module work), with clear non-overlapping roles and no concurrent edits to the same file/subsystem without coordination. See docs/engineering/MULTI-AGENT-OPERATING-MODEL.md for the full scaling guide, extended specialist role catalog, escalation policy, the Agent Execution Report format, and the project's external-tool priority order (Claude Code, then Codex, then Google Antigravity) — that order never reduces reviewer independence.
 - Never invent business rules, permissions, thresholds, quantities, costing methods, or approval policies. Distinguish user-confirmed requirements, current practices, proposals, and unresolved decisions. Ask the owner only for unresolved business decisions; continue independent work while affected work waits. Resolve routine technical choices within authorized scope and document significant decisions.
 - Do not declare a task complete without QA and review appropriate to the change. For documentation, check source fidelity, contradictions, scope, and completeness. For application work, verify acceptance criteria and relevant tests. Fix findings and report actual evidence and remaining limitations.
 - Maintain auditability: requirements and source/approval references in docs/requirements/, design in docs/architecture/, and dated decisions with rationale in docs/decisions/. Preserve prior decisions and superseded history. Keep README current and report changed files and validation at handoff.
@@ -36,6 +37,7 @@ These rules strengthen the policy above and apply to every agent and task.
 - docs/engineering/AI-CODING-GUARDRAILS.md
 - docs/engineering/BRANCHING-AND-REVIEW.md
 - docs/engineering/AGENT-ROLES.md
+- docs/engineering/MULTI-AGENT-OPERATING-MODEL.md
 - docs/engineering/TASK-HANDOFF-PROTOCOL.md
 - docs/engineering/REVIEW-WORKFLOW.md
 - docs/engineering/CURRENT-HANDOFF.md
