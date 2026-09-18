@@ -61,7 +61,43 @@ A major coding task requires separate implementation, QA/testing, code review, a
 
 ## Escalation policy
 
-The Manager resolves routine matters internally without asking the owner, including: routine code fixes, lint/formatting, normal dependency/package reconciliation, safe refactoring within approved scope, routine Git operations on feature branches, normal Docker/local test-environment setup, and minor technical implementation choices.
+The Manager resolves routine matters internally without asking the owner, including: routine code fixes, lint/formatting, safe refactoring within approved scope, normal Docker/local test-environment setup, and minor technical implementation choices — plus the precisely bounded Git and dependency activity defined in the two subsections below. Everything else in this section is unchanged from before; only "routine Git operations" and "dependency/package reconciliation" are narrowed here in response to independent review, because those two phrases were ambiguous about authority.
+
+### Routine Git activity (bounded)
+
+This does not create a new or conflicting Git policy; it only states, precisely, which slice of Git activity this operating model itself treats as routine, deferring everywhere else to AGENTS.md, TASK-HANDOFF-PROTOCOL.md, REVIEW-WORKFLOW.md, and BRANCHING-AND-REVIEW.md.
+
+Autonomous without owner approval:
+- Status/working-tree inspection (`git status`)
+- Diff/log inspection (`git diff`, `git log`, etc.)
+- Branch/worktree inspection (`git branch`, `git worktree list`, etc.)
+- Normal branch/worktree creation and handling already required by BRANCHING-AND-REVIEW.md for a bounded task already in progress (e.g. creating the separate branch/worktree AGENTS.md guardrail 13 requires before starting a feature/fix)
+
+Remain governed entirely by the existing authorization/handoff rules in AGENTS.md, TASK-HANDOFF-PROTOCOL.md, REVIEW-WORKFLOW.md, and BRANCHING-AND-REVIEW.md, and are **not** automatically authorized merely by this operating model existing:
+- Staging
+- Committing
+- Pushing
+- Merging
+- Force push
+- History rewrite/rebase where approval is required
+- Destructive reset
+- Clean
+- Restore/discard of work
+- Branch deletion
+- Any other destructive Git action
+
+### Routine dependency/package reconciliation (bounded)
+
+Autonomous without owner approval only when restoring or reconciling already-approved dependency versions required by the active approved task — for example, correcting a `package.json`/lockfile/`node_modules` drift back to the dependency versions already approved and implemented for that task. Ordinary lockfile/package synchronization for already-approved dependencies stays a routine technical operation.
+
+Never routine, regardless of how minor it seems in the moment — these follow the project's existing dependency-justification, architecture, and owner-escalation rules (AGENTS.md guardrail 6; AI-CODING-GUARDRAILS.md, "Justify dependencies before addition"):
+- Adding a new dependency
+- Adding a new framework
+- Replacing a framework/library with another
+- Major-version upgrades
+- Broad dependency upgrades
+- Architectural dependency changes
+- Any dependency change outside the active approved task
 
 The Manager escalates to the owner only when a decision is materially important:
 
@@ -79,7 +115,7 @@ The Manager escalates to the owner only when a decision is materially important:
 - Permissions/authority changes
 - Requirements ambiguity that materially affects delivered behavior
 
-This aligns with, and does not relax, AGENTS.md guardrails 2, 7, and 13.
+This aligns with, and does not relax, AGENTS.md guardrails 2, 6, 7, and 13.
 
 ## Agent Execution Report
 
