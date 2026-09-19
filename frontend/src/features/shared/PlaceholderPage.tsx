@@ -10,7 +10,7 @@ export function PlaceholderPage({ title, description }: PlaceholderPageProps) {
   return (
     <Card title={title}>
       <div className="flex flex-col items-center gap-3 py-10 text-center">
-        <StatusBadge label="Pending S-02 backend merge" tone="warning" />
+        <StatusBadge label="Pending frontend integration" tone="warning" />
         <p className="max-w-md text-sm text-ink-muted">{description}</p>
       </div>
     </Card>

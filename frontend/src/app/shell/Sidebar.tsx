@@ -1,5 +1,7 @@
+import { useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import { StatusBadge } from '../../design-system/components';
+import { useMediaQuery } from '../../lib/use-media-query';
 import { NAV_ITEMS } from './nav-items';
 
 interface SidebarProps {
@@ -8,6 +10,29 @@ interface SidebarProps {
 }
 
 export function Sidebar({ open, onClose }: SidebarProps) {
+  const isDesktop = useMediaQuery('(min-width: 768px)');
+  const isMobileOverlay = !isDesktop;
+  const firstLinkRef = useRef<HTMLAnchorElement>(null);
+
+  // Move focus into the drawer when it opens as a mobile overlay, so
+  // keyboard/screen-reader users land inside it instead of on the now-inert
+  // trigger button.
+  useEffect(() => {
+    if (isMobileOverlay && open) firstLinkRef.current?.focus();
+  }, [isMobileOverlay, open]);
+
+  // Escape closes the mobile overlay. The background is made `inert` by
+  // AppShell while open, so Tab/Shift+Tab already can't reach it — no
+  // separate focus trap is needed.
+  useEffect(() => {
+    if (!isMobileOverlay || !open) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileOverlay, open, onClose]);
+
   return (
     <>
       {open ? (
@@ -19,6 +44,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         />
       ) : null}
       <aside
+        inert={isMobileOverlay && !open}
+        role={isMobileOverlay ? 'dialog' : undefined}
+        aria-modal={isMobileOverlay ? open : undefined}
+        aria-label={isMobileOverlay ? 'Primary navigation' : undefined}
         className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col border-r border-line bg-canvas transition-transform duration-200 md:static md:translate-x-0 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
@@ -27,9 +56,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           <span className="text-base font-semibold text-ink">Ideal Tasty Point</span>
         </div>
         <nav aria-label="Primary" className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
-          {NAV_ITEMS.map(item => (
+          {NAV_ITEMS.map((item, index) => (
             <NavLink
               key={item.to}
+              ref={index === 0 ? firstLinkRef : undefined}
               to={item.to}
               onClick={onClose}
               className={({ isActive }) =>

@@ -4,7 +4,7 @@ export function UomPage() {
   return (
     <PlaceholderPage
       title="UOM Master"
-      description="UOM Master (seeded + custom units) ships on feat/inv-s02-uom-brand-pack, awaiting independent review. This screen will list/create/edit units once that branch merges to main."
+      description="UOM Master's backend (seeded + custom units) is live on main (S-02). This list/create/edit screen isn't wired up yet — frontend integration is pending."
     />
   );
 }

@@ -45,7 +45,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (response.status === 204) return undefined as T;
 
   const text = await response.text();
-  const body: unknown = text ? JSON.parse(text) : undefined;
+  let body: unknown;
+  try {
+    body = text ? JSON.parse(text) : undefined;
+  } catch {
+    throw new ApiError(response.status, 'INVALID_RESPONSE', 'The server returned an unexpected response.');
+  }
 
   if (!response.ok) {
     const errorBody = (body ?? {}) as Partial<ErrorBody>;

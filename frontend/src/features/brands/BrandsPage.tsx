@@ -4,7 +4,7 @@ export function BrandsPage() {
   return (
     <PlaceholderPage
       title="Brands"
-      description="Brand Master (global standalone catalog) ships on feat/inv-s02-uom-brand-pack, awaiting independent review. This screen will list/create/edit brands once that branch merges to main."
+      description="Brand Master's backend (global standalone catalog) is live on main (S-02). This list/create/edit screen isn't wired up yet — frontend integration is pending."
     />
   );
 }

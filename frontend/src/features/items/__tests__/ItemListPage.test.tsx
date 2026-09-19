@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { DevSessionProvider, DEV_IDENTITY_STORAGE_KEY } from '../../../lib/session';
+import { DevSessionProvider } from '../../../lib/session';
+import { DEV_IDENTITY_STORAGE_KEY } from '../../../lib/dev-session';
 import { ApiError } from '../../../lib/api-client';
 import { ItemListPage } from '../ItemListPage';
 import * as itemsApi from '../api';

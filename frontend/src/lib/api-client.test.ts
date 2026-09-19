@@ -49,4 +49,10 @@ describe('apiClient', () => {
     const error = await captureError(apiClient.get('/api/x'));
     expect(error.code).toBe('NETWORK_ERROR');
   });
+
+  it('classifies a non-JSON response (e.g. a broken proxy returning HTML) instead of throwing a raw SyntaxError', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>502 Bad Gateway</html>', { status: 502 })));
+    const error = await captureError(apiClient.get('/api/x'));
+    expect(error).toMatchObject({ status: 502, code: 'INVALID_RESPONSE' });
+  });
 });

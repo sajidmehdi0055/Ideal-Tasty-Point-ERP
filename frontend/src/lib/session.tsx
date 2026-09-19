@@ -1,16 +1,22 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
+import { DevSessionProviderImpl } from './dev-session';
 
 /**
- * DEV-ONLY PLACEHOLDER. There is no login/session system yet (see
- * backend/README.md: the standalone server "intentionally denies mutations
- * with 401 until a trusted AuthContext provider is composed"). Switching
- * the role here changes ONLY what this frontend renders (to exercise
- * INV-11 permission-sensitive UI); it is never sent to, and has no effect
- * on, the real backend, which enforces its own 401/403 independently.
+ * There is no login/session system yet (see backend/README.md: the
+ * standalone server "intentionally denies mutations with 401 until a
+ * trusted AuthContext provider is composed"). `DevSessionProvider` below
+ * picks a DEV-only implementation with a switchable identity (for
+ * exercising INV-11 permission-sensitive UI) or a trivial always-denied
+ * production implementation, decided at build time via `import.meta.env.DEV`
+ * — not just a runtime flag. This file is the only one production code
+ * imports; the real dev machinery (localStorage-backed identity, role
+ * list, defaults) lives in dev-session.tsx and is referenced only inside
+ * the dead-in-production branch below, so Rollup tree-shakes the whole
+ * module out of a production build. Verify with:
+ *   npm run build && grep -r "itp-erp:dev-identity" dist/
+ * which must find nothing.
  */
 export type DevRole = 'OWNER' | 'MANAGER' | 'STORE_KEEPER' | 'STAFF';
-
-export const DEV_ROLES: DevRole[] = ['OWNER', 'MANAGER', 'STORE_KEEPER', 'STAFF'];
 
 export interface DevIdentity {
   userId: string;
@@ -18,60 +24,27 @@ export interface DevIdentity {
   branchId: string;
 }
 
-export const DEV_IDENTITY_STORAGE_KEY = 'itp-erp:dev-identity';
-const STORAGE_KEY = DEV_IDENTITY_STORAGE_KEY;
-
-const DEFAULT_IDENTITY: DevIdentity = { userId: 'dev-owner', role: 'OWNER', branchId: 'branch-main' };
-
-function isDevRole(value: unknown): value is DevRole {
-  return typeof value === 'string' && (DEV_ROLES as string[]).includes(value);
-}
-
-function loadStoredIdentity(): DevIdentity {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_IDENTITY;
-    const parsed = JSON.parse(raw) as Partial<DevIdentity>;
-    if (!isDevRole(parsed.role)) return DEFAULT_IDENTITY;
-    return {
-      userId: parsed.userId || DEFAULT_IDENTITY.userId,
-      role: parsed.role,
-      branchId: parsed.branchId || DEFAULT_IDENTITY.branchId,
-    };
-  } catch {
-    return DEFAULT_IDENTITY;
-  }
-}
-
-interface DevSessionContextValue {
+export interface DevSessionContextValue {
   identity: DevIdentity;
   setRole: (role: DevRole) => void;
   canEditItems: boolean;
 }
 
-const DevSessionContext = createContext<DevSessionContextValue | null>(null);
+export const DevSessionContext = createContext<DevSessionContextValue | null>(null);
+
+const PROD_IDENTITY: DevIdentity = { userId: '', role: 'STAFF', branchId: '' };
+
+/** No dev tooling, no storage, no switchable role — permission is a hardcoded false. */
+function ProdSessionProvider({ children }: { children: ReactNode }) {
+  const value: DevSessionContextValue = { identity: PROD_IDENTITY, setRole: () => {}, canEditItems: false };
+  return <DevSessionContext.Provider value={value}>{children}</DevSessionContext.Provider>;
+}
 
 export function DevSessionProvider({ children }: { children: ReactNode }) {
-  const [identity, setIdentity] = useState<DevIdentity>(loadStoredIdentity);
-
-  const setRole = (role: DevRole) => {
-    setIdentity(current => {
-      const next = { ...current, role };
-      try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        // Best-effort only; this identity is a UI convenience, not security state.
-      }
-      return next;
-    });
-  };
-
-  const value = useMemo<DevSessionContextValue>(
-    () => ({ identity, setRole, canEditItems: identity.role === 'OWNER' || identity.role === 'MANAGER' }),
-    [identity],
-  );
-
-  return <DevSessionContext.Provider value={value}>{children}</DevSessionContext.Provider>;
+  if (import.meta.env.DEV) {
+    return <DevSessionProviderImpl>{children}</DevSessionProviderImpl>;
+  }
+  return <ProdSessionProvider>{children}</ProdSessionProvider>;
 }
 
 export function useDevSession(): DevSessionContextValue {

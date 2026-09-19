@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 
 interface ModalProps {
   open: boolean;
@@ -14,6 +14,7 @@ interface ModalProps {
  */
 export function Modal({ open, title, onClose, children, footer }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -29,11 +30,12 @@ export function Modal({ open, title, onClose, children, footer }: ModalProps) {
       onClick={event => {
         if (event.target === dialogRef.current) onClose();
       }}
+      aria-labelledby={titleId}
       className="m-auto w-full max-w-md rounded-card border border-line bg-canvas p-0 shadow-modal backdrop:bg-slate-900/40"
     >
       <div onClick={event => event.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
-          <h2 className="text-base font-semibold text-ink">{title}</h2>
+          <h2 id={titleId} className="text-base font-semibold text-ink">{title}</h2>
           <button
             type="button"
             onClick={onClose}

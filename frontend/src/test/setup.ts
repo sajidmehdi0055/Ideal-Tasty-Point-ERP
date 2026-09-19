@@ -29,3 +29,21 @@ if (typeof HTMLDialogElement !== 'undefined') {
   }
 }
 
+// jsdom does not implement matchMedia at all; shim it so lib/use-media-query
+// (used by the responsive app shell) is testable. Guarded so a real
+// implementation is never overridden. Defaults to non-matching, i.e. tests
+// see the narrow/mobile branch of any query unless a test overrides it.
+if (typeof window !== 'undefined' && !window.matchMedia) {
+  window.matchMedia = (query: string): MediaQueryList =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList;
+}
+
