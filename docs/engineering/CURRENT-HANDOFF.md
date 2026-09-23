@@ -1,4 +1,56 @@
-# Current Handoff — S02-MERGE-001 (Inventory S-02 Merged to Main)
+# Current Handoff — UI-RECONCILE-001 (Frontend Branch Reconciled with S-02 Main)
+
+Date: 2026-09-23. Branch: feat/ui-foundation-item-master (worktree at Ideal-Tasty-Point-ERP-ui-foundation). Base before this record: d491ede/9398fbb (branched from pre-S-02 main, commit 163c953).
+Authority: project roadmap priority order (00-PROJECT-MASTER.md §27) — independently review the frontend branch before merging it. Owner-confirmed in-session to proceed with reconciliation and to push the result.
+Roles: Claude Code = primary implementation manager (executed this reconciliation and verification). Codex = independent reviewer (not yet run on this reconciled candidate). Google Antigravity = not used this session.
+
+## Why this was needed
+
+`feat/ui-foundation-item-master` was created from main at commit 163c953 — before Inventory S-02 (UOM Master, Brand Master, Pack Variant, Item Base UOM FK migration) was implemented and merged. The branch therefore still carried the pre-S-02 versions of several backend files (routes, services, repositories, tests, migrations). Reviewing or merging it as-is would have silently reverted S-02 from main. This was caught by diffing `main` against the frontend branch and inspecting `git merge-base` before any review was requested.
+
+## Reconciliation performed
+
+`git merge main --no-edit` on `feat/ui-foundation-item-master` (merge commit `9fe2b35`). Merge strategy `ort` resolved automatically with **zero conflicts** — the S-02 backend additions were purely additive relative to what the frontend branch already had. 41 files changed, all incoming from `main` (migrations, UOM/Brand/Pack Variant domain/application/persistence/API modules, their tests, ADR-0007, S-02 implementation docs, updated CURRENT-HANDOFF.md).
+
+## Post-reconciliation verification (executed, not assumed)
+
+Backend (`backend/`, real PostgreSQL 17 via the same Docker Desktop setup used for S-01/S-02 verification):
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | Completed cleanly |
+| typecheck | PASS |
+| lint | PASS |
+| test:unit | PASS — 190/190 |
+| test:integration | PASS — 39/39 (real PostgreSQL, no mocks) |
+| build | PASS |
+
+Frontend (`frontend/`):
+
+| Check | Result |
+|---|---|
+| typecheck | PASS |
+| lint | PASS |
+| test | PASS — 44/44 |
+| build | PASS |
+
+No regression found in either track. S-02 backend functionality (UOM/Brand/Pack Variant) is fully intact on the reconciled branch.
+
+## Git state
+
+Local branch was 5 commits ahead of `origin/feat/ui-foundation-item-master` after the merge (the 4 S-02 commits it had never had, plus the new merge commit). Pushed with owner authorization: `9398fbb..9fe2b35 feat/ui-foundation-item-master -> feat/ui-foundation-item-master`. `main` was not touched by this record.
+
+## Remaining issues / blockers
+
+None found in this reconciliation pass. The pre-existing "Known Frontend Contract Gaps" (real Item GET/list endpoint; full login/session system) documented in 00-PROJECT-MASTER.md §20 remain open and are unrelated to this reconciliation.
+
+## Next recommended action
+
+Independent Codex review of the reconciled candidate (commit `9fe2b35`), covering both the original frontend implementation and the fact that it now correctly carries S-02 without regression. Do not merge to main until that review passes and the owner approves.
+
+---
+
+# Historical Handoff — S02-MERGE-001 (Inventory S-02 Merged to Main)
 
 Date: 2026-09-18. Branch: main. Merged from: feat/inv-s02-uom-brand-pack (commit be21626).
 Authority: owner-approved controlled merge, following independent Codex review verdict "PASS — corrections verified; ready for controlled merge to main" on the round-3 corrected candidate (be21626), and explicit owner authorization in-session to proceed with the merge.
