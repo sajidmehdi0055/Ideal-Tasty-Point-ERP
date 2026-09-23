@@ -44,9 +44,27 @@ Local branch was 5 commits ahead of `origin/feat/ui-foundation-item-master` afte
 
 None found in this reconciliation pass. The pre-existing "Known Frontend Contract Gaps" (real Item GET/list endpoint; full login/session system) documented in 00-PROJECT-MASTER.md §20 remain open and are unrelated to this reconciliation.
 
+## Follow-up: self-review pass before Codex (commit 3d2e6f8)
+
+Before handing the reconciled candidate to Codex, Claude Code ran its own thorough source-level review (not a substitute for Codex, but intended to avoid wasting Codex's pass on already-catchable issues) and found 3 real correctness/accessibility bugs plus 2 cleanup items in the S-02-era frontend shell/design-system code:
+
+- **AppShell**: `closeMobileNav()` called `.focus()` on the nav trigger synchronously, before React committed the DOM update removing `inert` from its container — per the HTML spec `.focus()` on/under an `inert` subtree is a no-op, so focus silently failed to return to the trigger, despite commit 9398fbb's own message claiming this was fixed. Moved the focus call into a `useEffect` keyed on the open→closed transition, so it now runs after commit (after `inert` is gone).
+- **AppShell**: `mobileNavOpen` was never reset when the viewport crossed from mobile to desktop, so narrowing back to mobile later could reveal a drawer left open from a previous mobile session. Fixed by resetting it during render (React's documented state-adjustment-on-prop-change pattern) when `isDesktop` changes — not in an effect, since `eslint-plugin-react-hooks`'s `set-state-in-effect` rule (correctly) rejects calling `setState` synchronously inside a plain effect.
+- **Sidebar/AppShell**: `Sidebar` computed its own `isDesktop` via a second, independent `useMediaQuery` call instead of receiving `AppShell`'s already-computed value, so the two could transiently disagree for one render during a resize (a modal dialog reachable from a non-inert background). `Sidebar` now takes `isDesktop` as a required prop from `AppShell`.
+- **Sidebar** (cleanup): the Escape-key listener effect depended on the `onClose` function identity, which is a new closure every `AppShell` render (it wraps `<Routes>`, so it re-renders on every navigation) — this churned the `document` keydown listener on every navigation even while the drawer was closed. Now reads `onClose` via a ref so the effect only depends on actual open/close transitions.
+- **Input/Select** (cleanup): duplicated the same label/hint/error/id-wiring markup verbatim. Extracted a shared `FormField` wrapper (`design-system/components/FormField.tsx`); both now render identical output through it.
+
+Two new regression tests in `AppShell.test.tsx`, each explicitly confirmed to fail against the pre-fix code (verified by temporarily reverting `AppShell.tsx` with `git stash` and re-running) before being confirmed to pass against the fix:
+- One spies on the trigger button's `.focus()` call and records whether the content wrapper still has the `inert` attribute at the exact moment `.focus()` runs. This was necessary because jsdom does not enforce the browser's inert-blocks-focus behavior (confirmed by a standalone jsdom script) — a plain "trigger has focus after close" assertion would have passed even against the pre-fix code, proving nothing.
+- The other drives a controllable `matchMedia` mock across the mobile→desktop→mobile boundary and asserts the drawer's `inert`/`aria-modal` state, not `role`/name presence (the `<aside>` keeps `role="dialog"` on mobile regardless of open/closed state, so a role-presence assertion can't distinguish the two).
+
+`Sidebar.test.tsx` updated for the new required `isDesktop` prop (previously stubbed `matchMedia` per-test; now passes `isDesktop` directly, which is simpler and matches how the component actually receives it).
+
+Re-verified after the fix: frontend `typecheck`, `lint`, `test` (46/46, up from 44 — the 2 new `AppShell.test.tsx` cases), `build` — all PASS. Backend untouched by this commit.
+
 ## Next recommended action
 
-Independent Codex review of the reconciled candidate (commit `9fe2b35`), covering both the original frontend implementation and the fact that it now correctly carries S-02 without regression. Do not merge to main until that review passes and the owner approves.
+Independent Codex review of the corrected candidate (commit `3d2e6f8`), covering the original frontend implementation, the S-02 reconciliation, and this self-review fix pass together. Do not merge to main until that review passes and the owner approves.
 
 ---
 
