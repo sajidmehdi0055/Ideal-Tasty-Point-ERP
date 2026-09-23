@@ -1,36 +1,14 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { Sidebar } from '../Sidebar';
 
-/** Simulates a desktop viewport for `(min-width: 768px)` — the default test shim never matches. */
-function stubDesktopViewport() {
-  vi.stubGlobal(
-    'matchMedia',
-    (query: string) =>
-      ({
-        matches: query === '(min-width: 768px)',
-        media: query,
-        onchange: null,
-        addListener: () => {},
-        removeListener: () => {},
-        addEventListener: () => {},
-        removeEventListener: () => {},
-        dispatchEvent: () => false,
-      }) as MediaQueryList,
-  );
-}
-
 describe('Sidebar', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
   it('lists Item Master as active and marks the S-02 screens as pending', () => {
     render(
       <MemoryRouter initialEntries={['/items']}>
-        <Sidebar open onClose={vi.fn()} />
+        <Sidebar open onClose={vi.fn()} isDesktop={false} />
       </MemoryRouter>,
     );
 
@@ -44,7 +22,7 @@ describe('Sidebar', () => {
   it('is inert (unreachable by keyboard/AT) when closed on a mobile viewport', () => {
     render(
       <MemoryRouter initialEntries={['/items']}>
-        <Sidebar open={false} onClose={vi.fn()} />
+        <Sidebar open={false} onClose={vi.fn()} isDesktop={false} />
       </MemoryRouter>,
     );
     expect(screen.getByRole('navigation', { name: 'Primary', hidden: true }).closest('aside')).toHaveAttribute(
@@ -55,7 +33,7 @@ describe('Sidebar', () => {
   it('is not inert, and is a modal dialog, when open on a mobile viewport', () => {
     render(
       <MemoryRouter initialEntries={['/items']}>
-        <Sidebar open onClose={vi.fn()} />
+        <Sidebar open onClose={vi.fn()} isDesktop={false} />
       </MemoryRouter>,
     );
     const aside = screen.getByRole('dialog', { name: 'Primary navigation' });
@@ -67,7 +45,7 @@ describe('Sidebar', () => {
     const onClose = vi.fn();
     render(
       <MemoryRouter initialEntries={['/items']}>
-        <Sidebar open onClose={onClose} />
+        <Sidebar open onClose={onClose} isDesktop={false} />
       </MemoryRouter>,
     );
     await userEvent.keyboard('{Escape}');
@@ -75,10 +53,9 @@ describe('Sidebar', () => {
   });
 
   it('is never inert or a dialog on a desktop viewport, regardless of open state', () => {
-    stubDesktopViewport();
     render(
       <MemoryRouter initialEntries={['/items']}>
-        <Sidebar open={false} onClose={vi.fn()} />
+        <Sidebar open={false} onClose={vi.fn()} isDesktop />
       </MemoryRouter>,
     );
     const aside = screen.getByRole('navigation', { name: 'Primary' }).closest('aside');

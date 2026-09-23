@@ -1,18 +1,22 @@
 import { useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import { StatusBadge } from '../../design-system/components';
-import { useMediaQuery } from '../../lib/use-media-query';
 import { NAV_ITEMS } from './nav-items';
 
 interface SidebarProps {
   open: boolean;
   onClose: () => void;
+  isDesktop: boolean;
 }
 
-export function Sidebar({ open, onClose }: SidebarProps) {
-  const isDesktop = useMediaQuery('(min-width: 768px)');
+export function Sidebar({ open, onClose, isDesktop }: SidebarProps) {
   const isMobileOverlay = !isDesktop;
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   // Move focus into the drawer when it opens as a mobile overlay, so
   // keyboard/screen-reader users land inside it instead of on the now-inert
@@ -23,15 +27,17 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
   // Escape closes the mobile overlay. The background is made `inert` by
   // AppShell while open, so Tab/Shift+Tab already can't reach it — no
-  // separate focus trap is needed.
+  // separate focus trap is needed. Reads onClose via a ref so the listener
+  // is only added/removed on real open/close transitions, not on every
+  // parent re-render (AppShell re-renders on every route change).
   useEffect(() => {
     if (!isMobileOverlay || !open) return;
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') onCloseRef.current();
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isMobileOverlay, open, onClose]);
+  }, [isMobileOverlay, open]);
 
   return (
     <>
