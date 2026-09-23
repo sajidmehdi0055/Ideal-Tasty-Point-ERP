@@ -1,0 +1,22 @@
+import { z } from 'zod';
+
+const requiredText = z.string().trim().min(1).refine(value => !value.includes('\u0000'), 'NUL characters are invalid');
+export const brandInputSchema = z.object({
+  name: requiredText,
+}).strict();
+
+export const brandPatchSchema = z.object({
+  name: requiredText.optional(),
+  active: z.boolean().optional(),
+}).strict().refine(
+  value => Object.values(value).some(field => field !== undefined), 'At least one editable field is required',
+);
+export const brandIdSchema = z.uuid();
+export type BrandInput = z.infer<typeof brandInputSchema>;
+export type BrandPatch = z.infer<typeof brandPatchSchema>;
+export interface Brand extends BrandInput {
+  id: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}

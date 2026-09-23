@@ -1,0 +1,26 @@
+import { z } from 'zod';
+
+export const UOM_UNIT_TYPES = ['WEIGHT', 'VOLUME', 'COUNT', 'PACKAGING'] as const;
+
+const requiredText = z.string().trim().min(1).refine(value => !value.includes('\u0000'), 'NUL characters are invalid');
+export const uomInputSchema = z.object({
+  name: requiredText,
+  unit_type: z.enum(UOM_UNIT_TYPES),
+}).strict();
+
+export const uomPatchSchema = z.object({
+  name: requiredText.optional(),
+  unit_type: z.enum(UOM_UNIT_TYPES).optional(),
+  active: z.boolean().optional(),
+}).strict().refine(
+  value => Object.values(value).some(field => field !== undefined), 'At least one editable field is required',
+);
+export const uomIdSchema = z.uuid();
+export type UomInput = z.infer<typeof uomInputSchema>;
+export type UomPatch = z.infer<typeof uomPatchSchema>;
+export interface Uom extends UomInput {
+  id: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}

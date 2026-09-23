@@ -55,6 +55,10 @@ These are test specifications, not executed tests. Use approved test fixtures; e
 | AC-11 | Auditability; ADR-0001, AGENTS | For tested master/archive/merge and approved stock actions, evidence demonstrates historical records remain intact and auditable; failed/denied actions never present fake success. Exact audit payload/access requirements await B-09; no retention period is invented. |
 | AC-12 | Operational simplicity; INV-05 | Demonstrate each selected approved workflow to the owner against its acceptance script; identify any repeated entry and obtain agreement before adding it. No invented click-count/time target. |
 
+## S-02 implementation status note (2026-09-18)
+
+AC-04's foundation is now implemented, not merely specified: UOM Master supplies the approved units, and Pack Variant stores the approved fixture factor `f` (`conversion_factor`, NUMERIC, never float, never guessed — an unresolvable/missing conversion is rejected, not defaulted) per item+brand+pack UOM combination. The `q*f` expression itself, and any "approved base-unit issue changes quantity consistently" behavior, remain future/stock-module scope, as AC-04's original wording already stated — this note only updates which portion is now implementable versus still deferred. Full traceability: docs/engineering/inventory-s02-implementation.md, ADR-0007. AC-04's original approved wording above is unchanged.
+
 ## Required coverage not yet approved as executable behavior
 
 The following are deliberately conditional criteria. They cannot be used to justify coding until the referenced scope/policy is approved.
