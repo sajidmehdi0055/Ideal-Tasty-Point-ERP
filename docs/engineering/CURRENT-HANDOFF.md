@@ -1,6 +1,6 @@
 # Current Handoff — S03-MINOR-001 (Century Leap-Year Test Coverage for purchase_date)
 
-Date: 2026-09-26. Branch: test/s03-leap-year-coverage (base: main @ 34cb7d0). Status: implemented + self-verified; NOT merged — pending independent QA review and owner-approved merge.
+Date: 2026-09-26. Branch: test/s03-leap-year-coverage (base: main @ 34cb7d0). Status: **MERGED to main** (fast-forward 34cb7d0..9179d83, owner-approved) after independent QA review PASS. The S-03 century leap-year MINOR is **CLOSED**; earlier sections below that list it as open are historical.
 Scope: closes the open S-03 MINOR (no test for the century branch of `isLeapYear` in `backend/src/inventory/domain/purchase-record.ts`). Test-only change: no production code, migration, API, security or audit change.
 
 ## What changed
@@ -23,9 +23,19 @@ Scope: closes the open S-03 MINOR (no test for the century branch of `isLeapYear
 
 Integration tests (PostgreSQL) not re-run: no production code or SQL changed; last run 61/61 in S03-MERGE-001.
 
+## Independent review
+
+In-house QA/Testing subagent (no part in the change), fresh GitHub clone, Node v24.21.0 — **PASS — ready for controlled merge**. Confirmed test-only diff; npm ci, typecheck, lint, build PASS; test:unit 268/268 (261 on main's test file + 7 new); both mutations make the new tests fail; handoff accurate; no .only/.skip, secrets or weakened assertions. Findings: 0 BLOCKER / 0 MAJOR / 0 MINOR; 1 NOTE (older handoff sections still list this MINOR as open — addressed by the status line above).
+
+## Merge
+
+- Previous main HEAD: 34cb7d0. Merged branch HEAD: 9179d83. Merge type: fast-forward (main ref advanced without a checkout, because another session had a different branch checked out in the main worktree). Branch preserved on origin.
+- Post-merge: main tree is byte-identical to the reviewed 9179d83 tree; no re-run needed beyond the review above.
+- Push of main is run from the owner's Windows machine.
+
 ## Next recommended action
 
-Owner pushes the branch from Windows; independent QA review (agent with no part in this change); then owner-approved controlled merge.
+Do not start S-04 automatically. Remaining: Figma palette proposal/approval; S-04 scoping from the roadmap when the owner asks.
 
 ---
 
