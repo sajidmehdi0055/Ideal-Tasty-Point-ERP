@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { DevSessionContext, type DevIdentity, type DevRole } from './session';
+import { safeStorageGet, safeStorageSet } from './safe-storage';
 
 /**
  * DEV-ONLY. Imported exclusively from session.tsx's `DevSessionProvider`,
@@ -19,9 +20,9 @@ function isDevRole(value: unknown): value is DevRole {
 }
 
 function loadStoredIdentity(): DevIdentity {
+  const raw = safeStorageGet(window.localStorage, STORAGE_KEY);
+  if (!raw) return DEFAULT_IDENTITY;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_IDENTITY;
     const parsed = JSON.parse(raw) as Partial<DevIdentity>;
     if (!isDevRole(parsed.role)) return DEFAULT_IDENTITY;
     return {
@@ -40,11 +41,7 @@ export function DevSessionProviderImpl({ children }: { children: ReactNode }) {
   const setRole = (role: DevRole) => {
     setIdentity(current => {
       const next = { ...current, role };
-      try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        // Best-effort only; this identity is a UI convenience, not security state.
-      }
+      safeStorageSet(window.localStorage, STORAGE_KEY, JSON.stringify(next));
       return next;
     });
   };

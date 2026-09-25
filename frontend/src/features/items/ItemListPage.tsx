@@ -28,7 +28,14 @@ export function ItemListPage() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [reloadToken, setReloadToken] = useState(0);
-  const successMessage = (location.state as ListLocationState | null)?.successMessage;
+  // location.state never changes again for as long as this component stays
+  // mounted, so reading successMessage from it directly showed the same
+  // banner on every re-render — including ones triggered by search/filter/
+  // retry, long after the create/edit it confirmed. `dismissed` makes it a
+  // true one-time confirmation: it goes away the moment the user does
+  // anything else on this page.
+  const [dismissed, setDismissed] = useState(false);
+  const successMessage = dismissed ? undefined : (location.state as ListLocationState | null)?.successMessage;
 
   useEffect(() => {
     let ignore = false;
@@ -86,7 +93,10 @@ export function ItemListPage() {
         <SearchField
           label="Search items by name or code"
           value={search}
-          onChange={event => setSearch(event.target.value)}
+          onChange={event => {
+            setSearch(event.target.value);
+            setDismissed(true);
+          }}
           onClear={() => setSearch('')}
           className="w-full max-w-sm"
         />
@@ -99,7 +109,15 @@ export function ItemListPage() {
 
       {status === 'loading' ? <LoadingState label="Loading items…" /> : null}
 
-      {status === 'error' ? <ErrorState message={error} onRetry={() => setReloadToken(token => token + 1)} /> : null}
+      {status === 'error' ? (
+        <ErrorState
+          message={error}
+          onRetry={() => {
+            setReloadToken(token => token + 1);
+            setDismissed(true);
+          }}
+        />
+      ) : null}
 
       {status === 'live' || status === 'session-cache' ? (
         filteredItems.length === 0 ? (

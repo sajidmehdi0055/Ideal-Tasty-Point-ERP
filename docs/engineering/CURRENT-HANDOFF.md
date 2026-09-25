@@ -1,4 +1,43 @@
-# Current Handoff — UI-RECONCILE-001 (Frontend Branch Reconciled with S-02 Main)
+# Current Handoff — UI-REVIEW-001 (Frontend Branch Review Pass, Owner-Approved as Review of Record)
+
+Date: 2026-09-23. Branch: feat/ui-foundation-item-master (worktree at Ideal-Tasty-Point-ERP-ui-foundation). Base: commit `88f5e79` (UI-RECONCILE-001).
+Authority: 00-PROJECT-MASTER.md §27 priority #3 (independently review the frontend branch before merging it).
+Roles: Claude Code = primary implementation manager, and — by explicit owner decision this round, as a documented exception to the normal Claude-implements/Codex-reviews split — also reviewer of record for this pass, since no Codex session was available. This is **not** independent review in the project's normal sense (see AGENTS.md and 00-PROJECT-MASTER.md §5–6); the owner was told this in-session before approving it as sufficient for this round.
+
+## Review performed
+
+Full manual line-by-line read of the S-02-era frontend shell/design-system/Item Master code (the original implementation d491ede, the Codex-findings fix 9398fbb, and the prior self-review fix 3d2e6f8), cross-file tracing of AppShell/Sidebar/Header/session code, an actual `npm ci && typecheck && lint && test && build` run to check prior claims (all passed; the dev-session tree-shaking claim was independently re-verified against `dist/`), and a constructed regression test that reproduced one bug directly against the real component before it was fixed.
+
+## Findings and fixes
+
+1. **Correctness — `ItemForm.tsx`**: local form state (`useState`) was never resynced when `initialValues`/`id` changed without an unmount, and `ItemFormPage` never keyed `<ItemForm>` to the item id. Not reachable via current UI (all edit links go through `ItemListPage`, which unmounts the form), but any future direct edit-to-edit navigation would silently show the wrong item's data. Fixed with `key={id ?? 'new'}` in `ItemFormPage.tsx`. Regression test added to `ItemFormPage.test.tsx` (navigates directly between two edit routes without unmount; failed against pre-fix code, confirmed).
+2. **Correctness — `AppShell.tsx`**: the focus-restore effect fired for the desktop-viewport auto-close transition too, calling `.focus()` on the nav trigger even though it is `md:hidden` (not focusable) on desktop — a silent no-op that dropped focus to an undefined location. Fixed by gating the focus call on `!isDesktop`. Regression test added to `AppShell.test.tsx` (spies on `.focus()` across a mobile→desktop transition; failed against pre-fix code, confirmed).
+3. **UX — `ItemListPage.tsx`**: the create/edit success banner was read directly from `location.state` every render, so it stayed pinned through every later search/filter/retry on the page instead of being a one-time confirmation. Fixed with a `dismissed` flag, set true on search input and retry click, so the banner disappears the moment the user does anything else on the page. Regression test added to `ItemListPage.test.tsx`.
+4. **Cleanup — `ConfirmDialog`**: fully implemented and tested but had zero call sites (dead code shipping in the bundle). Removed the component, its test, and its barrel export; nothing else referenced it.
+5. **Cleanup — duplicated storage wrapper**: `session-cache.ts` and `dev-session.tsx` each hand-rolled the same try/catch Web Storage read/write logic. Extracted `frontend/src/lib/safe-storage.ts` (`safeStorageGet`/`safeStorageSet`); both files now use it.
+
+## Verification (executed, not assumed)
+
+| Check | Result |
+|---|---|
+| typecheck | PASS |
+| lint | PASS |
+| test | PASS — 46/46 (2 removed with ConfirmDialog, 3 new regression tests added) |
+| build | PASS |
+
+Backend untouched by this pass.
+
+## Remaining known gaps (unchanged, out of scope for this pass)
+
+Real Item GET/list endpoint and full login/session system — documented in 00-PROJECT-MASTER.md §20, unrelated to this review.
+
+## Next recommended action
+
+Owner-approved controlled merge to `main`, following the same process as S-01/S-02 (main up to date, no conflicts expected — verify with a fresh `git status`/`git log` immediately before merging). A genuine independent (Codex) review of this branch has still never run; if/when Codex becomes available, running it against `main` post-merge is worth doing as a retroactive check, though it does not block this merge per owner's explicit decision above.
+
+---
+
+# Historical Handoff — UI-RECONCILE-001 (Frontend Branch Reconciled with S-02 Main)
 
 Date: 2026-09-23. Branch: feat/ui-foundation-item-master (worktree at Ideal-Tasty-Point-ERP-ui-foundation). Base before this record: d491ede/9398fbb (branched from pre-S-02 main, commit 163c953).
 Authority: project roadmap priority order (00-PROJECT-MASTER.md §27) — independently review the frontend branch before merging it. Owner-confirmed in-session to proceed with reconciliation and to push the result.

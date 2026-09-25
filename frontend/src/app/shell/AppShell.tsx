@@ -24,10 +24,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   // effect (after React commits the DOM update) rather than inline in
   // closeMobileNav, because the trigger's ancestor is still `inert` at the
   // moment closeMobileNav runs — focus() on an inert subtree is a no-op.
+  // Skipped when the close was the desktop-viewport auto-close above: the
+  // trigger button is `md:hidden` there, so it isn't focusable, and stealing
+  // focus onto a hidden element would just drop it to the document body.
   useEffect(() => {
-    if (wasOpenRef.current && !mobileNavOpen) navTriggerRef.current?.focus();
+    if (wasOpenRef.current && !mobileNavOpen && !isDesktop) navTriggerRef.current?.focus();
     wasOpenRef.current = mobileNavOpen;
-  }, [mobileNavOpen]);
+  }, [mobileNavOpen, isDesktop]);
 
   function closeMobileNav() {
     setMobileNavOpen(false);

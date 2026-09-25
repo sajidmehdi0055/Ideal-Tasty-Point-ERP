@@ -1,3 +1,4 @@
+import { safeStorageGet, safeStorageSet } from '../../lib/safe-storage';
 import type { Item } from './types';
 
 /**
@@ -11,20 +12,17 @@ import type { Item } from './types';
 const STORAGE_KEY = 'itp-erp:session-items';
 
 function read(): Item[] {
+  const raw = safeStorageGet(window.sessionStorage, STORAGE_KEY);
+  if (!raw) return [];
   try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Item[]) : [];
+    return JSON.parse(raw) as Item[];
   } catch {
     return [];
   }
 }
 
 function write(items: Item[]) {
-  try {
-    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  } catch {
-    // Best-effort only; loss of the local cache does not affect real data.
-  }
+  safeStorageSet(window.sessionStorage, STORAGE_KEY, JSON.stringify(items));
 }
 
 export const sessionItemCache = {

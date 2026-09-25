@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { DevSessionProvider } from '../../../lib/session';
 import { DEV_IDENTITY_STORAGE_KEY } from '../../../lib/dev-session';
@@ -23,10 +24,10 @@ const item: Item = {
   updated_at: '2026-09-17T00:00:00Z',
 };
 
-function renderPage() {
+function renderPage(state?: unknown) {
   return render(
     <DevSessionProvider>
-      <MemoryRouter initialEntries={['/items']}>
+      <MemoryRouter initialEntries={[{ pathname: '/items', state }]}>
         <ItemListPage />
       </MemoryRouter>
     </DevSessionProvider>,
@@ -82,5 +83,14 @@ describe('ItemListPage', () => {
     renderPage();
 
     expect(await screen.findByRole('link', { name: /new item/i })).toBeInTheDocument();
+  });
+
+  it('dismisses the one-time success banner once the user searches, instead of leaving it pinned', async () => {
+    vi.mocked(itemsApi.listItems).mockResolvedValue([item]);
+    renderPage({ successMessage: 'Item ITM-000001 created.' });
+
+    expect(await screen.findByText('Item ITM-000001 created.')).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText(/search items/i), 'f');
+    expect(screen.queryByText('Item ITM-000001 created.')).not.toBeInTheDocument();
   });
 });

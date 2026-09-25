@@ -8,7 +8,6 @@ export { SearchField } from './SearchField';
 export { StatusBadge } from './StatusBadge';
 export { Card } from './Card';
 export { Modal } from './Modal';
-export { ConfirmDialog } from './ConfirmDialog';
 export { Spinner } from './Spinner';
 export { LoadingState, ErrorState, EmptyState } from './States';
 export { Table, TableHead, TableBody, TableRow, TableHeaderCell, TableCell } from './Table';

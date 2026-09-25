@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { DevSessionProvider } from '../../../lib/session';
 import { DEV_IDENTITY_STORAGE_KEY } from '../../../lib/dev-session';
 import { ApiError } from '../../../lib/api-client';
@@ -97,5 +97,41 @@ describe('ItemFormPage', () => {
     await waitFor(() =>
       expect(itemsApi.updateItem).toHaveBeenCalledWith('1', expect.objectContaining({ item_name: 'Fine Flour' })),
     );
+  });
+
+  it('does not keep showing a previous item after navigating directly to another item\'s edit route', async () => {
+    // Both routes share the same <ItemFormPage /> route element, so React
+    // Router does not unmount/remount it for an id-only navigation — without
+    // a key tied to the item id, ItemForm's internal useState keeps the
+    // first item's values.
+    const itemA: Item = { ...item, id: '1', item_name: 'Alpha' };
+    const itemB: Item = { ...item, id: '2', item_name: 'Bravo' };
+
+    function Harness() {
+      const navigate = useNavigate();
+      return (
+        <>
+          <button type="button" onClick={() => navigate('/items/2/edit', { state: { item: itemB } })}>
+            Go to item 2
+          </button>
+          <ItemFormPage />
+        </>
+      );
+    }
+
+    render(
+      <DevSessionProvider>
+        <MemoryRouter initialEntries={[{ pathname: '/items/1/edit', state: { item: itemA } }]}>
+          <Routes>
+            <Route path="/items/:id/edit" element={<Harness />} />
+          </Routes>
+        </MemoryRouter>
+      </DevSessionProvider>,
+    );
+
+    expect(screen.getByDisplayValue('Alpha')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /go to item 2/i }));
+    expect(await screen.findByDisplayValue('Bravo')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Alpha')).not.toBeInTheDocument();
   });
 });

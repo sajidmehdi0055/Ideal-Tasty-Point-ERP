@@ -96,6 +96,7 @@ export function ItemFormPage() {
   return (
     <Card title={mode === 'create' ? 'New item' : `Edit ${existingItem?.item_code}`}>
       <ItemForm
+        key={id ?? 'new'}
         mode={mode}
         initialValues={existingItem}
         submitting={submitting}

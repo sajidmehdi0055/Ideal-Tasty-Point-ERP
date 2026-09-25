@@ -108,4 +108,25 @@ describe('AppShell', () => {
     expect(aside).toHaveAttribute('inert');
     expect(aside).not.toHaveAttribute('aria-modal', 'true');
   });
+
+  it('does not steal focus onto the hidden trigger when the drawer auto-closes on a desktop transition', async () => {
+    // The trigger button is `md:hidden`, so it isn't focusable on desktop.
+    // The pre-fix effect fired for this transition too (wasOpenRef was true,
+    // mobileNavOpen just went false) and called .focus() on it regardless.
+    const viewport = stubMatchMedia(false);
+    render(
+      <MemoryRouter initialEntries={['/items']}>
+        <DevSessionProvider>
+          <AppShell>content</AppShell>
+        </DevSessionProvider>
+      </MemoryRouter>,
+    );
+    const trigger = screen.getByRole('button', { name: 'Open navigation' });
+    await userEvent.click(trigger);
+
+    const focusSpy = vi.spyOn(trigger, 'focus');
+    act(() => viewport.setMatches(true)); // widen to desktop; drawer auto-closes
+
+    expect(focusSpy).not.toHaveBeenCalled();
+  });
 });
