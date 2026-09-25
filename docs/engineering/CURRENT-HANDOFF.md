@@ -1,3 +1,81 @@
+# Current Handoff — S03-IMPL-001 (Inventory S-03 Supplier Master, Purchase Record, Rate Comparison — pre-review)
+
+Date: 2026-09-25. Branch: feat/inv-s03-purchasing-supplier-foundation. Base: main (c463e8a, S-02 already merged).
+Authority: owner-approved "Inventory S-03: Purchasing & Supplier Foundation" scope, relayed in-conversation by the Manager session, explicitly excluding Purchase Orders, GRN, Supplier Ledger, Payments, rate-increase alerts, custom date-range comparison, negative-stock/backdating-cancellation/return handling, and costing/valuation. Full traceability: docs/engineering/inventory-s03-implementation.md.
+Roles: Claude Code = primary implementation agent (this record, Manager-led per the persisted multi-agent operating model). Codex = independent reviewer, **not yet run** for this slice. Google Antigravity = third-priority fallback/review, not used this session.
+
+## Implementation summary
+
+- Commit 637441d — `feat(inventory): implement S-03 Supplier Master, Purchase Record and Rate Comparison`
+- Commit 0e3f7ed — `test(inventory): add S-03 unit/integration tests, update S-01/S-02 buildApp wiring and migration-count assertions`
+- This commit — documentation (backend/README.md API contract, this handoff entry, docs/engineering/inventory-s03-implementation.md)
+
+Files created: `backend/src/inventory/{domain,application,persistence,api}/{supplier,purchase-record}*.ts` (12 files), `backend/migrations/202609250001_inventory_s03_purchasing_supplier.sql`, `backend/tests/unit/{supplier,purchase-record}-api.test.ts`, `backend/tests/integration/purchasing-supplier-postgres.test.ts`, `docs/engineering/inventory-s03-implementation.md`.
+Files modified: `backend/src/app.ts`, `backend/src/server.ts` (wire the two new repositories/services/routes), `backend/scripts/runtime-grants.sql` (extended, single authoritative source), `backend/README.md` (new API contract sections), `backend/tests/unit/{item,uom,brand,pack-variant}-api.test.ts` and `backend/tests/integration/{item,uom-brand-pack}-postgres.test.ts` (mechanical updates only — satisfy `buildApp`'s now-required options, and two pre-existing exact-migration-list assertions updated to include the new S-03 migration file; no S-01/S-02 behavior changed).
+
+## API added
+
+- `POST /api/inventory/suppliers`, `PATCH /api/inventory/suppliers/:id`, `GET /api/inventory/suppliers`
+- `POST /api/inventory/purchases`, `GET /api/inventory/purchases` (no PATCH — intentionally absent, not merely permission-gated)
+- `GET /api/inventory/purchases/rate-comparison?item_id=&brand_id=&pack_variant_id=`
+
+## Security / authorization
+
+- Reuses the existing `requireItemEditor` (Owner/Manager) unchanged for every new route.
+- One new rule: `SupplierService.update` additionally requires `role === 'OWNER'` specifically when the PATCH body includes `active`, even bundled with another field in the same request — tested at both unit and integration level.
+- Branch isolation for Purchase Record (create, list, rate-comparison) follows the exact Pack Variant pattern (join to `item_master`, filter by `AuthContext.branchId`, same non-leaking 404), which is the precise regression class S-02's round-1 BLOCKER 1 was; a named regression-guard integration test exists for all three paths.
+- Runtime grants: Purchase Record has no UPDATE grant in `scripts/runtime-grants.sql` at all (create-only by design, enforced at three independent layers: no route, a DB trigger, and no grant).
+
+## Audit
+
+- `supplier_audit`: same append-only/immutable pattern as `brand_audit`/`uom_audit` (CREATE and UPDATE actions).
+- `purchase_record_audit`: same immutability pattern, constrained to `action = 'CREATE'` only (no UPDATE ever recorded, matching Purchase Record having no edit path).
+
+## Verification results (real PostgreSQL; see note on environment below)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | Completed — dependencies reconciled cleanly (EBADENGINE warning only, see note below) |
+| typecheck | PASS |
+| lint | PASS |
+| build | PASS |
+| test:unit | PASS — 261/261 (6 test files) |
+| migrate:check | PASS — dry-run applies all four migrations (S-01, S-02 × 2, S-03) cleanly against a fresh database |
+| migrate | PASS — real apply, `--no-single-transaction`, same authoritative command as `npm run migrate` |
+| test:integration | PASS — 61/61 (3 test files: 13 S-01 + 26 S-02 + 22 S-03), real PostgreSQL |
+
+S-01/S-02 regression: ZERO behavioral changes — all 13 S-01 and 26 S-02 integration tests pass unchanged (two assertions were mechanically updated to expect four applied migrations instead of three, since S-03 adds a fourth migration file; nothing about S-01/S-02 behavior itself changed). All 6 unit test files (261 tests) pass, including item/uom/brand/pack-variant suites updated only for the new `buildApp` option shape.
+
+### Environment note (read before trusting "Docker Desktop" in future handoffs)
+
+This verification was **not** run against the owner's Docker Desktop PostgreSQL (compose.yaml), because the `mcp__remote-devices__device_bash` tool used for this session runs inside an isolated Linux VM on the owner's machine that cannot reach Docker Desktop's `127.0.0.1:5432` (a separate network namespace from the Windows host). Two further problems compounded this:
+
+1. **npm on the mounted Windows drive**: `npm ci` directly against the OneDrive/Windows-mounted repo path failed with `EIO` deleting a Windows-native `esbuild.exe` binary, and the repo's existing `node_modules` was installed for `win32-x64`, not usable from this Linux VM regardless.
+2. **No Docker, no root**: the Linux VM has no `docker` binary and no `sudo`/root access, so Docker Desktop could not be started or substituted from inside it by the usual means.
+
+Resolution used: the backend source was `rsync`'d (excluding `node_modules`/`dist`) into a scratch directory inside the Linux VM, where `npm ci` was run fresh (correct Linux binaries). A real PostgreSQL 14 server (not a mock, not `pg-mem`) was obtained without root by `apt-get download`-ing the Ubuntu `postgresql-14`/`libpq5` `.deb` packages (no install, no dpkg lock needed) and extracting them with `dpkg-deb -x` into a user-owned prefix; `initdb`/`postgres` were run directly as the unprivileged session user, listening on `127.0.0.1:5544`. All commands above ran against this real, disposable PostgreSQL instance. **This instance and its data do not persist** — it exists only for the duration of this session's shell calls and is not the owner's actual local Postgres. The owner's real Docker Desktop `erp_local`/`erp_test` databases were never touched, read, or modified.
+
+**Node version**: this Linux VM only has Node 22.23.2 available (`npm run typecheck`/`lint`/`test:*`/`build` all ran under it), not the Node 24 the repo's `engines` field requires (`npm ci` printed an `EBADENGINE` warning, non-fatal). All checks passed under Node 22; they have not been separately re-verified under Node 24. **Recommend the owner (or a future session with real desktop/Docker access) re-run the full verification list once against the actual Docker Desktop Postgres and Node 24**, as a final confirmation before merge, even though this session's real-Postgres run found and fixed one genuine bug (see below) that a mock never would have.
+
+## Real bug found and fixed during this implementation (not a test-environment artifact)
+
+`Date.parse()`/`new Date(...)` in Node do **not** reject an invalid calendar date given as an ISO date-only string — `Date.parse('2026-02-30')` silently rolls over to March 2 instead of failing. The first version of `purchase_date` validation relied on this and would have silently accepted invalid dates like "2026-02-30" as if they were valid. Caught by writing a unit test for it, then fixed with manual days-in-month/leap-year validation (`isValidCalendarDate` in `backend/src/inventory/domain/purchase-record.ts`) instead of trusting `Date` parsing. Covered by both unit and integration tests.
+
+## Independent review
+
+**Not yet performed.** Per AGENTS.md/DEFINITION-OF-DONE, this slice is implementation-complete and self-tested only; Codex (or Google Antigravity as fallback) independent review is required before this can be considered mergeable, and self-review by Claude Code does not satisfy that gate.
+
+## Open questions / judgment calls (technical, not business-rule invention)
+
+1. Rate Comparison's exact JSON response shape (field names, `records_considered`, null-degradation) was designed from the plain-language description in scope, since no exact contract was specified. See docs/engineering/inventory-s03-implementation.md for the full list of judgment calls, including the read-only Rate Comparison endpoint also validating the item/brand/pack_variant combination consistency (400 INVALID_REFERENCE on mismatch), which is a technical extension of the Purchase Record create validation for consistency, not a business rule.
+2. None of these affect underlying data, security, or business logic, and none are blocking — flagged for Manager/owner awareness, not as a stop condition.
+
+## Next recommended action
+
+Do not merge. Next steps: (1) independent Codex review of commits 637441d/0e3f7ed on this branch, (2) if the owner or a session with real Docker Desktop access is available, re-run the full verification list against the actual local Postgres and Node 24 as a final confirmation, (3) only after both PASS, controlled merge to main following the standard S-01/S-02 workflow. Do not merge without independent review.
+
+---
+
 # Current Handoff — S02-MERGE-001 (Inventory S-02 Merged to Main)
 
 Date: 2026-09-18. Branch: main. Merged from: feat/inv-s02-uom-brand-pack (commit be21626).

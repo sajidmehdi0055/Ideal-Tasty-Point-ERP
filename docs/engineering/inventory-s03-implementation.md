@@ -1,0 +1,48 @@
+# Inventory S-03 implementation and traceability
+
+Branch: feat/inv-s03-purchasing-supplier-foundation. Base: main (c463e8a, S-02 already merged). Authority: owner-approved S-03 scope ("Inventory S-03: Purchasing & Supplier Foundation") as relayed by the Manager session in-conversation. ADR-0001..0007 unchanged; no new ADR was required (no architecture-level decision, only routine technical implementation choices, all documented below and consistent with existing S-01/S-02 conventions).
+
+## Bounded task and contracts
+
+Allowed code: backend/ only; docs/engineering/ for evidence; backend/README.md and root README.md for status. No requirements, architecture, or security-baseline document changed.
+
+Explicitly excluded from this slice (per approved scope; confirmed absent from `backend/src`): Purchase Orders, Goods Receiving (GRN), Supplier Ledger, Payments, rate-increase alerts, custom date-range comparison, negative-stock/backdating-cancellation/return handling, and any costing/valuation logic. These remain tracked as open business decisions in `docs/engineering/inventory-open-decisions.md` (B-05, B-10, and the INV-18/19/D-09 supplier-comparison/invoice-payment group) and are not resolved or narrowed by this slice.
+
+Claude Code implemented, self-tested, and self-reviewed this slice in one session (Manager-led, per the persisted multi-agent operating model). Independent Codex review has not yet occurred as of this document; see CURRENT-HANDOFF.md for status.
+
+## Requirement coverage
+
+| Requirement (approved S-03 scope) | Implementation / verification |
+|---|---|
+| Supplier Master: global/standalone, name/contact/type, Owner-or-Manager edit, Owner-only deactivate | `supplier_master` table (same shape as Brand Master); `SupplierService.update` gates `active` changes to `role === 'OWNER'` specifically, independent of the shared Owner/Manager editor gate used for every other field; unit + integration tests cover both roles and the bundled-field case |
+| Supplier name duplicate protection, case-insensitive/trimmed, race-safe | Unique index on `lower(btrim(name))`; service-layer pre-check + DB-level `409 DUPLICATE_SUPPLIER_NAME` on race; 4-way concurrent-create integration test |
+| Purchase Record: supplier/item/brand/pack_variant references, quantity/rate NUMERIC > 0, purchase_date not in the future, backdating allowed | `purchase_record` table; Zod schema validates quantity/rate as positive decimal strings (same pattern as `conversion_factor`) and purchase_date as a real calendar date (manually validated against days-in-month/leap-year rules, since JS `Date` parsing silently rolls over invalid dates like "2026-02-30" instead of rejecting them) that is `<=` the current UTC date |
+| pack_variant_id must belong to the given item_id + brand_id | Validated in `PgPurchaseRecordRepository.create` by looking up the pack variant's own `item_id`/`brand_id` and comparing, not merely relying on independent foreign keys; mismatch or nonexistent reference returns `400 INVALID_REFERENCE` |
+| Purchase Record branch ownership via item, not its own branch_id, on every read path | Same pattern as Pack Variant (S-02 BLOCKER-1 precedent): create validates via `item_master.branch_id`; `list()` and `getRateComparison()` both join `item_master` and filter by `AuthContext.branchId`; a dedicated cross-branch-denial integration test exists for create, list, and rate-comparison, named after the BLOCKER-1 regression to make the intent explicit |
+| Purchase Record is create-only, no edit/void path | No PATCH route registered at all (not merely permission-gated); the DB layer independently enforces this with `BEFORE UPDATE ... REJECT` triggers on `purchase_record` itself (not only its audit table), so even the schema-owner connection cannot edit a row; the runtime role additionally has no UPDATE grant on `purchase_record` at all |
+| Purchase Record never touches stock/quantity-on-hand | No stock/quantity-on-hand table exists anywhere in the schema; a dedicated integration test asserts no table matching `%stock%` exists in the test schema |
+| Full audit-trail-on-create for Purchase Record, even with no edit path | `purchase_record_audit`, same append-only/immutable-trigger pattern as every other audit table, but constrained to `action = 'CREATE'` only (no `UPDATE` action ever recorded, since there is nothing to record an update of) |
+| Rate Comparison: current/previous/average-of-last-3/rate-per-Base-UOM/percentage-change/per-supplier breakdown, graceful degradation under 3 records | `PgPurchaseRecordRepository.getRateComparison`; all arithmetic (averages, percentage change, per-Base-UOM division) computed in PostgreSQL with `NUMERIC`, rounded to 6 decimal places, never JS floating point; 0/1/2/4-record integration tests prove the degrade-gracefully behavior and the exact math, including the per-supplier breakdown correctly covering the *entire* purchase history for the combination, not only the last-3 window |
+| No custom date-range filtering | Not implemented; only the last-3-purchases default view exists, as scoped |
+| Reuse S-01/S-02 AuthContext/Owner-Manager pattern, no RBAC redesign | Every new route calls the existing `requireItemEditor` unchanged; the one addition (Owner-only `active` gate on Supplier) is an explicit in-service check, not a new auth primitive |
+| Runtime grants: single authoritative source, exercised by tests, minimal privilege | `scripts/runtime-grants.sql` extended (not duplicated) with Supplier/Purchase Record grants; Purchase Record intentionally has **no UPDATE grant at all** (defense in depth beyond the DB trigger); a dedicated test proves the shipped grants alone are sufficient for a full Supplier + Purchase Record create cycle, and another proves the runtime role cannot UPDATE/DELETE `purchase_record` |
+| Testing per the approved list | See Verification results in CURRENT-HANDOFF.md, all against real PostgreSQL for the integration layer |
+
+Out of scope and not implemented, confirmed absent from `backend/src`: Purchase Orders, GRN, Supplier Ledger, Payments, rate-increase alerts, custom date-range comparison, negative-stock/backdating-cancellation/return handling, costing/valuation, Stock In/Out, Transfers, Kitchen Issues, Lots/Expiry, Reorder, Barcode/QR, Production/Recipe, Reports/Dashboards.
+
+## Technical choices
+
+- Single migration file (`202609250001_inventory_s03_purchasing_supplier.sql`), unlike S-02's two-migration split. S-02 split specifically to make a legacy-data-backfill halt recoverable; S-03 introduces only brand-new tables with no backfill of existing columns, so there is no halt-and-recover scenario to protect and a split would add complexity without a corresponding safety benefit.
+- Supplier Master reuses the exact Brand Master shape/pattern (global standalone master, generic identity-immutability trigger, case-insensitive/trimmed unique name index).
+- Purchase Record is immutable in full once created — every column, not only identity columns — reflected at three independent layers: no PATCH route registered, a `BEFORE UPDATE` trigger rejecting all updates (not merely an identity-preservation trigger like other masters), and no UPDATE grant in `runtime-grants.sql` at all.
+- `purchase_date` is read back via `to_char(purchase_date, 'YYYY-MM-DD')` rather than relying on node-postgres's default DATE parsing, to avoid any local-timezone-shift ambiguity around midnight at the API boundary.
+- Rate Comparison's per-supplier breakdown intentionally covers the *entire* purchase history for the item/brand/pack-variant combination, not only the last-3-purchases window used for current/previous/average — these are two independently scoped views over the same underlying data, both documented in `backend/README.md`.
+- `current_rate_per_base_uom` is computed only from the current (most recent) rate; a previous-rate-per-Base-UOM field was considered but not added, to keep the response shape lean and matching the plain-language request ("rate per Base UOM") rather than speculatively expanding it.
+
+## Judgment calls / open questions (technical, resolved by engineering judgment; not business-rule invention)
+
+- **Rate Comparison response shape** was not specified field-by-field in the approved scope beyond "current rate, previous rate, average of last 3, rate per Base UOM, percentage change, per-supplier breakdown". The exact JSON shape (field names, null-degradation behavior, `records_considered` field) was designed to satisfy that description and is documented in `backend/README.md`; this is a technical/API-design decision, not a business rule, and can be revisited without affecting the underlying data or business logic.
+- **Rate Comparison reference validation**: the approved scope only explicitly required item_id/brand_id/pack_variant_id consistency validation for Purchase Record *create*. For symmetry and to avoid confusing empty results from a bogus combination, the same `400 INVALID_REFERENCE` check was applied to the read-only Rate Comparison endpoint. This is a defensible, low-risk technical consistency choice, not a new business rule; the Manager/owner may decide this should instead silently return an empty result if that reads better in the UI later.
+- **Supplier `contact` field** has no dedicated "clear to empty/null" path via PATCH (only "omit to leave unchanged" or "supply a new value"); this mirrors how every other optional-field edit works in this codebase and was not called out as a requirement.
+
+Detailed commands, API format, and data model: ../../backend/README.md. Actual execution/review results belong in CURRENT-HANDOFF.md; tests are not assumed passed here.
