@@ -1,4 +1,52 @@
-# Current Handoff — S03-MERGE-001 (Inventory S-03 Merged to Main)
+# Current Handoff — UI-MERGE-001 (Frontend UI Foundation Merged to Main)
+
+Date: 2026-09-26. Branch: main. Merged from: feat/ui-foundation-item-master (HEAD 7a9a9e4).
+Authority: explicit owner approval in-session for this merge, following an in-house QA/Testing subagent review verdict of PASS — ready for controlled merge (0 BLOCKER / 0 MAJOR / 0 MINOR / 0 NOTE) on commit 7a9a9e4. Codex and Google Antigravity remain paused (GOV-MANAGER-SUBAGENT-001).
+Roles: Cowork Claude session (Manager) = executed this merge, post-merge verification and this record. VS Code Claude Code session = reconcile (UI-RECONCILE-001), fix (UI-FIX-001), pre-merge verification. In-house QA/Testing subagent with no part in the fix = independent reviewer (PASS). Known limitation: same-provider review is weaker independence than an external tool.
+
+## Merge summary
+
+The frontend UI foundation (ERP shell, sidebar, design-system components, Item Master create/edit/list, UOM/Brand/Pack Variant placeholder pages) merged into main via a pure fast-forward. main (4ede738) was a strict ancestor of the reconciled feature branch, so there were zero conflicts and no merge commit.
+
+- Previous main HEAD: 4ede738 (S-01 + S-02 + S-03 + GOV-MANAGER-SUBAGENT-001)
+- Feature branch HEAD (merged, reviewed commit): 7a9a9e4
+- New main HEAD (merge): 7a9a9e4
+- Merge type: fast-forward (`git merge --ff-only origin/feat/ui-foundation-item-master`)
+- Scope check: `git diff 4ede738 7a9a9e4 -- backend/` is empty — no backend, migration, API, security or audit change. Outside `frontend/`, only README.md and this file changed.
+- Feature branch `feat/ui-foundation-item-master` preserved (not deleted) on origin.
+- Push: `git push origin main` is run from the owner's Windows machine (the Cowork VM has no GitHub push credentials); confirm `main == origin/main` after `git fetch origin`.
+
+Merge execution note: the first `--ff-only` attempt from the Cowork VM stopped part-way because file deletion in the mounted repo was not yet permitted (git could not unlink the old CURRENT-HANDOFF.md). HEAD stayed at 4ede738 and no tracked file changed; it left an empty `.git/index.lock` and a partial untracked `frontend/` copy. With owner-approved delete permission, only those two leftovers were removed, and the `--ff-only` merge was re-run successfully (clean tree, HEAD 7a9a9e4).
+
+## Verification
+
+| Check | Pre-merge (feature branch 7a9a9e4, owner's Windows env, VS Code session) | Post-merge (main 7a9a9e4, clean `git archive` of main, Cowork Linux VM, Node v24.21.0) |
+|---|---|---|
+| npm ci --ignore-scripts | PASS — 249 packages, 0 vulnerabilities (after owner closed an orphaned Vite dev server, PIDs 10108/18080/34380, that locked the rolldown native binding) | PASS — 249 packages |
+| typecheck | PASS | PASS |
+| lint | PASS | PASS |
+| test | PASS — 47/47 | PASS — 47/47 (9 test files) |
+| build | PASS | PASS |
+
+Backend checks were not re-run: the backend tree on main is byte-identical to 4ede738, which was verified in S03-MERGE-001 (unit 261/261, integration 61/61 on PostgreSQL 17.11).
+
+## Independent review
+
+In-house QA/Testing subagent (no involvement in the fix) — **PASS — ready for controlled merge**. It re-ran typecheck/lint/test (47/47)/build, confirmed the empty backend diff, confirmed the fix commit touches only its 4 claimed files, read the full `handleSubmit` error-branch ordering, and confirmed the new test is a genuine regression test (fails without the fix). No secrets, fake auth or dead code found. Earlier MAJOR (Base UOM hint contradicted backend `INVALID_BASE_UOM` validation) is closed by UI-FIX-001.
+
+## Known contract gaps (unchanged, documented in the UI)
+
+- No real login/session yet: backend returns 401 for mutations by design; the dev identity switch is dev-only and clearly labeled.
+- Base UOM is a free-text field validated by the backend against active UOM Master rows; a UOM picker is future work.
+- UOM / Brand / Pack Variant screens are placeholders; no Supplier / Purchase UI yet.
+
+## Next recommended action
+
+Do not start S-04 automatically. Open items: (1) S-03 MINOR — century leap-year test coverage, (2) Figma palette proposal/approval before any visual redesign, (3) S-04 scoping from the roadmap only when the owner asks. An untracked leftover `frontend/tmp-playwright-demo.mjs` exists only in the ui-foundation worktree (never committed); owner may delete it.
+
+---
+
+## Previous handoff — S03-MERGE-001 (Inventory S-03 Merged to Main)
 
 Date: 2026-09-25. Branch: main. Merged from: feat/inv-s03-purchasing-supplier-foundation (commits 637441d, 0e3f7ed, c84047b).
 Authority: owner-approved controlled merge, following an in-house QA/Testing subagent review verdict of PASS — ready for controlled merge (no BLOCKER/MAJOR findings; 1 MINOR open, recorded below, not a merge blocker), and explicit owner authorization in-session to proceed with the merge. Codex and Google Antigravity were paused by the owner's instruction for this session, so the independent review was performed by an in-house QA/Testing subagent instead of the usual Codex path.
