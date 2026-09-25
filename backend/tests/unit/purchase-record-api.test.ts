@@ -75,6 +75,21 @@ describe('S-03 Purchase Record mandatory fields and validation', () => {
     expect((await app.inject({ method: 'POST', url: '/api/inventory/purchases', payload: { ...input, purchase_date: '2026-02-30' } })).statusCode).toBe(400);
     expect(repository.create).not.toHaveBeenCalled();
   });
+  // Leap-year rule: divisible by 4, except centuries, unless divisible by 400.
+  // Only past dates are usable here (future dates are rejected separately).
+  it.each(['2000-02-29', '1600-02-29', '2024-02-29'])('accepts Feb 29 in a leap year %s (incl. centuries divisible by 400)', async value => {
+    const { app, repository } = setup();
+    const response = await app.inject({ method: 'POST', url: '/api/inventory/purchases', payload: { ...input, purchase_date: value } });
+    expect(response.statusCode).toBe(201);
+    expect(repository.create).toHaveBeenCalledWith({ ...input, purchase_date: value }, owner);
+  });
+  it.each(['1900-02-29', '1800-02-29', '1700-02-29', '2023-02-29'])('rejects Feb 29 in a non-leap year %s (incl. centuries not divisible by 400)', async value => {
+    const { app, repository } = setup();
+    const response = await app.inject({ method: 'POST', url: '/api/inventory/purchases', payload: { ...input, purchase_date: value } });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ error: 'VALIDATION_ERROR', issues: [{ path: ['purchase_date'], message: 'purchase_date must be a valid calendar date' }] });
+    expect(repository.create).not.toHaveBeenCalled();
+  });
   it('rejects unknown/overridden fields, including id/created_at', async () => {
     const { app, repository } = setup();
     expect((await app.inject({ method: 'POST', url: '/api/inventory/purchases', payload: { ...input, id: 'override' } })).statusCode).toBe(400);
