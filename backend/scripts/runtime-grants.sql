@@ -11,7 +11,7 @@
 -- This script grants no role membership, ownership, DDL, DELETE or TRUNCATE.
 GRANT USAGE ON SCHEMA :"schema_name" TO :"runtime_role";
 
-GRANT SELECT ON item_master, uom_master, brand_master, pack_variant TO :"runtime_role";
+GRANT SELECT ON item_master, uom_master, brand_master, pack_variant, supplier_master, purchase_record TO :"runtime_role";
 
 GRANT INSERT (id, branch_id, item_name, primary_item_type, base_uom_id, brand)
   ON item_master TO :"runtime_role";
@@ -31,3 +31,12 @@ GRANT INSERT ON brand_audit TO :"runtime_role";
 GRANT INSERT (id, item_id, brand_id, pack_uom_id, conversion_factor) ON pack_variant TO :"runtime_role";
 GRANT UPDATE (conversion_factor, active, updated_at) ON pack_variant TO :"runtime_role";
 GRANT INSERT ON pack_variant_audit TO :"runtime_role";
+
+GRANT INSERT (id, name, contact, type) ON supplier_master TO :"runtime_role";
+GRANT UPDATE (name, contact, type, active, updated_at) ON supplier_master TO :"runtime_role";
+GRANT INSERT ON supplier_audit TO :"runtime_role";
+
+-- Purchase Record is create-only: intentionally no UPDATE grant at all, so
+-- even a future application bug cannot edit a purchase record at the DB layer.
+GRANT INSERT (id, supplier_id, item_id, brand_id, pack_variant_id, quantity, rate, purchase_date) ON purchase_record TO :"runtime_role";
+GRANT INSERT ON purchase_record_audit TO :"runtime_role";

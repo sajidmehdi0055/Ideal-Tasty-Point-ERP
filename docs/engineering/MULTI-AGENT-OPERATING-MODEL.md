@@ -121,12 +121,26 @@ This aligns with, and does not relax, AGENTS.md guardrails 2, 6, 7, and 13.
 
 At the completion of a multi-agent task, the Manager gives the owner one consolidated Agent Execution Report covering: (1) Manager task summary, (2) agents used, (3) role of each agent, (4) work completed by each, (5) tests performed, (6) independent reviews performed, (7) conflicts/disagreements and how resolved, (8) files changed, (9) Git status, (10) remaining risks/issues, (11) final consolidated result, (12) recommended next step. This is the multi-agent-specific shape of the handoff fields already required by TASK-HANDOFF-PROTOCOL.md — it does not replace that protocol's per-agent handoff requirements, which still apply to each specialist's individual report to the Manager.
 
-## External tool priority
+## External tool priority (currently paused)
 
-For this project, in order:
+Standing order, for when Codex and/or Google Antigravity are available again:
 
 1. **Claude Code** — primary manager-led implementation and multi-agent coordination platform.
-2. **Codex** — second priority for independent review, architecture input, debugging, and backup implementation.
-3. **Google Antigravity** — third priority for fallback implementation, review, or additional capacity.
+2. **Codex** — independent review, architecture input, debugging, and backup implementation.
+3. **Google Antigravity** — fallback implementation, review, or additional capacity.
 
-This priority order governs which tool the Manager reaches for first; it never reduces reviewer independence. If Claude Code implements a change, the independent reviewer must be a genuinely separate agent or tool (e.g. Codex, or a fresh Claude Code subagent with no prior context of the implementation) — never the same implementing session or an agent that merely carries a different role label. The independence rule in AGENT-ROLES.md and REVIEW-WORKFLOW.md governs over tool preference whenever the two would conflict.
+**Owner instruction, 2026-09-25: Codex and Google Antigravity are paused** (Codex ran out of usage capacity). Until the owner explicitly reactivates them, tool priority is Claude Code only — every role in the table above, including the reviewer role, is filled by a Claude Code subagent.
+
+This does not relax the independence rule in AGENT-ROLES.md and REVIEW-WORKFLOW.md: the reviewer must still be a genuinely separate agent from every implementer of the reviewed work — in practice, a fresh Claude Code QA/Testing (or Security & Code Review) subagent with no prior context of the implementation, that actually runs the checks rather than trusting the implementer's report. The Manager records in every completion report that review was performed in-house (no external tool available) so the owner can see the limitation. When Codex or Antigravity become available again, this section reverts to the numbered priority order above without any other change to this document.
+
+## Token efficiency
+
+Subagents exist to make a task correct and independently verified — not to run up usage. The Manager:
+
+- Sizes the agent count to the task using the scaling table above; does not add agents "to be safe" once the task's roles are covered.
+- Has each subagent read only the files its bounded scope needs, once, rather than re-reading unchanged context across turns.
+- Avoids speculative exploration, restating already-known project context, or producing reports longer than the required handoff fields.
+- Stops a task at its acceptance criteria — no unrequested extra polish, alternate implementations, or "while I'm here" refactors (this restates AGENTS.md guardrail 6, not a new rule).
+- Reports actual token/agent usage in the completion report only when the owner asks; otherwise keeps the report to the required fields.
+
+This is a discipline expectation, not a quality shortcut: required tests, checks, and independent review (above) are never skipped or thinned to save tokens.

@@ -1,6 +1,6 @@
-# Inventory S-01/S-02 backend
+# Inventory S-01/S-02/S-03 backend
 
-Item Master create/edit (S-01) plus UOM, Brand and Pack Variant Masters (S-02) are implemented. No UI, login/session system, Redis, stock operations, supplier/purchasing, or costing.
+Item Master create/edit (S-01), UOM/Brand/Pack Variant Masters (S-02), and Supplier Master + Purchase Record + Rate Comparison (S-03) are implemented. No UI, login/session system, Redis, stock operations, Purchase Orders/GRN/Supplier Ledger/Payments, or costing/valuation.
 
 ## Foundation
 
@@ -68,9 +68,55 @@ Global, standalone catalog — not nested under Item. The S-02 migration seeds t
 
 Pack Variant carries no `branch_id` of its own; branch ownership is enforced through the referenced item — for create/update via the same item lookup, and for `GET`/list via a `JOIN` to `item_master` filtered by the caller's `AuthContext.branchId`, so listing only ever returns pack variants belonging to the caller's own branch. Creating or editing a variant for an item that does not belong to the caller's authorized branch returns the same 404 as a missing item (`ITEM_NOT_FOUND` / `PACK_VARIANT_NOT_FOUND`), never leaking cross-branch existence. A bogus `brand_id`/`pack_uom_id` returns `400 INVALID_REFERENCE`. An exact duplicate (same item + brand + pack UOM + conversion factor) returns `409 DUPLICATE_PACK_VARIANT` — including under concurrent duplicate creation attempts, where the database's unique constraint is the final race-safe protection (exactly one attempt succeeds); different conversion factors for the same item/brand/pack UOM are explicitly allowed (different pack sizes).
 
+### Supplier Master
+
+- `POST /api/inventory/suppliers` `{ "name": "Al Barkat Traders", "contact": "0300-1234567", "type": "CASH" }` -> 201. `contact` is optional free text. `type` is one of `CASH`, `CREDIT`.
+- `PATCH /api/inventory/suppliers/:id` -- nonempty subset of `name`/`contact`/`type`/`active`. Editing `name`/`contact`/`type` requires Owner or Manager, same as every other master; changing `active` (deactivate/reactivate) requires **Owner only** -- a Manager attempting to include `active` in the same PATCH, alone or bundled with another field, gets `403 FORBIDDEN` and nothing is written, even the other fields in that request.
+- `GET /api/inventory/suppliers` -- list, Owner/Manager only.
+
+Global, standalone catalog -- not nested under a branch or another entity, same shape as Brand Master. Same case-insensitive/trimmed name uniqueness as UOM/Brand (`409 DUPLICATE_SUPPLIER_NAME`, including under a concurrent race). No fuzzy/near-duplicate detection.
+
+### Purchase Record
+
+- `POST /api/inventory/purchases` `{ "supplier_id": "...", "item_id": "...", "brand_id": "...", "pack_variant_id": "...", "quantity": "10", "rate": "12.5", "purchase_date": "2026-09-20" }` -> 201.
+- `GET /api/inventory/purchases` -- list, branch-scoped (via the referenced item, see below), Owner/Manager only.
+
+**No PATCH/edit/void endpoint exists at all.** Once created, a purchase record is immutable in full (every field, not only identity columns) -- correcting or reversing a purchase record is an explicitly deferred, undecided business rule for a later slice, not something this API silently allows. This never touches stock/quantity-on-hand; there is no stock engine yet, and no Purchase Order/GRN/Supplier Ledger/Payments workflow in this slice -- it is purely a rate/history record.
+
+`quantity` and `rate` are transported as **decimal strings** end-to-end (never JSON numbers), exactly like Pack Variant's `conversion_factor`, so the `NUMERIC(18,6)` "never float" guarantee holds at the API boundary too. Both must be `> 0`. `purchase_date` is a plain `YYYY-MM-DD` calendar date string; it must be a real calendar date (Postgres/JS Date parsing does not itself validate this -- "2026-02-30" is checked manually against real days-in-month/leap-year rules) and **cannot be in the future** (`400`); backdated/historical entries are explicitly allowed, since staff commonly enter historical records.
+
+Purchase Record carries no `branch_id` of its own; branch ownership is enforced through the referenced `item_id`, exactly like Pack Variant -- for create via the item lookup, and for `GET`/list via a `JOIN` to `item_master` filtered by the caller's `AuthContext.branchId`. Creating a purchase record for an item that does not belong to the caller's authorized branch returns the same `404 ITEM_NOT_FOUND` as a missing item, never leaking cross-branch existence.
+
+The referenced `pack_variant_id` must actually belong to the given `item_id` + `brand_id` combination (this is validated in application code, not only as a foreign key) -- a mismatch, or a `pack_variant_id`/`supplier_id` that does not exist at all, returns `400 INVALID_REFERENCE`.
+
+### Rate Comparison
+
+- `GET /api/inventory/purchases/rate-comparison?item_id=...&brand_id=...&pack_variant_id=...` -- read-only, branch-scoped via the same item-based isolation as Purchase Record, Owner/Manager only.
+
+For the given item + brand + pack-variant combination, returns:
+
+```json
+{
+  "item_id": "...", "brand_id": "...", "pack_variant_id": "...",
+  "records_considered": 3,
+  "current_rate": "13.000000",
+  "previous_rate": "12.000000",
+  "average_rate_last_3": "12.333333",
+  "current_rate_per_base_uom": "0.812500",
+  "percentage_change": "8.333333",
+  "supplier_breakdown": [
+    { "supplier_id": "...", "supplier_name": "...", "purchase_count": 2, "latest_rate": "13.000000", "average_rate": "12.500000" }
+  ]
+}
+```
+
+`current_rate`/`previous_rate` are the most recent and second-most-recent purchase (by `purchase_date`, then `created_at`, descending). `average_rate_last_3` averages up to the 3 most recent purchases (fewer if fewer exist). `current_rate_per_base_uom` is `current_rate / pack_variant.conversion_factor`. `percentage_change` is `(current - previous) / previous * 100`. All arithmetic is computed in PostgreSQL with `NUMERIC`, never JS floats, rounded to 6 decimal places. `supplier_breakdown` groups the **entire** purchase history for the combination by supplier (not only the last-3 window), so the owner can compare suppliers over time.
+
+**No custom date-range filtering in this slice** -- only the last-3-purchases default view (deferred to a later slice). When fewer than 3 (or 2, or 0) purchase records exist yet, the endpoint degrades gracefully: whatever cannot be computed is `null` (`records_considered: 0` returns nulls for every stat and an empty `supplier_breakdown`, not an error). A `pack_variant_id` that exists but does not belong to the given `item_id`/`brand_id` returns the same `400 INVALID_REFERENCE` as Purchase Record create.
+
 ## Data and audit
 
-`item_master`, `uom_master`, `brand_master`, `pack_variant`, their respective `*_audit` tables, and the global `item_code_seq` are the domain objects. A trigger generates ITM-000001-style codes; padding grows beyond six digits without truncation. UNIQUE(item_code) is global; branch_id is separate. Sequence allocation is concurrent-safe and may leave gaps after rollback. There is no sequence reset/recycling tool. Identity columns (id, code/FK-identity fields, branch, creation time) are immutable; no delete/archive endpoint on any master table — deactivate via `active` instead.
+`item_master`, `uom_master`, `brand_master`, `pack_variant`, `supplier_master`, `purchase_record`, their respective `*_audit` tables, and the global `item_code_seq` are the domain objects. A trigger generates ITM-000001-style codes; padding grows beyond six digits without truncation. UNIQUE(item_code) is global; branch_id is separate. Sequence allocation is concurrent-safe and may leave gaps after rollback. There is no sequence reset/recycling tool. Identity columns (id, code/FK-identity fields, branch, creation time) are immutable; no delete/archive endpoint on any master table — deactivate via `active` instead. `purchase_record` has no `active`/deactivate concept at all: it has no edit path of any kind, so every column (not only identity columns) is immutable once inserted.
 
 `item_master.base_uom_id` is a foreign key into `uom_master` (migrated in S-02 from a free-text `base_uom` column). The original text is preserved, unused, as `base_uom_legacy_text` for one release cycle as a migration safety net — not read or written by the application, not part of any API contract, to be dropped in a later migration once verified against real (non-test) data.
 

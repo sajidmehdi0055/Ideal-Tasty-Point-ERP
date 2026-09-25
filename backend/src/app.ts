@@ -10,16 +10,24 @@ import type { BrandRepository } from './inventory/application/brand-repository.j
 import { BrandService } from './inventory/application/brand-service.js';
 import type { PackVariantRepository } from './inventory/application/pack-variant-repository.js';
 import { PackVariantService } from './inventory/application/pack-variant-service.js';
+import type { SupplierRepository } from './inventory/application/supplier-repository.js';
+import { SupplierService } from './inventory/application/supplier-service.js';
+import type { PurchaseRecordRepository } from './inventory/application/purchase-record-repository.js';
+import { PurchaseRecordService } from './inventory/application/purchase-record-service.js';
 import { registerItemRoutes } from './inventory/api/item-routes.js';
 import { registerUomRoutes } from './inventory/api/uom-routes.js';
 import { registerBrandRoutes } from './inventory/api/brand-routes.js';
 import { registerPackVariantRoutes } from './inventory/api/pack-variant-routes.js';
+import { registerSupplierRoutes } from './inventory/api/supplier-routes.js';
+import { registerPurchaseRecordRoutes } from './inventory/api/purchase-record-routes.js';
 
 export interface AppOptions {
   repository: ItemRepository;
   uomRepository: UomRepository;
   brandRepository: BrandRepository;
   packVariantRepository: PackVariantRepository;
+  supplierRepository: SupplierRepository;
+  purchaseRecordRepository: PurchaseRecordRepository;
   authProvider?: AuthContextProvider;
 }
 
@@ -42,5 +50,7 @@ export function buildApp(options: AppOptions) {
   registerUomRoutes(app, new UomService(options.uomRepository), authProvider);
   registerBrandRoutes(app, new BrandService(options.brandRepository), authProvider);
   registerPackVariantRoutes(app, new PackVariantService(options.packVariantRepository), authProvider);
+  registerSupplierRoutes(app, new SupplierService(options.supplierRepository), authProvider);
+  registerPurchaseRecordRoutes(app, new PurchaseRecordService(options.purchaseRecordRepository), authProvider);
   return app;
 }
