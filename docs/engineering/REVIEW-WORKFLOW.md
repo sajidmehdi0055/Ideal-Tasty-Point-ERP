@@ -11,6 +11,8 @@
 
 Final reviewer must be a different actual agent/person from all implementers of the reviewed work. A new role label, second self-review, or Manager sign-off cannot substitute. An implementing Manager needs independent review too. Reviewers return findings instead of silently fixing; if they implement a fix, another independent reviewer must review it and the affected final work. QA and independent code/security review are complementary gates.
 
+While Codex and Google Antigravity are paused (owner instruction, 2026-09-25; see MULTI-AGENT-OPERATING-MODEL.md), the independent reviewer is a fresh Claude Code QA/Testing or Security & Code Review subagent with no prior involvement in the implementation, actually executing the checks — not the implementing subagent under a different label. Completion reports note that review was in-house pending Codex/Antigravity's return.
+
 ## Review evidence
 
 Every review handoff follows TASK-HANDOFF-PROTOCOL.md: current branch, scope, files changed or none, checks run, unresolved risks, next recommended action, and candidate identity. Also record implementer/reviewer identities, findings/resolutions, and final outcome. Do not retain secrets in reports. Review approval applies only to the recorded candidate.

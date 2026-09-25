@@ -1,4 +1,39 @@
-# Current Handoff — S02-MERGE-001 (Inventory S-02 Merged to Main)
+# Current Handoff — GOV-MANAGER-SUBAGENT-001
+
+Date: 2026-09-25. Scope: governance/documentation only (AGENTS.md, docs/engineering/MULTI-AGENT-OPERATING-MODEL.md, docs/engineering/REVIEW-WORKFLOW.md, this handoff). Branch: docs/manager-subagent-governance-20260925 (base: main @ c463e8a). Authority: explicit owner instruction, given directly in-session, following Codex running out of usage capacity.
+
+## Owner decision recorded
+
+1. Codex and Google Antigravity are paused as external tools for this project until the owner reactivates them. Reason given: Codex has run out of tokens/capacity.
+2. All implementation and testing happen inside Claude Code: a Manager subagent (acting as the lead software engineer) decomposes work and delegates to specialist subagents, who report results back to the Manager — this was already the operating model (AGENTS.md, AGENT-ROLES.md) and is now the *only* execution path while Codex/Antigravity are paused.
+3. A dedicated QA/Testing subagent, separate from and with no prior involvement in the implementing subagent, must actually run the required tests/checks for every task — this subagent now also carries the independent-review role that Codex previously filled, since no external reviewer is available.
+4. Token/cost discipline: subagent count and work must stay sized to what each task genuinely needs; no redundant re-reading, speculative exploration, or unrequested extra work.
+5. When anything is genuinely ambiguous — an instruction, a requirement, a decision only the owner can make — the Manager stops and asks the owner directly rather than guessing.
+
+## What changed
+
+- AGENTS.md: external-tool priority line updated to note the pause; two new guardrail bullets added (paused-tools/in-house-review, token discipline, ask-when-unsure).
+- docs/engineering/MULTI-AGENT-OPERATING-MODEL.md: "External tool priority" section rewritten to record the pause and the in-house reviewer substitute; new "Token efficiency" section added.
+- docs/engineering/REVIEW-WORKFLOW.md: "Independence" section gets one added paragraph naming the in-house reviewer substitute while paused.
+
+## What did NOT change
+
+- The independence rule itself (AGENT-ROLES.md, REVIEW-WORKFLOW.md, DEFINITION-OF-DONE.md): the implementer is still never the final reviewer of their own work. Rule 10 in AGENTS.md's non-negotiable guardrails is unchanged.
+- Git safety rules: staging/commit on a feature branch remains routine; merge to main, force push, history rewrite, and destructive operations still require explicit owner authorization.
+- Escalation triggers (business rules, financial/security/architecture changes, destructive operations, scope expansion): unchanged.
+- Module scope, approved architecture, and business rules: untouched by this change.
+
+## Known limitation (owner should weigh this)
+
+An in-house Claude Code QA/Testing subagent reviewing a Claude Code implementation subagent is *not* the same strength of independence as a genuinely separate provider (Codex/Antigravity previously served that role). Both subagents share the same underlying model family, even though they run in separate contexts with no shared history of the implementation. This handoff records that limitation; it is not hidden in future completion reports while Codex/Antigravity remain paused.
+
+Validation: this task is documentation-only; no application code, dependency, or DB change. Referenced-file existence and edit-anchor checks passed for all three edited files. No merge to main performed; only this feature branch is affected.
+
+## Next recommended action
+
+Owner reviews this handoff; if acceptable, authorize commit + push of branch `docs/manager-subagent-governance-20260925`, then (separately) authorize merge to main. No further action is blocked in the meantime — DEV/PARALLEL track work can proceed under the updated in-house review model immediately, since the owner instruction is already in effect regardless of when this documentation is merged.
+
+## Previous handoff — S02-MERGE-001 (Inventory S-02 Merged to Main)
 
 Date: 2026-09-18. Branch: main. Merged from: feat/inv-s02-uom-brand-pack (commit be21626).
 Authority: owner-approved controlled merge, following independent Codex review verdict "PASS — corrections verified; ready for controlled merge to main" on the round-3 corrected candidate (be21626), and explicit owner authorization in-session to proceed with the merge.
