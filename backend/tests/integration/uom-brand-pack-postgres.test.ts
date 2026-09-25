@@ -7,6 +7,8 @@ import { PgItemRepository } from '../../src/inventory/persistence/pg-item-reposi
 import { PgUomRepository } from '../../src/inventory/persistence/pg-uom-repository.js';
 import { PgBrandRepository } from '../../src/inventory/persistence/pg-brand-repository.js';
 import { PgPackVariantRepository } from '../../src/inventory/persistence/pg-pack-variant-repository.js';
+import { PgSupplierRepository } from '../../src/inventory/persistence/pg-supplier-repository.js';
+import { PgPurchaseRecordRepository } from '../../src/inventory/persistence/pg-purchase-record-repository.js';
 import type { ItemInput } from '../../src/inventory/domain/item.js';
 import { applyRuntimeGrants } from './helpers/runtime-grants.js';
 import { runAuthoritativeMigrate } from './helpers/migrate-cli.js';
@@ -43,6 +45,8 @@ describe('S-02 UOM/Brand/Pack Variant Masters (real PostgreSQL)', () => {
   const uomRepository = new PgUomRepository(runtime);
   const brandRepository = new PgBrandRepository(runtime);
   const packVariantRepository = new PgPackVariantRepository(runtime);
+  const supplierRepository = new PgSupplierRepository(runtime);
+  const purchaseRecordRepository = new PgPurchaseRecordRepository(runtime);
   const owner: AuthContext = { userId: 'owner-a', role: 'OWNER', branchId: 'branch-a' };
   const manager: AuthContext = { userId: 'manager-b', role: 'MANAGER', branchId: 'branch-b' };
   const itemInput: ItemInput = { item_name: 'Ghee', primary_item_type: 'RAW_MATERIAL', base_uom: 'kg', brand: 'Generic / No Brand' };
@@ -77,7 +81,10 @@ describe('S-02 UOM/Brand/Pack Variant Masters (real PostgreSQL)', () => {
     });
 
     it('creates and edits a custom UOM through HTTP with atomic immutable audit snapshots', async () => {
-      const app = buildApp({ repository: itemRepository, uomRepository, brandRepository, packVariantRepository, authProvider: async () => owner });
+      const app = buildApp({
+        repository: itemRepository, uomRepository, brandRepository, packVariantRepository,
+        supplierRepository, purchaseRecordRepository, authProvider: async () => owner,
+      });
       try {
         const created = await app.inject({ method: 'POST', url: '/api/inventory/uoms', payload: { name: 'Sack', unit_type: 'PACKAGING' } });
         expect(created.statusCode).toBe(201);
@@ -125,7 +132,10 @@ describe('S-02 UOM/Brand/Pack Variant Masters (real PostgreSQL)', () => {
     });
 
     it('creates and edits a brand through HTTP with atomic immutable audit snapshots', async () => {
-      const app = buildApp({ repository: itemRepository, uomRepository, brandRepository, packVariantRepository, authProvider: async () => owner });
+      const app = buildApp({
+        repository: itemRepository, uomRepository, brandRepository, packVariantRepository,
+        supplierRepository, purchaseRecordRepository, authProvider: async () => owner,
+      });
       try {
         const created = await app.inject({ method: 'POST', url: '/api/inventory/brands', payload: { name: 'Brand Z' } });
         expect(created.statusCode).toBe(201);
@@ -156,7 +166,10 @@ describe('S-02 UOM/Brand/Pack Variant Masters (real PostgreSQL)', () => {
 
   describe('Pack Variant', () => {
     it('creates and edits through HTTP, scoped to the authorized branch item, with atomic audit', async () => {
-      const app = buildApp({ repository: itemRepository, uomRepository, brandRepository, packVariantRepository, authProvider: async () => owner });
+      const app = buildApp({
+        repository: itemRepository, uomRepository, brandRepository, packVariantRepository,
+        supplierRepository, purchaseRecordRepository, authProvider: async () => owner,
+      });
       try {
         const item = await itemRepository.create(itemInput, owner);
         const brand = await brandRepository.create({ name: 'Ghee Brand A' }, owner);
@@ -263,7 +276,10 @@ describe('S-02 UOM/Brand/Pack Variant Masters (real PostgreSQL)', () => {
 
   describe('BLOCKER 1: Pack Variant list is branch-isolated', () => {
     it('GET/list only ever returns the caller branch\'s pack variants, never another branch\'s', async () => {
-      const app = buildApp({ repository: itemRepository, uomRepository, brandRepository, packVariantRepository, authProvider: async () => owner });
+      const app = buildApp({
+        repository: itemRepository, uomRepository, brandRepository, packVariantRepository,
+        supplierRepository, purchaseRecordRepository, authProvider: async () => owner,
+      });
       try {
         const tin = (await admin.query(`SELECT id FROM uom_master WHERE name='TIN'`)).rows[0];
         const brand = await brandRepository.create({ name: 'Cross Branch List Brand' }, owner);
@@ -482,7 +498,13 @@ describe('S-02 base_uom migration safety refinement (real authoritative CLI comm
 
       // Step h: Migration B must now succeed (recorded as applied).
       const appliedAfterRecovery = (await admin.query('SELECT name FROM pgmigrations ORDER BY name')).rows.map(r => r.name);
-      expect(appliedAfterRecovery).toEqual([S01_MIGRATION, '202609180001_inventory_s02_uom_brand', '202609180002_inventory_s02_item_base_uom_pack_variant']);
+      // This recovery step reruns the plain authoritative command with no
+      // upTo limit, so it also picks up every later migration (S-03), not
+      // only the S-02 pair this describe block is otherwise scoped to.
+      expect(appliedAfterRecovery).toEqual([
+        S01_MIGRATION, '202609180001_inventory_s02_uom_brand', '202609180002_inventory_s02_item_base_uom_pack_variant',
+        '202609250001_inventory_s03_purchasing_supplier',
+      ]);
 
       // Step i: confirm successful backfill, FK, preserved legacy text, Pack Variant structures, and valid Item behavior.
       const resolved = await admin.query(

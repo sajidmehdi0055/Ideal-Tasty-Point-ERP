@@ -8,6 +8,8 @@ import { PgItemRepository } from '../../src/inventory/persistence/pg-item-reposi
 import { PgUomRepository } from '../../src/inventory/persistence/pg-uom-repository.js';
 import { PgBrandRepository } from '../../src/inventory/persistence/pg-brand-repository.js';
 import { PgPackVariantRepository } from '../../src/inventory/persistence/pg-pack-variant-repository.js';
+import { PgSupplierRepository } from '../../src/inventory/persistence/pg-supplier-repository.js';
+import { PgPurchaseRecordRepository } from '../../src/inventory/persistence/pg-purchase-record-repository.js';
 import { applyRuntimeGrants } from './helpers/runtime-grants.js';
 import { runAuthoritativeMigrate } from './helpers/migrate-cli.js';
 
@@ -22,6 +24,8 @@ const repository = new PgItemRepository(runtime);
 const uomRepository = new PgUomRepository(runtime);
 const brandRepository = new PgBrandRepository(runtime);
 const packVariantRepository = new PgPackVariantRepository(runtime);
+const supplierRepository = new PgSupplierRepository(runtime);
+const purchaseRecordRepository = new PgPurchaseRecordRepository(runtime);
 const owner: AuthContext = { userId: 'owner-a', role: 'OWNER', branchId: 'branch-a' };
 const manager: AuthContext = { userId: 'manager-b', role: 'MANAGER', branchId: 'branch-b' };
 const input: ItemInput = { item_name: 'Rice', primary_item_type: 'RAW_MATERIAL', base_uom: 'kg', brand: 'Generic / No Brand' };
@@ -43,16 +47,20 @@ beforeAll(async () => {
 afterAll(async () => { await runtime.end(); await admin.end(); });
 
 function buildTestApp(auth: AuthContext) {
-  return buildApp({ repository, uomRepository, brandRepository, packVariantRepository, authProvider: async () => auth });
+  return buildApp({
+    repository, uomRepository, brandRepository, packVariantRepository,
+    supplierRepository, purchaseRecordRepository, authProvider: async () => auth,
+  });
 }
 
 describe('S-01 real PostgreSQL migration and persistence', () => {
-  it('applies all three migrations via the real authoritative command, and re-running is a no-op', async () => {
+  it('applies all migrations via the real authoritative command, and re-running is a no-op', async () => {
     const appliedNames = (await admin.query('SELECT name FROM pgmigrations ORDER BY name')).rows.map(r => r.name);
     expect(appliedNames).toEqual([
       '202609170001_inventory_s01',
       '202609180001_inventory_s02_uom_brand',
       '202609180002_inventory_s02_item_base_uom_pack_variant',
+      '202609250001_inventory_s03_purchasing_supplier',
     ]);
     // Re-running the same authoritative command against an up-to-date schema
     // must be a genuine no-op: same migrations recorded, nothing duplicated.

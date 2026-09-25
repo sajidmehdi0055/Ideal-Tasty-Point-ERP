@@ -7,6 +7,8 @@ import type { PackVariant } from '../../src/inventory/domain/pack-variant.js';
 import type { ItemRepository } from '../../src/inventory/application/item-repository.js';
 import type { UomRepository } from '../../src/inventory/application/uom-repository.js';
 import type { BrandRepository } from '../../src/inventory/application/brand-repository.js';
+import type { SupplierRepository } from '../../src/inventory/application/supplier-repository.js';
+import type { PurchaseRecordRepository } from '../../src/inventory/application/purchase-record-repository.js';
 
 const id = 'e0a8f673-2a55-4c83-8831-a6c4b6358245';
 const itemId = '11111111-1111-4111-8111-111111111111';
@@ -19,6 +21,8 @@ const apps: FastifyInstance[] = [];
 const unusedItemRepository: ItemRepository = { create: vi.fn(), update: vi.fn() };
 const unusedUomRepository: UomRepository = { create: vi.fn(), update: vi.fn(), list: vi.fn(), findActiveByName: vi.fn() };
 const unusedBrandRepository: BrandRepository = { create: vi.fn(), update: vi.fn(), list: vi.fn(), findActiveByName: vi.fn() };
+const unusedSupplierRepository: SupplierRepository = { create: vi.fn(), update: vi.fn(), list: vi.fn(), findActiveByName: vi.fn() };
+const unusedPurchaseRecordRepository: PurchaseRecordRepository = { create: vi.fn(), list: vi.fn(), getRateComparison: vi.fn() };
 
 function setup(auth: AuthContext | null = owner, defaultProvider = false) {
   const repository = {
@@ -29,6 +33,7 @@ function setup(auth: AuthContext | null = owner, defaultProvider = false) {
   const app = buildApp({
     repository: unusedItemRepository, uomRepository: unusedUomRepository,
     brandRepository: unusedBrandRepository, packVariantRepository: repository,
+    supplierRepository: unusedSupplierRepository, purchaseRecordRepository: unusedPurchaseRecordRepository,
     ...(defaultProvider ? {} : { authProvider: async () => auth }),
   });
   apps.push(app); return { app, repository };
