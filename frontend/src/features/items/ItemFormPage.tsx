@@ -83,6 +83,9 @@ export function ItemFormPage() {
         }
         setFieldErrors(mapped);
         setServerError('Please fix the highlighted fields.');
+      } else if (err instanceof ApiError && err.code === 'INVALID_BASE_UOM') {
+        setFieldErrors({ base_uom: 'This unit is not an active unit in UOM Master.' });
+        setServerError('Please fix the highlighted fields.');
       } else if (err instanceof ApiError) {
         setServerError(describeItemError(err));
       } else {

@@ -89,6 +89,45 @@ Status: merged to main on 2026-09-25 (owner-approved).
 
 ---
 
+## Previous handoff — UI-FIX-001 (Base UOM MAJOR Finding Fixed on Reconciled Frontend Branch)
+
+Date: 2026-09-25. Branch: feat/ui-foundation-item-master (worktree at Ideal-Tasty-Point-ERP-ui-foundation). Base: merge commit `ec23d0c` (reconcile of `origin/main` @ `4ede738`, covering S-01/S-02/S-03).
+Authority: owner instruction, given directly in-session, to fix the single MAJOR finding from the independent reconcile review (below) before requesting a fresh independent review. No merge to main authorized or performed.
+Roles: Claude Code = primary implementer of this fix. Owner = closed the locking process and authorized each step. Independent reviewer for this candidate: pending (see "Next recommended action").
+
+## What this fixes
+
+The reconcile review (recorded further below, "Previous handoff" entries do not yet include it as its own record — see the review verdict summarized here) found one MAJOR issue: after this branch absorbed S-02/S-03 from main, `base_uom` on Item create/edit now requires a real, active `UOM Master` row (`backend/README.md`: "An unresolvable name returns 400 `INVALID_BASE_UOM`"), but the frontend still presented Base UOM as free text with a hint claiming it was "not a catalog lookup yet," and a 400 `INVALID_BASE_UOM` response only produced a generic banner, not a field-level error.
+
+Fixed:
+- `frontend/src/features/items/components/ItemForm.tsx`: Base UOM hint now reads `Must match an active unit in UOM Master (e.g. "kg", "pcs"; not case-sensitive). A picker is coming later.`
+- `frontend/src/features/items/ItemFormPage.tsx`: `handleSubmit` now special-cases `ApiError.code === 'INVALID_BASE_UOM'`, setting a field-level error (`This unit is not an active unit in UOM Master.`) on `base_uom` plus the same `Please fix the highlighted fields.` banner used for validation errors, instead of falling through to a generic top-level message.
+- `frontend/src/features/items/__tests__/ItemFormPage.test.tsx`: new test mocks `createItem` rejecting with `ApiError(400, 'INVALID_BASE_UOM', ...)` and asserts the field-level message renders on Base UOM (`aria-invalid="true"`) alongside the banner.
+
+Out of scope, deliberately not done: a UOM picker/dropdown backed by the real `GET /api/inventory/uoms` endpoint. That remains a known gap for a future slice; this fix only corrects the misleading copy and the error-handling gap.
+
+## Environment blocker cleared before this fix
+
+`npm ci --ignore-scripts` had previously failed with `EPERM` unlinking `@rolldown/binding-win32-x64-msvc`'s native binding, leaving `node_modules` in a partially-deleted state. Root cause: this worktree's own Vite dev server (`node_modules/.bin/vite`, port 5173) was still running from an earlier session, plus its `npm run dev`/`npx vite` parent processes. Identified via `Get-CimInstance Win32_Process -Filter "Name='node.exe' OR Name='esbuild.exe'"`, cross-checked by command line against this worktree's path; owner closed the three processes (confirmed by re-running the same filtered query until it returned no match for `Ideal-Tasty-Point-ERP-ui-foundation\frontend`). `node_modules` was then deleted and `npm ci --ignore-scripts` completed cleanly (249 packages, 0 vulnerabilities). Backend `tsx watch`/demo-server processes and unrelated OpenAI Codex runtime processes were left untouched throughout.
+
+## Verification (executed, not assumed)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS — 249 packages, 0 vulnerabilities (after clearing the Vite dev-server lock above) |
+| typecheck | PASS |
+| lint | PASS |
+| test | PASS — 47/47 (46 prior + 1 new INVALID_BASE_UOM field-error regression test) |
+| build | PASS |
+
+Scope checks: `git diff origin/main HEAD --stat -- backend/` empty (backend untouched). `git grep` for conflict markers across the tree: none. `git diff origin/main HEAD --stat -- . ':!frontend'` touches only `README.md` and `docs/engineering/CURRENT-HANDOFF.md`.
+
+## Next recommended action
+
+Fresh in-house QA/Testing independent review of this corrected candidate (diff `origin/main...HEAD -- frontend/`), verdict PASS/FAIL with any remaining BLOCKER/MAJOR/MINOR findings. Do not merge to main until that review passes and the owner approves; only the feature branch is pushed by this record.
+
+---
+
 ## Previous handoff — UI-REVIEW-001 (Frontend Branch Review Pass, Owner-Approved as Review of Record)
 
 Date: 2026-09-23. Branch: feat/ui-foundation-item-master (worktree at Ideal-Tasty-Point-ERP-ui-foundation). Base: commit `88f5e79` (UI-RECONCILE-001).

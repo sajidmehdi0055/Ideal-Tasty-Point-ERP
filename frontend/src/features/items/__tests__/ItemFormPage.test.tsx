@@ -70,6 +70,22 @@ describe('ItemFormPage', () => {
     expect(await screen.findByText(/sign-in is not implemented yet/i)).toBeInTheDocument();
   });
 
+  it('surfaces INVALID_BASE_UOM as a field-level error on Base UOM, not just a generic banner', async () => {
+    vi.mocked(itemsApi.createItem).mockRejectedValue(
+      new ApiError(400, 'INVALID_BASE_UOM', 'base_uom must reference an existing active UOM'),
+    );
+    renderAt('/items/new');
+
+    await userEvent.type(screen.getByLabelText(/item name/i), 'Flour');
+    await userEvent.selectOptions(screen.getByLabelText(/primary item type/i), 'RAW_MATERIAL');
+    await userEvent.type(screen.getByLabelText(/base uom/i), 'not-a-real-unit');
+    await userEvent.click(screen.getByRole('button', { name: /create item/i }));
+
+    expect(await screen.findByText('This unit is not an active unit in UOM Master.')).toBeInTheDocument();
+    expect(screen.getByLabelText(/base uom/i)).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText('Please fix the highlighted fields.')).toBeInTheDocument();
+  });
+
   it('shows a not-permitted message instead of the form for a non-Owner/Manager identity (INV-11)', () => {
     window.localStorage.setItem(
       DEV_IDENTITY_STORAGE_KEY,

@@ -80,7 +80,7 @@ export function ItemForm({
       <Input
         label="Base UOM"
         required
-        hint='Plain unit name on the stable API (e.g. "kg", "pcs") — not a catalog lookup yet.'
+        hint='Must match an active unit in UOM Master (e.g. "kg", "pcs"; not case-sensitive). A picker is coming later.'
         value={values.base_uom}
         onChange={handleChange('base_uom')}
         error={fieldErrors.base_uom}
