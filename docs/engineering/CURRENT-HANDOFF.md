@@ -1,4 +1,35 @@
-# Current Handoff — UI-MERGE-001 (Frontend UI Foundation Merged to Main)
+# Current Handoff — S03-MINOR-001 (Century Leap-Year Test Coverage for purchase_date)
+
+Date: 2026-09-26. Branch: test/s03-leap-year-coverage (base: main @ 34cb7d0). Status: implemented + self-verified; NOT merged — pending independent QA review and owner-approved merge.
+Scope: closes the open S-03 MINOR (no test for the century branch of `isLeapYear` in `backend/src/inventory/domain/purchase-record.ts`). Test-only change: no production code, migration, API, security or audit change.
+
+## What changed
+
+`backend/tests/unit/purchase-record-api.test.ts` — 7 new cases through `POST /api/inventory/purchases` (past dates only, because future dates are rejected by a separate rule):
+- accepted (201, repository called): `2000-02-29`, `1600-02-29` (centuries divisible by 400), `2024-02-29` (ordinary leap year)
+- rejected (400 `VALIDATION_ERROR`, issue on `purchase_date` = "purchase_date must be a valid calendar date", repository not called): `1900-02-29`, `1800-02-29`, `1700-02-29` (centuries not divisible by 400), `2023-02-29` (ordinary non-leap year)
+
+## Verification (Cowork Linux VM, clean `git archive` copy, Node v24.21.0)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS — 221 packages |
+| typecheck | PASS |
+| lint | PASS |
+| build | PASS |
+| test:unit | PASS — 268/268 (6 files; 261 before + 7 new) |
+| Mutation: `isLeapYear` = `year % 4 === 0` | new tests FAIL as expected (1900/1800/1700 accepted wrongly) |
+| Mutation: `isLeapYear` without the `% 400` clause | new tests FAIL as expected (2000/1600 rejected wrongly) |
+
+Integration tests (PostgreSQL) not re-run: no production code or SQL changed; last run 61/61 in S03-MERGE-001.
+
+## Next recommended action
+
+Owner pushes the branch from Windows; independent QA review (agent with no part in this change); then owner-approved controlled merge.
+
+---
+
+## Previous handoff — UI-MERGE-001 (Frontend UI Foundation Merged to Main)
 
 Date: 2026-09-26. Branch: main. Merged from: feat/ui-foundation-item-master (HEAD 7a9a9e4).
 Authority: explicit owner approval in-session for this merge, following an in-house QA/Testing subagent review verdict of PASS — ready for controlled merge (0 BLOCKER / 0 MAJOR / 0 MINOR / 0 NOTE) on commit 7a9a9e4. Codex and Google Antigravity remain paused (GOV-MANAGER-SUBAGENT-001).
