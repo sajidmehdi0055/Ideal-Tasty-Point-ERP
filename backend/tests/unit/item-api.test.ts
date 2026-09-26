@@ -12,6 +12,8 @@ import type { PurchaseRecordRepository } from '../../src/inventory/application/p
 import { PRIMARY_ITEM_TYPES, type Item, type ItemInput } from '../../src/inventory/domain/item.js';
 import type { StockLocationRepository } from '../../src/inventory/application/stock-location-repository.js';
 import type { StockRepository } from '../../src/inventory/application/stock-repository.js';
+import type { GoodsReceiptRepository } from '../../src/inventory/application/goods-receipt-repository.js';
+const unusedGoodsReceiptRepository: GoodsReceiptRepository = { create: vi.fn(), list: vi.fn(), get: vi.fn() };
 const unusedStockLocationRepository: StockLocationRepository = { create: vi.fn(), update: vi.fn(), list: vi.fn() };
 const unusedStockRepository: StockRepository = { createOpening: vi.fn(), createAdjustment: vi.fn(), listBalances: vi.fn(), listMovements: vi.fn() };
 const id = 'e0a8f673-2a55-4c83-8831-a6c4b6358245';
@@ -32,7 +34,7 @@ function setup(auth: AuthContext | null = owner, defaultProvider = false) {
   const app = buildApp({
     repository, uomRepository: unusedUomRepository, brandRepository: unusedBrandRepository,
     packVariantRepository: unusedPackVariantRepository, supplierRepository: unusedSupplierRepository,
-    purchaseRecordRepository: unusedPurchaseRecordRepository, stockLocationRepository: unusedStockLocationRepository, stockRepository: unusedStockRepository,
+    purchaseRecordRepository: unusedPurchaseRecordRepository, stockLocationRepository: unusedStockLocationRepository, stockRepository: unusedStockRepository, goodsReceiptRepository: unusedGoodsReceiptRepository,
     ...(defaultProvider ? {} : { authProvider: async () => auth }),
   });
   apps.push(app); return { app, repository };

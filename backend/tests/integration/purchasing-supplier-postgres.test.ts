@@ -11,6 +11,7 @@ import { PgSupplierRepository } from '../../src/inventory/persistence/pg-supplie
 import { PgPurchaseRecordRepository } from '../../src/inventory/persistence/pg-purchase-record-repository.js';
 import { PgStockLocationRepository } from '../../src/inventory/persistence/pg-stock-location-repository.js';
 import { PgStockRepository } from '../../src/inventory/persistence/pg-stock-repository.js';
+import { PgGoodsReceiptRepository } from '../../src/inventory/persistence/pg-goods-receipt-repository.js';
 import type { ItemInput } from '../../src/inventory/domain/item.js';
 import type { PurchaseRecordInput } from '../../src/inventory/domain/purchase-record.js';
 import { applyRuntimeGrants } from './helpers/runtime-grants.js';
@@ -40,7 +41,7 @@ describe('S-03 Supplier Master & Purchase Record (real PostgreSQL)', () => {
   function buildTestApp(auth: AuthContext) {
     return buildApp({
       repository: itemRepository, uomRepository, brandRepository, packVariantRepository,
-      supplierRepository, purchaseRecordRepository, stockLocationRepository, stockRepository, authProvider: async () => auth,
+      supplierRepository, purchaseRecordRepository, stockLocationRepository, stockRepository, goodsReceiptRepository: new PgGoodsReceiptRepository(runtime), authProvider: async () => auth,
     });
   }
 

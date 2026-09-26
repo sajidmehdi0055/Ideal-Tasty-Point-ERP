@@ -13,6 +13,8 @@ import type { StockLocationRepository } from '../../src/inventory/application/st
 import type { StockRepository } from '../../src/inventory/application/stock-repository.js';
 import type { StockLocation } from '../../src/inventory/domain/stock-location.js';
 import type { StockMovement } from '../../src/inventory/domain/stock.js';
+import type { GoodsReceiptRepository } from '../../src/inventory/application/goods-receipt-repository.js';
+const unusedGoodsReceiptRepository: GoodsReceiptRepository = { create: vi.fn(), list: vi.fn(), get: vi.fn() };
 
 const locationId = 'a1a1a1a1-1111-4111-8111-111111111111';
 const parentId = 'b2b2b2b2-2222-4222-8222-222222222222';
@@ -54,7 +56,7 @@ function setup(auth: AuthContext | null = owner) {
     repository: unusedItemRepository, uomRepository: unusedUomRepository,
     brandRepository: unusedBrandRepository, packVariantRepository: unusedPackVariantRepository,
     supplierRepository: unusedSupplierRepository, purchaseRecordRepository: unusedPurchaseRecordRepository,
-    stockLocationRepository: locations, stockRepository: stock, authProvider: async () => auth,
+    stockLocationRepository: locations, stockRepository: stock, goodsReceiptRepository: unusedGoodsReceiptRepository, authProvider: async () => auth,
   });
   apps.push(app); return { app, locations, stock };
 }
