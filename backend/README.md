@@ -1,6 +1,6 @@
-# Inventory S-01/S-02/S-03/S-04 backend
+# Inventory S-01/S-02/S-03/S-04/S-05 backend
 
-Item Master create/edit (S-01), UOM/Brand/Pack Variant Masters (S-02), Supplier Master + Purchase Record + Rate Comparison (S-03), and Stock Locations + Opening Stock + balances (S-04, quantity-only, ADR-0008) are implemented. No UI, login/session system, Redis, goods receiving/issue/transfer/counts, Purchase Orders/GRN/Supplier Ledger/Payments, or costing/valuation.
+Item Master create/edit (S-01), UOM/Brand/Pack Variant Masters (S-02), Supplier Master + Purchase Record + Rate Comparison (S-03), Stock Locations + Opening Stock + balances (S-04, quantity-only, ADR-0008), and direct Goods Receiving (S-05, ADR-0009) are implemented. No login/session system, Redis, Purchase Orders, issue/transfer/counts, Purchase Orders/GRN/Supplier Ledger/Payments, or costing/valuation.
 
 ## Foundation
 
@@ -160,8 +160,16 @@ Integration tests require TEST_DATABASE_URL for an isolated test PostgreSQL data
 - `PATCH /api/inventory/locations/:id` `{ "name"?, "active"? }` -- type and parent are fixed; only Owner may change `active`. Deactivation is refused while the location holds stock (`409 LOCATION_HAS_STOCK`) or has active freezers (`409 LOCATION_HAS_ACTIVE_CHILDREN`).
 - `GET /api/inventory/locations` -- branch-scoped, includes inactive.
 - `POST /api/inventory/stock/opening` `{ "item_id", "location_id", "quantity": "12.5" }` -> 201. Quantity in the item's Base UOM, decimal string, > 0. One opening per item + location (`409 OPENING_ALREADY_EXISTS`).
-- `POST /api/inventory/stock/adjustments` `{ "item_id", "location_id", "quantity_delta": "-2.5", "reason": "..." }` -> 201. Corrects opening stock without editing it; requires an existing opening (`409 OPENING_REQUIRED`); the balance can never go below zero (`409 NEGATIVE_BALANCE`).
+- `POST /api/inventory/stock/adjustments` `{ "item_id", "location_id", "quantity_delta": "-2.5", "reason": "..." }` -> 201. Corrects opening stock or a receipt without editing it; requires an earlier opening or receipt (`409 OPENING_REQUIRED`); the balance can never go below zero (`409 NEGATIVE_BALANCE`). Since S-05, opening must be the first entry for an item+location (`409 STOCK_HISTORY_EXISTS` if receipts already exist).
 - `GET /api/inventory/stock/balances` and `GET /api/inventory/stock/movements` -- optional `item_id` / `location_id` filters, branch-scoped.
 
 The ledger (`stock_movement`) is append-only: no edit/delete route, no runtime UPDATE/DELETE grant, and database triggers reject changes even from the schema owner. Balances are always `SUM(quantity_delta)`; there is no stored balance. Quantity-only: no value or costing.
+
+### Goods Receiving (S-05, ADR-0009)
+
+- `POST /api/inventory/receipts` `{ "supplier_id", "location_id", "receipt_date": "2026-09-27", "supplier_bill_no"?: "INV-778", "lines": [{ "item_id", "brand_id", "pack_variant_id", "pack_quantity": "2.5", "rate": "1500" }] }` -> 201. One receipt = one supplier delivery with 1–100 lines, saved all-or-nothing. Each line creates a purchase record (rate history, `purchase_date = receipt_date`) and a RECEIPT stock movement of `round(pack_quantity × conversion_factor, 6)` in the item's Base UOM; the factor is snapshotted on the line.
+- `GET /api/inventory/receipts` (summaries) and `GET /api/inventory/receipts/:id` (with lines) -- branch-scoped via the location.
+- `receipt_date`: today or earlier on the Asia/Karachi business date (`400 INVALID_RECEIPT_DATE` for future), and not before the item's opening stock date at that location (`409 RECEIPT_BEFORE_OPENING`). A receipt may be the first stock entry.
+- Inactive supplier/location/item/pack variant -> 409; pack variant not matching item+brand or unknown supplier -> `400 INVALID_REFERENCE`; other-branch location or item -> 404 with nothing written.
+- Create-only: no edit/delete route, INSERT-only grants, triggers reject changes. Correct a wrong quantity with a stock adjustment. No PO, expiry, rejected quantities, invoices or payments in this slice.
 

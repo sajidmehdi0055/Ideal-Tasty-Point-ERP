@@ -2,6 +2,13 @@
 
 Date: 2026-09-17 (updated). Status: decision register, not answers. Sources: inventory-module.md v0.2, ADR-0001/0002/0003, readiness request. BLOCKING means before coding the affected slice, not that every future decision blocks Item Master. B-01 and B-02 are now CLOSED (ADR-0002, ADR-0003). Approved technical architecture remains a universal implementation gate. No coding currently authorized.
 
+## Update 2026-09-27 (ADR-0009, owner decisions for S-05 Goods Receiving)
+
+- B-05 (partial): receipt finality/correction settled — receipts are create-only; corrections via reasoned ADJUSTMENT. Receipt date may be backdated but not future and not before opening stock. General negative stock, cancellation, returns (unused-material and supplier) remain OPEN.
+- INV-17 (partial): direct receiving with mandatory rate implemented; ordered/short/excess/rejected quantities and invoice-pending receipt remain OPEN (Purchase Order is S-06).
+- B-07: still OPEN — S-05 does not capture expiry; documented gap until the expiry slice.
+- DEFAULT / ASSUMED in ADR-0009 (owner may revise): Asia/Karachi business date; inactive masters blocked; any active location may receive.
+
 ## Update 2026-09-26 (ADR-0008, owner decisions for S-04)
 
 - B-03: **partially closed** — freezers are individual locations under a STORE/KITCHEN parent; store/rented store/Upper/Lower kitchen are top-level. Opening stock: entered once per item+location, never edited; corrections by reasoned ADJUSTMENT (Owner/Manager).

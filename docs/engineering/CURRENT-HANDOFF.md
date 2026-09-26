@@ -1,4 +1,37 @@
-# Current Handoff — UI-UOM-MERGE-001 (UI-UOM-001 Merged to Main)
+# Current Handoff — S05-IMPL-001 (Inventory S-05 Goods Receiving, direct without PO)
+
+Date: 2026-09-27. Branch: feat/inv-s05-goods-receiving (base: main @ 9abd28c). Status: implemented + self-verified in the Cowork VM; NOT merged — pending push, owner Windows/Docker verification, independent QA review and owner-approved merge.
+Authority: owner decisions 2026-09-27 recorded in `docs/decisions/ADR-0009-s05-goods-receiving.md` (no PO in this slice; one entry creates purchase record + stock; backdating allowed but not future / not before opening; corrections by adjustment; no expiry yet; multi-line receipts; receipt may be first stock; optional supplier bill no). Implemented by the Cowork Manager session.
+
+## What was built
+
+Backend only: `POST/GET /api/inventory/receipts`, `GET /api/inventory/receipts/:id`; tables `goods_receipt`, `goods_receipt_line`, `goods_receipt_audit`; RECEIPT stock movements; S-04 opening/adjustment prerequisites updated (opening must be first; adjustment after opening or receipt). Details, API table and requirement-to-test traceability: `docs/engineering/inventory-s05-implementation.md`.
+
+Migration: `backend/migrations/202609270001_inventory_s05_goods_receiving.sql` (additive; replaces two `stock_movement` CHECK constraints and the ledger trigger function; no existing row changed). Grants: `backend/scripts/runtime-grants.sql` extended (INSERT-only).
+
+## Verification (Cowork Linux VM, clean clone, Node v24.21.0, PostgreSQL 17.10 embedded)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS |
+| typecheck / lint / build | PASS / PASS / PASS |
+| test:unit | PASS — 355/355 (8 files; 319 + 36 new) |
+| test:integration | PASS — 87/87 (5 files; 80 + 7 new), authoritative migrate CLI + shipped runtime grants |
+| Mutation checks | removing the future-date check or the before-opening check fails the date-rules test |
+
+Existing code/tests touched: `isValidCalendarDate` exported; `pg-stock-repository.ts` prerequisites (new 409 `STOCK_HISTORY_EXISTS`); buildApp wiring in 11 test files; migration-list assertions (2 files).
+
+## Open / defaults to confirm
+
+DEFAULT / ASSUMED (ADR-0009 A-01..A-04): Asia/Karachi business date; inactive masters blocked; any active location may receive; rate mandatory. Known gap: no expiry capture (B-07). NOTE: standalone S-03 purchase endpoint still checks "future" in UTC.
+
+## Next recommended action
+
+Owner pushes the branch; Windows/Docker PostgreSQL 17.11 re-run; independent QA review (agent with no part in this change); then owner-approved controlled merge. Do not start S-06 (Purchase Order) automatically. Migration not applied to `erp_local`.
+
+---
+
+## Previous handoff — UI-UOM-MERGE-001 (UI-UOM-001 Merged to Main)
 
 Date: 2026-09-27. Branch: main. Merged from: feat/ui-uom-master (commit 6760085).
 Authority: owner-approved controlled merge, given directly in-session, conditional on a Step A focused re-review of the post-review fix commit passing first. Step A verdict: **PASS** (fresh, uninvolved QA/Testing subagent — 0 findings; personally reverted the fix locally, confirmed the new regression test genuinely fails on the old code and passes on the fixed code, not just that it exists).
