@@ -1,8 +1,8 @@
 # Current Handoff — UI-UOM-001 (Catalog Settings → UOM Master frontend implementation)
 
-Date: 2026-09-26. Branch: feat/ui-uom-master (worktree at `Ideal-Tasty-Point-ERP-ui-uom`, base: main @ 73cfd71). Status: implemented + self-verified; **NOT pushed, NOT merged** — pending independent QA review and owner authorization for both.
+Date: 2026-09-26. Branch: feat/ui-uom-master (worktree at `Ideal-Tasty-Point-ERP-ui-uom`, base: main @ 73cfd71). Status: implemented + self-verified + independently reviewed (PASS WITH FINDINGS, both addressed below) + **pushed** to origin. **NOT merged** — merge remains a separate owner decision.
 Authority: owner approval (2026-09-26) of the Figma proposal "Inventory / Catalog Settings / UOM Master" (file `N9KkqXIQuvCUj9NVAj6Cx4`, node `55:7` and children — states 55:186 In shell, 55:8 Default, 56:2 Empty, 56:199 Loading, 56:406 Access denied, 57:38 Create, 57:253 Edit, 57:473 409 error). Visual direction (unchanged from prior approval): Palette Option B Charcoal/Slate, icons Lucide.
-Roles: Manager (this VS Code Claude Code session) = primary implementer of this record, in an isolated worktree. Independent reviewer: pending, a fresh in-house QA/Testing subagent with no part in this implementation (see "Next recommended action").
+Roles: Manager (this VS Code Claude Code session) = primary implementer, in an isolated worktree. Independent reviewer: a fresh in-house QA/Testing subagent with no part in this implementation, in its own separate isolated worktree — verdict and findings below.
 
 ## What was built
 
@@ -19,7 +19,7 @@ Frontend only, no backend/migration change. Uses only existing, already-live UOM
 ## Deviations from the literal Figma mockup (judgment calls, not business-rule changes)
 
 - **Loading state**: reused the existing shared `LoadingState` (spinner + text) instead of building bespoke skeleton table rows — Item Master itself doesn't have skeleton rows either, and inventing a new pattern used nowhere else seemed like more inconsistency than it was worth for a loading spinner.
-- **Access-denied state**: reused the existing `ErrorState` component (title + message), matching `ItemFormPage`'s own established permission-denied convention, instead of a new icon-circle-plus-lock visual treatment not used anywhere else in the app yet.
+- **Access-denied state**: reused the existing `ErrorState` component (title + message), matching `ItemFormPage`'s own established permission-denied convention, instead of a new icon-circle-plus-lock visual treatment not used anywhere else in the app yet. (Found by independent review, not disclosed here originally:) this also means it has no lock icon and no inline "Current dev identity: STAFF"-style badge that Figma's `56:406` shows — not a functional gap, since the identity switcher is permanently visible in the header regardless, but named here for completeness.
 - **Table column widths**: fluid (existing shared `Table` component), not the fixed 300/240/160px from Figma — the shared `Table`/`TableCell` components don't support per-column fixed widths today and adding that felt like scope beyond this one screen.
 - **Unit Type cell**: rendered as a `StatusBadge` (neutral tone) rather than Figma's slightly different pill styling, reusing the exact same badge component Item Master's own "Status" column already uses, for consistency.
 
@@ -32,8 +32,10 @@ None of these affect functionality, permissions, or the API contract — flagged
 | npm ci --ignore-scripts | PASS — 249 packages, 0 vulnerabilities |
 | typecheck | PASS |
 | lint | PASS |
-| test | PASS — 64/64 (12 files; covers list render, search, create success, edit, active toggle from both the row action and the edit dialog, 409 duplicate-name field error, loading, empty, 403 access-denied, and all three old-route redirects) |
+| test | PASS — 65/65 (12 files; covers list render, search, create success, edit, active toggle from both the row action and the edit dialog, a failed toggle surfacing an error instead of silently doing nothing (added post-review, see below), 409 duplicate-name field error, loading, empty, 403 access-denied, and all three old-route redirects) |
 | build | PASS — dev-identity storage key confirmed absent from `dist/` (production tree-shaking guarantee intact) |
+
+Counts above are the final, post-review numbers (independent review ran its own fresh pass first and got 64/64, matching the pre-fix candidate exactly; the 65th test was added afterward for the fix below).
 
 ### Browser verification (Playwright, headless Chromium, against the dev server)
 
@@ -43,15 +45,28 @@ Screenshots taken of: `/items` with the new dark sidebar, `/catalog-settings` UO
 
 ## Independent review
 
-Pending. A fresh in-house QA/Testing subagent, with no part in this implementation, will independently verify: the diff matches the approved Figma states, the API contract usage is correct against `backend/README.md`'s UOM Master section, permission gating matches the real backend (`uom-service.ts`, no Owner-only restriction on `active` — confirmed intentionally, not a new rule), redirect behavior, and re-run the full check list above from a clean install. Codex and Google Antigravity remain paused (GOV-MANAGER-SUBAGENT-001) — this is a same-provider review, not a genuinely external one.
+Fresh in-house QA/Testing subagent, no part in this implementation, own separate isolated worktree (`Ideal-Tasty-Point-ERP-qa-uom001`) — **verdict: PASS WITH FINDINGS, 0 BLOCKER, 0 MAJOR, 2 MINOR, 2 NOTE**, both MINORs addressed below before this push. Independently re-ran the full clean-install check list itself (matched: 64/64 tests pre-fix, typecheck/lint/build all PASS, dev-identity string confirmed absent from `dist/`), read the real backend source (not just docs) to confirm the UOM-vs-Supplier/Stock-Location `active`-permission asymmetry is genuine backend behavior and that `list()` really does require Owner/Manager server-side, confirmed the scope boundary via diff (Item Master's own diff is empty, `Button.tsx`'s existing variants are byte-identical, no dependency added, `main`/`origin/main` untouched at `73cfd71`), and used Figma MCP itself to screenshot-compare 3 of the 8 states (Create, Access-denied, 409 error) against the rendered components, matching every quoted copy string exactly. It also independently confirmed the port-3000 process's identity and start time (`node.exe`, started 2026-09-23 — three days before this session, consistent with this record's own disclosure above) without sending it any write request.
+
+Findings and disposition:
+
+- **MINOR, fixed**: `handleToggleActive` in `UomMasterPanel.tsx` was silently swallowing a failed activate/deactivate (network error, 500, etc.) — the user would see the action appear to do nothing. Fixed: a failed toggle now shows `Couldn't {de}activate {name}: {reason}` as an inline banner, table stays visible. New regression test added (see the 65th test above).
+- **MINOR, fixed**: the reviewer found one undisclosed deviation beyond the four already listed — the access-denied card's missing lock icon/dev-identity badge. Added to the disclosed deviations list above; no code change made (the identity switcher is already permanently visible in the header, so this is cosmetic, not a functional gap).
+- **NOTE, fixed**: this record itself said "NOT pushed" while the reviewer found the branch already pushed to origin — that was this record being drafted before the push step; corrected above.
+- **NOTE, open, not blocking**: the reviewer ran out of session budget before screenshot-comparing the remaining 5 of 8 Figma states (In shell, sidebar, Default list, Loading, Edit dialog) — it verified those against the task's exact-copy checklist via source code only, not a rendered visual diff. Recommend a follow-up visual pass on these 5 if pixel-level fidelity matters before final sign-off; not treated as a blocker here since the copy/structure-level check already passed and no functional risk was identified.
+
+Codex and Google Antigravity remain paused (GOV-MANAGER-SUBAGENT-001) — this was a same-provider review, not a genuinely external one; recorded per AGENTS.md so the owner can weigh it.
 
 ## Not done (explicitly out of scope for this record)
 
-Backend/migrations untouched. Brands/Pack Variants/Suppliers/Purchases/Stock actual screens not built (only their nav placeholders exist). No real login/session. `main` untouched. `chore/claude-code-permission-guardrails` and other worktrees/branches untouched. No push, no commit beyond this feature branch, no merge.
+Backend/migrations untouched. Brands/Pack Variants/Suppliers/Purchases/Stock actual screens not built (only their nav placeholders exist). No real login/session. `main` untouched. `chore/claude-code-permission-guardrails` and other worktrees/branches untouched. No merge.
+
+## Push
+
+`feat/ui-uom-master` pushed to origin as a plain (non-force) `git push -u origin feat/ui-uom-master` (new branch). Confirmed via `git rev-parse feat/ui-uom-master origin/feat/ui-uom-master` both resolving to the same commit. `main` untouched throughout.
 
 ## Next recommended action
 
-Independent QA/Testing subagent review of this candidate. If PASS, owner decides on pushing `feat/ui-uom-master` to origin; merge to main is a further, separate owner decision per project policy.
+Owner reviews the two fixes and the one open NOTE above; when ready, separately authorize a controlled merge to main. Optionally request the follow-up 5-state Figma visual pass first if pixel fidelity matters before that decision.
 
 ---
 

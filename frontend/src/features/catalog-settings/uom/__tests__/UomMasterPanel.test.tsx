@@ -135,4 +135,15 @@ describe('UomMasterPanel', () => {
     await userEvent.click(screen.getByRole('button', { name: /deactivate/i }));
     await waitFor(() => expect(uomApi.updateUom).toHaveBeenCalledWith('1', { active: false }));
   });
+
+  it('surfaces an error instead of silently doing nothing when a toggle fails', async () => {
+    vi.mocked(uomApi.listUoms).mockResolvedValue([kg]);
+    vi.mocked(uomApi.updateUom).mockRejectedValue(new ApiError(500, 'INTERNAL_ERROR', 'boom'));
+    render(<UomMasterPanel />);
+    await screen.findByText('KG');
+
+    await userEvent.click(screen.getByRole('button', { name: /deactivate/i }));
+    expect(await screen.findByText(/couldn't deactivate kg: boom/i)).toBeInTheDocument();
+    expect(screen.getByText('KG')).toBeInTheDocument();
+  });
 });

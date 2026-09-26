@@ -33,6 +33,7 @@ export function UomMasterPanel() {
   const [search, setSearch] = useState('');
   const [reloadToken, setReloadToken] = useState(0);
   const [togglingId, setTogglingId] = useState<string>();
+  const [toggleError, setToggleError] = useState<string>();
 
   const [dialog, setDialog] = useState<{ mode: 'create' | 'edit'; uom?: Uom } | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -112,11 +113,16 @@ export function UomMasterPanel() {
 
   async function handleToggleActive(uom: Uom) {
     setTogglingId(uom.id);
+    setToggleError(undefined);
     try {
       await updateUom(uom.id, { active: !uom.active });
       setReloadToken(token => token + 1);
-    } catch {
-      setReloadToken(token => token + 1);
+    } catch (err) {
+      setToggleError(
+        `Couldn't ${uom.active ? 'deactivate' : 'activate'} ${uom.name}: ${
+          err instanceof ApiError ? describeUomError(err) : 'something went wrong.'
+        }`,
+      );
     } finally {
       setTogglingId(undefined);
     }
@@ -142,6 +148,12 @@ export function UomMasterPanel() {
 
       {status === 'error' ? (
         <ErrorState message={error} onRetry={() => setReloadToken(token => token + 1)} />
+      ) : null}
+
+      {toggleError ? (
+        <p role="alert" className="rounded-control border border-danger-50 bg-danger-50 px-3 py-2 text-sm text-danger-700">
+          {toggleError}
+        </p>
       ) : null}
 
       {status === 'live' ? (
