@@ -11,7 +11,7 @@
 -- This script grants no role membership, ownership, DDL, DELETE or TRUNCATE.
 GRANT USAGE ON SCHEMA :"schema_name" TO :"runtime_role";
 
-GRANT SELECT ON item_master, uom_master, brand_master, pack_variant, supplier_master, purchase_record TO :"runtime_role";
+GRANT SELECT ON item_master, uom_master, brand_master, pack_variant, supplier_master, purchase_record, stock_location, stock_movement TO :"runtime_role";
 
 GRANT INSERT (id, branch_id, item_name, primary_item_type, base_uom_id, brand)
   ON item_master TO :"runtime_role";
@@ -40,3 +40,12 @@ GRANT INSERT ON supplier_audit TO :"runtime_role";
 -- even a future application bug cannot edit a purchase record at the DB layer.
 GRANT INSERT (id, supplier_id, item_id, brand_id, pack_variant_id, quantity, rate, purchase_date) ON purchase_record TO :"runtime_role";
 GRANT INSERT ON purchase_record_audit TO :"runtime_role";
+
+GRANT INSERT (id, branch_id, name, location_type, parent_id) ON stock_location TO :"runtime_role";
+GRANT UPDATE (name, active, updated_at) ON stock_location TO :"runtime_role";
+GRANT INSERT ON stock_location_audit TO :"runtime_role";
+
+-- Stock movements are append-only: intentionally no UPDATE grant at all.
+-- Corrections are new ADJUSTMENT rows, never edits of existing rows.
+GRANT INSERT (id, item_id, location_id, movement_type, quantity_delta, reason) ON stock_movement TO :"runtime_role";
+GRANT INSERT ON stock_movement_audit TO :"runtime_role";

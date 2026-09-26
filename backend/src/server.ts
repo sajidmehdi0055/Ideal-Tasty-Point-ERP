@@ -8,6 +8,8 @@ import { PgBrandRepository } from './inventory/persistence/pg-brand-repository.j
 import { PgPackVariantRepository } from './inventory/persistence/pg-pack-variant-repository.js';
 import { PgSupplierRepository } from './inventory/persistence/pg-supplier-repository.js';
 import { PgPurchaseRecordRepository } from './inventory/persistence/pg-purchase-record-repository.js';
+import { PgStockLocationRepository } from './inventory/persistence/pg-stock-location-repository.js';
+import { PgStockRepository } from './inventory/persistence/pg-stock-repository.js';
 
 const env = z.object({ DATABASE_URL: z.string().min(1), PORT: z.coerce.number().int().min(1).max(65535).default(3000) }).parse(process.env);
 const pool = new Pool({ connectionString: env.DATABASE_URL });
@@ -20,6 +22,8 @@ const app = buildApp({
   packVariantRepository: new PgPackVariantRepository(pool),
   supplierRepository: new PgSupplierRepository(pool),
   purchaseRecordRepository: new PgPurchaseRecordRepository(pool),
+  stockLocationRepository: new PgStockLocationRepository(pool),
+  stockRepository: new PgStockRepository(pool),
 });
 app.addHook('onClose', async () => { await pool.end(); });
 for (const signal of ['SIGINT', 'SIGTERM'] as const) process.once(signal, () => { void app.close(); });

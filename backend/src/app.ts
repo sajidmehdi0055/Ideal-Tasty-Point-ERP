@@ -20,6 +20,12 @@ import { registerBrandRoutes } from './inventory/api/brand-routes.js';
 import { registerPackVariantRoutes } from './inventory/api/pack-variant-routes.js';
 import { registerSupplierRoutes } from './inventory/api/supplier-routes.js';
 import { registerPurchaseRecordRoutes } from './inventory/api/purchase-record-routes.js';
+import type { StockLocationRepository } from './inventory/application/stock-location-repository.js';
+import { StockLocationService } from './inventory/application/stock-location-service.js';
+import type { StockRepository } from './inventory/application/stock-repository.js';
+import { StockService } from './inventory/application/stock-service.js';
+import { registerStockLocationRoutes } from './inventory/api/stock-location-routes.js';
+import { registerStockRoutes } from './inventory/api/stock-routes.js';
 
 export interface AppOptions {
   repository: ItemRepository;
@@ -28,6 +34,8 @@ export interface AppOptions {
   packVariantRepository: PackVariantRepository;
   supplierRepository: SupplierRepository;
   purchaseRecordRepository: PurchaseRecordRepository;
+  stockLocationRepository: StockLocationRepository;
+  stockRepository: StockRepository;
   authProvider?: AuthContextProvider;
 }
 
@@ -52,5 +60,7 @@ export function buildApp(options: AppOptions) {
   registerPackVariantRoutes(app, new PackVariantService(options.packVariantRepository), authProvider);
   registerSupplierRoutes(app, new SupplierService(options.supplierRepository), authProvider);
   registerPurchaseRecordRoutes(app, new PurchaseRecordService(options.purchaseRecordRepository), authProvider);
+  registerStockLocationRoutes(app, new StockLocationService(options.stockLocationRepository), authProvider);
+  registerStockRoutes(app, new StockService(options.stockRepository), authProvider);
   return app;
 }
