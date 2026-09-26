@@ -1,4 +1,42 @@
-# Current Handoff — S05-VERIFY-001 (Goods Receiving — Independent QA Verified on Windows/Docker)
+# Current Handoff — S05-MERGE-001 (Inventory S-05 Goods Receiving Merged to Main)
+
+Date: 2026-09-27. Branch: main. Merged from: feat/inv-s05-goods-receiving (HEAD 6e81f32 = application code 0210db7 + the S05-VERIFY-001 documentation commit).
+Authority: explicit owner approval in the Cowork Manager session ("Haan, tum merge karo"), following S05-VERIFY-001: Windows/Docker PostgreSQL verification (unit 355/355, integration 87/87) and independent QA/Testing subagent verdict PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR / 2 NOTE (process-only, no fix needed). Same-provider review limitation applies (Codex/Antigravity paused).
+Roles: Cowork Manager session = implementation (S05-IMPL-001), this merge, post-merge verification and this record. VS Code Claude Code session = push, Windows/Docker verification and independent QA (S05-VERIFY-001).
+
+## Pre-merge checks (executed, not assumed)
+
+- `git fetch origin`: origin/feat/inv-s05-goods-receiving == 6e81f32; main == origin/main == 9abd28c; main is an ancestor of the branch.
+- Changes after the implementation commit 0210db7: only `docs/engineering/CURRENT-HANDOFF.md` (S05-VERIFY-001 entry) — reviewed application code unchanged.
+- Main worktree tracked tree clean (only the long-standing untracked files: 00-PROJECT-MASTER.md, "Claude outputs/", backend/tmp/).
+
+## Merge
+
+- Previous main HEAD: 9abd28c. Merge type: fast-forward (`git merge --ff-only origin/feat/inv-s05-goods-receiving`) on the already checked-out main (no branch switch). New main HEAD (merge): 6e81f32; `git diff HEAD origin/feat/inv-s05-goods-receiving` empty.
+- Feature branch preserved on origin.
+- Push of main: run from the owner's Windows machine (the Cowork VM has no GitHub credentials).
+
+## Post-merge verification (clean clone of merged main 6e81f32, Cowork Linux VM, Node v24.21.0, embedded PostgreSQL 17.10)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS — 221 packages |
+| typecheck / lint / build | PASS / PASS / PASS |
+| test:unit | PASS — 355/355 (8 files) |
+| test:integration | PASS — 87/87 (5 files), authoritative migrate CLI + shipped runtime grants |
+| frontend/ diff vs 9abd28c | none |
+
+## Status
+
+S-05 is on main: implementation + tests + independent QA (PASS) + Windows/Docker verification + owner-approved merge + post-merge verification. Root README status updated. Migrations S-04/S-05 are NOT applied to the operational database `erp_local` (separate authorization).
+
+## Next recommended action
+
+Owner pushes main. Next slice per owner decision 2026-09-27: S-06 Purchase Order — start only when the owner asks. Known gaps carried forward: no expiry capture (B-07); standalone S-03 purchase endpoint checks "future" in UTC (ADR-0009 A-01 NOTE); no receiving UI yet.
+
+---
+
+## Previous handoff — S05-VERIFY-001 (Goods Receiving — Independent QA Verified on Windows/Docker)
 
 Date: 2026-09-27. Branch: feat/inv-s05-goods-receiving (base: main @ 9abd28c; HEAD unchanged at 0210db7 — this record adds only this documentation entry on top). Status: implemented + independently reviewed (PASS) + real Windows/Docker verification complete. Push to origin authorized and performed by this record. **NOT merged to main** — merge requires a separate, further owner approval.
 Authority: owner decisions 2026-09-27 recorded in `docs/decisions/ADR-0009-s05-goods-receiving.md`. Implementation: Cowork Manager session (prior record, preserved below as S05-IMPL-001). This record: owner explicitly authorized (a) real Windows/Docker verification and independent QA review, (b) pushing the feature branch, (c) this bounded documentation update — explicitly withholding merge-to-main authorization.
