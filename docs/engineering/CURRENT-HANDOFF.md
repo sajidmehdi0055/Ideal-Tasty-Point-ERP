@@ -1,4 +1,36 @@
-# Current Handoff — S03-MINOR-001 (Century Leap-Year Test Coverage for purchase_date)
+# Current Handoff — S04-IMPL-001 (Stock Locations + Opening Stock, quantity-only)
+
+Date: 2026-09-26. Branch: feat/inv-s04-locations-opening-stock (base: main @ 971307f). Status: implemented + self-verified; NOT merged — pending independent QA review, owner Windows/Docker re-run (recommended) and owner-approved merge.
+Authority: owner decisions 2026-09-26 recorded in `docs/decisions/ADR-0008-s04-stock-locations-opening-stock.md` (slice order, freezer-level locations, correction by reasoned adjustment, quantity-only). Implemented by the Cowork Manager session.
+
+## What was built
+
+Backend only. Stock Location master (branch-owned STORE/KITCHEN/FREEZER, freezer under a STORE/KITCHEN parent), append-only stock ledger with OPENING and ADJUSTMENT movements in Base UOM, current balances and movement history. Full details, API table and requirement-to-test traceability: `docs/engineering/inventory-s04-implementation.md`.
+
+Migration: `backend/migrations/202609260001_inventory_s04_locations_opening_stock.sql` (new tables only). Grants: `backend/scripts/runtime-grants.sql` extended — INSERT-only on the ledger.
+
+## Verification (Cowork Linux VM, clean clone, Node v24.21.0, PostgreSQL 17.10 embedded)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS |
+| typecheck / lint / build | PASS / PASS / PASS |
+| test:unit | PASS — 319/319 (7 files; 268 + 51 new) |
+| test:integration | PASS — 80/80 (4 files; 61 + 19 new), real authoritative migrate CLI + shipped runtime grants |
+
+Existing tests changed (all wiring/expectation updates, see implementation doc): buildApp wiring in 9 files; migration-list assertions (2 files); the S-03 "never touches stock" test now checks `stock_movement` has no row for the purchase's item instead of "no stock table exists".
+
+## Open / defaults to confirm
+
+DEFAULT / ASSUMED (ADR-0008 D-04, D-05): balance never below zero in S-04; locations with stock or active freezers cannot be deactivated. No frontend screens in this slice.
+
+## Next recommended action
+
+Owner pushes the branch; independent QA review (agent with no part in this change); owner re-run of integration tests on Windows Docker PostgreSQL 17.11 recommended; then owner-approved controlled merge. Do not start receiving (S-05) automatically.
+
+---
+
+## Previous handoff — S03-MINOR-001 (Century Leap-Year Test Coverage for purchase_date)
 
 Date: 2026-09-26. Branch: test/s03-leap-year-coverage (base: main @ 34cb7d0). Status: **MERGED to main** (fast-forward 34cb7d0..9179d83, owner-approved) after independent QA review PASS. The S-03 century leap-year MINOR is **CLOSED**; earlier sections below that list it as open are historical.
 Scope: closes the open S-03 MINOR (no test for the century branch of `isLeapYear` in `backend/src/inventory/domain/purchase-record.ts`). Test-only change: no production code, migration, API, security or audit change.

@@ -1,6 +1,6 @@
-# Inventory S-01/S-02/S-03 backend
+# Inventory S-01/S-02/S-03/S-04 backend
 
-Item Master create/edit (S-01), UOM/Brand/Pack Variant Masters (S-02), and Supplier Master + Purchase Record + Rate Comparison (S-03) are implemented. No UI, login/session system, Redis, stock operations, Purchase Orders/GRN/Supplier Ledger/Payments, or costing/valuation.
+Item Master create/edit (S-01), UOM/Brand/Pack Variant Masters (S-02), Supplier Master + Purchase Record + Rate Comparison (S-03), and Stock Locations + Opening Stock + balances (S-04, quantity-only, ADR-0008) are implemented. No UI, login/session system, Redis, goods receiving/issue/transfer/counts, Purchase Orders/GRN/Supplier Ledger/Payments, or costing/valuation.
 
 ## Foundation
 
@@ -153,3 +153,15 @@ npm run build
 ```
 
 Integration tests require TEST_DATABASE_URL for an isolated test PostgreSQL database with administrative schema/role creation rights. They create unique schemas and a restricted runtime role, never truncate/drop existing business objects. No mock counts as PostgreSQL verification; missing test database fails visibly. Supply TEST_DATABASE_URL as an environment variable (test scripts do not read .env automatically). See tests/integration for precise checks and CURRENT-HANDOFF for actual results. Do not use a production connection.
+
+### Stock Locations and Opening Stock (S-04, ADR-0008)
+
+- `POST /api/inventory/locations` `{ "name": "Main Store", "location_type": "STORE" }` or `{ "name": "Freezer 3", "location_type": "FREEZER", "parent_id": "<store/kitchen id>" }` -> 201. Types: `STORE`, `KITCHEN` (top-level), `FREEZER` (must have an active STORE/KITCHEN parent in the same branch). Name unique per branch (case-insensitive, trimmed).
+- `PATCH /api/inventory/locations/:id` `{ "name"?, "active"? }` -- type and parent are fixed; only Owner may change `active`. Deactivation is refused while the location holds stock (`409 LOCATION_HAS_STOCK`) or has active freezers (`409 LOCATION_HAS_ACTIVE_CHILDREN`).
+- `GET /api/inventory/locations` -- branch-scoped, includes inactive.
+- `POST /api/inventory/stock/opening` `{ "item_id", "location_id", "quantity": "12.5" }` -> 201. Quantity in the item's Base UOM, decimal string, > 0. One opening per item + location (`409 OPENING_ALREADY_EXISTS`).
+- `POST /api/inventory/stock/adjustments` `{ "item_id", "location_id", "quantity_delta": "-2.5", "reason": "..." }` -> 201. Corrects opening stock without editing it; requires an existing opening (`409 OPENING_REQUIRED`); the balance can never go below zero (`409 NEGATIVE_BALANCE`).
+- `GET /api/inventory/stock/balances` and `GET /api/inventory/stock/movements` -- optional `item_id` / `location_id` filters, branch-scoped.
+
+The ledger (`stock_movement`) is append-only: no edit/delete route, no runtime UPDATE/DELETE grant, and database triggers reject changes even from the schema owner. Balances are always `SUM(quantity_delta)`; there is no stored balance. Quantity-only: no value or costing.
+

@@ -2,6 +2,13 @@
 
 Date: 2026-09-17 (updated). Status: decision register, not answers. Sources: inventory-module.md v0.2, ADR-0001/0002/0003, readiness request. BLOCKING means before coding the affected slice, not that every future decision blocks Item Master. B-01 and B-02 are now CLOSED (ADR-0002, ADR-0003). Approved technical architecture remains a universal implementation gate. No coding currently authorized.
 
+## Update 2026-09-26 (ADR-0008, owner decisions for S-04)
+
+- B-03: **partially closed** — freezers are individual locations under a STORE/KITCHEN parent; store/rented store/Upper/Lower kitchen are top-level. Opening stock: entered once per item+location, never edited; corrections by reasoned ADJUSTMENT (Owner/Manager).
+- B-10: **closed for the first stock release** — quantity-only. Valuation/costing method remains an owner financial-policy decision for a later slice.
+- Defaults recorded as DEFAULT / ASSUMED in ADR-0008 (owner may revise): balance never below zero in S-04; a location with stock or active freezers cannot be deactivated.
+- B-04, B-05 (general), B-06, B-07, B-09, B-11 remain open.
+
 ## Blocking before coding the affected capability
 
 | ID | Source | Actual unresolved question / impact | Blocks |
