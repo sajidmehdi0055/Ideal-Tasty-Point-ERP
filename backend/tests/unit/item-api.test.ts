@@ -10,6 +10,10 @@ import type { PackVariantRepository } from '../../src/inventory/application/pack
 import type { SupplierRepository } from '../../src/inventory/application/supplier-repository.js';
 import type { PurchaseRecordRepository } from '../../src/inventory/application/purchase-record-repository.js';
 import { PRIMARY_ITEM_TYPES, type Item, type ItemInput } from '../../src/inventory/domain/item.js';
+import type { StockLocationRepository } from '../../src/inventory/application/stock-location-repository.js';
+import type { StockRepository } from '../../src/inventory/application/stock-repository.js';
+const unusedStockLocationRepository: StockLocationRepository = { create: vi.fn(), update: vi.fn(), list: vi.fn() };
+const unusedStockRepository: StockRepository = { createOpening: vi.fn(), createAdjustment: vi.fn(), listBalances: vi.fn(), listMovements: vi.fn() };
 const id = 'e0a8f673-2a55-4c83-8831-a6c4b6358245';
 const input: ItemInput = { item_name: 'Flour', primary_item_type: 'RAW_MATERIAL', base_uom: 'kg', brand: 'Generic / No Brand' };
 const owner: AuthContext = { userId: 'owner-1', role: 'OWNER', branchId: 'branch-2' };
@@ -28,7 +32,7 @@ function setup(auth: AuthContext | null = owner, defaultProvider = false) {
   const app = buildApp({
     repository, uomRepository: unusedUomRepository, brandRepository: unusedBrandRepository,
     packVariantRepository: unusedPackVariantRepository, supplierRepository: unusedSupplierRepository,
-    purchaseRecordRepository: unusedPurchaseRecordRepository,
+    purchaseRecordRepository: unusedPurchaseRecordRepository, stockLocationRepository: unusedStockLocationRepository, stockRepository: unusedStockRepository,
     ...(defaultProvider ? {} : { authProvider: async () => auth }),
   });
   apps.push(app); return { app, repository };

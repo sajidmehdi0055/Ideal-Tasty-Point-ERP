@@ -9,6 +9,8 @@ import { PgBrandRepository } from '../../src/inventory/persistence/pg-brand-repo
 import { PgPackVariantRepository } from '../../src/inventory/persistence/pg-pack-variant-repository.js';
 import { PgSupplierRepository } from '../../src/inventory/persistence/pg-supplier-repository.js';
 import { PgPurchaseRecordRepository } from '../../src/inventory/persistence/pg-purchase-record-repository.js';
+import { PgStockLocationRepository } from '../../src/inventory/persistence/pg-stock-location-repository.js';
+import { PgStockRepository } from '../../src/inventory/persistence/pg-stock-repository.js';
 import type { ItemInput } from '../../src/inventory/domain/item.js';
 import type { PurchaseRecordInput } from '../../src/inventory/domain/purchase-record.js';
 import { applyRuntimeGrants } from './helpers/runtime-grants.js';
@@ -29,6 +31,8 @@ describe('S-03 Supplier Master & Purchase Record (real PostgreSQL)', () => {
   const packVariantRepository = new PgPackVariantRepository(runtime);
   const supplierRepository = new PgSupplierRepository(runtime);
   const purchaseRecordRepository = new PgPurchaseRecordRepository(runtime);
+  const stockLocationRepository = new PgStockLocationRepository(runtime);
+  const stockRepository = new PgStockRepository(runtime);
   const owner: AuthContext = { userId: 'owner-a', role: 'OWNER', branchId: 'branch-a' };
   const manager: AuthContext = { userId: 'manager-b', role: 'MANAGER', branchId: 'branch-b' };
   const itemInput: ItemInput = { item_name: 'Ghee', primary_item_type: 'RAW_MATERIAL', base_uom: 'kg', brand: 'Generic / No Brand' };
@@ -36,7 +40,7 @@ describe('S-03 Supplier Master & Purchase Record (real PostgreSQL)', () => {
   function buildTestApp(auth: AuthContext) {
     return buildApp({
       repository: itemRepository, uomRepository, brandRepository, packVariantRepository,
-      supplierRepository, purchaseRecordRepository, authProvider: async () => auth,
+      supplierRepository, purchaseRecordRepository, stockLocationRepository, stockRepository, authProvider: async () => auth,
     });
   }
 
@@ -142,10 +146,9 @@ describe('S-03 Supplier Master & Purchase Record (real PostgreSQL)', () => {
         const audit = await admin.query('SELECT * FROM purchase_record_audit WHERE purchase_record_id=$1', [record.id]);
         expect(audit.rows).toHaveLength(1);
         expect(audit.rows[0]).toMatchObject({ action: 'CREATE', before_data: null });
-        const stockTables = await admin.query(
-          `SELECT table_name FROM information_schema.tables WHERE table_schema=$1 AND table_name ILIKE '%stock%'`, [schema],
-        );
-        expect(stockTables.rows).toHaveLength(0);
+        // S-04 added a stock ledger; a purchase record must still never post a stock movement.
+        const movements = await admin.query('SELECT 1 FROM stock_movement WHERE item_id=$1', [item.id]);
+        expect(movements.rows).toHaveLength(0);
       } finally { await app.close(); }
     });
 

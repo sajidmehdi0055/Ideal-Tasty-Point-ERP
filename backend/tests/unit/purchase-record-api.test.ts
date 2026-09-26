@@ -10,6 +10,10 @@ import type { UomRepository } from '../../src/inventory/application/uom-reposito
 import type { BrandRepository } from '../../src/inventory/application/brand-repository.js';
 import type { PackVariantRepository } from '../../src/inventory/application/pack-variant-repository.js';
 import type { SupplierRepository } from '../../src/inventory/application/supplier-repository.js';
+import type { StockLocationRepository } from '../../src/inventory/application/stock-location-repository.js';
+import type { StockRepository } from '../../src/inventory/application/stock-repository.js';
+const unusedStockLocationRepository: StockLocationRepository = { create: vi.fn(), update: vi.fn(), list: vi.fn() };
+const unusedStockRepository: StockRepository = { createOpening: vi.fn(), createAdjustment: vi.fn(), listBalances: vi.fn(), listMovements: vi.fn() };
 
 const id = 'e0a8f673-2a55-4c83-8831-a6c4b6358245';
 const supplierId = '44444444-4444-4444-8444-444444444444';
@@ -35,7 +39,7 @@ function setup(auth: AuthContext | null = owner, defaultProvider = false) {
   const app = buildApp({
     repository: unusedItemRepository, uomRepository: unusedUomRepository,
     brandRepository: unusedBrandRepository, packVariantRepository: unusedPackVariantRepository,
-    supplierRepository: unusedSupplierRepository, purchaseRecordRepository: repository,
+    supplierRepository: unusedSupplierRepository, purchaseRecordRepository: repository, stockLocationRepository: unusedStockLocationRepository, stockRepository: unusedStockRepository,
     ...(defaultProvider ? {} : { authProvider: async () => auth }),
   });
   apps.push(app); return { app, repository };

@@ -10,6 +10,8 @@ import { PgBrandRepository } from '../../src/inventory/persistence/pg-brand-repo
 import { PgPackVariantRepository } from '../../src/inventory/persistence/pg-pack-variant-repository.js';
 import { PgSupplierRepository } from '../../src/inventory/persistence/pg-supplier-repository.js';
 import { PgPurchaseRecordRepository } from '../../src/inventory/persistence/pg-purchase-record-repository.js';
+import { PgStockLocationRepository } from '../../src/inventory/persistence/pg-stock-location-repository.js';
+import { PgStockRepository } from '../../src/inventory/persistence/pg-stock-repository.js';
 import { applyRuntimeGrants } from './helpers/runtime-grants.js';
 import { runAuthoritativeMigrate } from './helpers/migrate-cli.js';
 
@@ -26,6 +28,8 @@ const brandRepository = new PgBrandRepository(runtime);
 const packVariantRepository = new PgPackVariantRepository(runtime);
 const supplierRepository = new PgSupplierRepository(runtime);
 const purchaseRecordRepository = new PgPurchaseRecordRepository(runtime);
+const stockLocationRepository = new PgStockLocationRepository(runtime);
+const stockRepository = new PgStockRepository(runtime);
 const owner: AuthContext = { userId: 'owner-a', role: 'OWNER', branchId: 'branch-a' };
 const manager: AuthContext = { userId: 'manager-b', role: 'MANAGER', branchId: 'branch-b' };
 const input: ItemInput = { item_name: 'Rice', primary_item_type: 'RAW_MATERIAL', base_uom: 'kg', brand: 'Generic / No Brand' };
@@ -49,7 +53,7 @@ afterAll(async () => { await runtime.end(); await admin.end(); });
 function buildTestApp(auth: AuthContext) {
   return buildApp({
     repository, uomRepository, brandRepository, packVariantRepository,
-    supplierRepository, purchaseRecordRepository, authProvider: async () => auth,
+    supplierRepository, purchaseRecordRepository, stockLocationRepository, stockRepository, authProvider: async () => auth,
   });
 }
 
@@ -61,6 +65,7 @@ describe('S-01 real PostgreSQL migration and persistence', () => {
       '202609180001_inventory_s02_uom_brand',
       '202609180002_inventory_s02_item_base_uom_pack_variant',
       '202609250001_inventory_s03_purchasing_supplier',
+      '202609260001_inventory_s04_locations_opening_stock',
     ]);
     // Re-running the same authoritative command against an up-to-date schema
     // must be a genuine no-op: same migrations recorded, nothing duplicated.
