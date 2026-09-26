@@ -1,4 +1,47 @@
-# Current Handoff — UI-UOM-001 (Catalog Settings → UOM Master frontend implementation)
+# Current Handoff — UI-UOM-MERGE-001 (UI-UOM-001 Merged to Main)
+
+Date: 2026-09-27. Branch: main. Merged from: feat/ui-uom-master (commit 6760085).
+Authority: owner-approved controlled merge, given directly in-session, conditional on a Step A focused re-review of the post-review fix commit passing first. Step A verdict: **PASS** (fresh, uninvolved QA/Testing subagent — 0 findings; personally reverted the fix locally, confirmed the new regression test genuinely fails on the old code and passes on the fixed code, not just that it exists).
+Roles: Manager (this session) executed the pre-merge verification, the fast-forward merge, and this record. Independent reviewers: the full UI-UOM-001 QA/Testing subagent (PASS WITH FINDINGS, both addressed — see previous record below) and the Step A focused-fix reviewer (PASS), both with no part in the implementation. Codex and Google Antigravity remain paused (GOV-MANAGER-SUBAGENT-001) — same-provider review, not a genuinely external one; recorded again here per AGENTS.md.
+
+## Pre-merge verification (executed immediately before merging, not assumed)
+
+| Check | Result |
+|---|---|
+| `git fetch origin` | clean |
+| `origin/feat/ui-uom-master` | `6760085` (matches the reviewed candidate) |
+| `main` local vs. `origin/main` | both `73cfd71` (match, as expected) |
+| `git merge-base main origin/feat/ui-uom-master` | `73cfd71` — confirms `main` is a strict ancestor (clean fast-forward possible) |
+| Main worktree tracked-tree state | clean; only the three pre-existing, unrelated untracked items present (`00-PROJECT-MASTER.md`, `Claude outputs/`, `backend/tmp/`) |
+
+No divergence, no unexpected changes — merge proceeded as authorized.
+
+## Merge
+
+- Previous main HEAD: `73cfd71`. Merged branch HEAD: `6760085`. New main HEAD: `6760085`.
+- Merge type: fast-forward (`git merge --ff-only origin/feat/ui-uom-master`), executed directly on the main worktree's already-checked-out `main` branch — no checkout switch, no active session or uncommitted work disturbed.
+- 21 files changed, 1235 insertions(+), 71 deletions(-) — same file list as UI-UOM-001's own record, nothing more.
+- Post-merge tree check: `git diff main origin/feat/ui-uom-master` — empty (byte-identical). `git diff 73cfd71 main -- backend/` — empty (backend genuinely untouched by this merge, as claimed throughout).
+- Post-merge re-verification on the merged tree itself (fresh `npm ci --ignore-scripts` in the main worktree, which had no prior frontend install): typecheck PASS, lint PASS, **test PASS — 65/65 (12 files)** (one earlier run hit a transient Vitest worker-pool timeout under this machine's concurrent-process load — an environment flake, not a code issue — a clean retry passed outright), build PASS.
+- `git push origin main`: completed — `73cfd71..6760085 main -> main`.
+- Post-push verification: fresh `git fetch origin` then `git rev-parse main` == `git rev-parse origin/main` == `6760085`.
+- Feature branch `feat/ui-uom-master` preserved (not deleted) on origin.
+
+## UI-UOM-001 completion status
+
+UI-UOM-001 (Catalog Settings / UOM Master frontend) is now on `main`: implementation + independent QA review (PASS WITH FINDINGS, resolved) + a focused re-review of the fix (PASS) + owner-approved merge + post-merge verification are all satisfied.
+
+## Out of scope for this record (explicitly not done)
+
+No force push, reset, rebase, squash, or branch delete. `backend/` untouched. The pre-existing `backend/tmp/demo-server.ts` process (port 3000, disclosed in the previous record) was not touched, started, or stopped. No other branch or worktree touched.
+
+## Next recommended action
+
+Owner decides what's next (e.g. Brands/Pack Variants tabs, or a different priority). The five Figma states not yet screenshot-diffed (noted in the previous record) remain a low-priority, non-blocking follow-up if pixel fidelity matters later.
+
+---
+
+## Previous handoff — UI-UOM-001 (Catalog Settings → UOM Master frontend implementation)
 
 Date: 2026-09-26. Branch: feat/ui-uom-master (worktree at `Ideal-Tasty-Point-ERP-ui-uom`, base: main @ 73cfd71). Status: implemented + self-verified + independently reviewed (PASS WITH FINDINGS, both addressed below) + **pushed** to origin. **NOT merged** — merge remains a separate owner decision.
 Authority: owner approval (2026-09-26) of the Figma proposal "Inventory / Catalog Settings / UOM Master" (file `N9KkqXIQuvCUj9NVAj6Cx4`, node `55:7` and children — states 55:186 In shell, 55:8 Default, 56:2 Empty, 56:199 Loading, 56:406 Access denied, 57:38 Create, 57:253 Edit, 57:473 409 error). Visual direction (unchanged from prior approval): Palette Option B Charcoal/Slate, icons Lucide.
