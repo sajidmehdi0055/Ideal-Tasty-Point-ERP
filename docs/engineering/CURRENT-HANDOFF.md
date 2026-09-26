@@ -1,4 +1,61 @@
-# Current Handoff — S04-MERGE-001 (Inventory S-04 Merged to Main)
+# Current Handoff — UI-UOM-001 (Catalog Settings → UOM Master frontend implementation)
+
+Date: 2026-09-26. Branch: feat/ui-uom-master (worktree at `Ideal-Tasty-Point-ERP-ui-uom`, base: main @ 73cfd71). Status: implemented + self-verified; **NOT pushed, NOT merged** — pending independent QA review and owner authorization for both.
+Authority: owner approval (2026-09-26) of the Figma proposal "Inventory / Catalog Settings / UOM Master" (file `N9KkqXIQuvCUj9NVAj6Cx4`, node `55:7` and children — states 55:186 In shell, 55:8 Default, 56:2 Empty, 56:199 Loading, 56:406 Access denied, 57:38 Create, 57:253 Edit, 57:473 409 error). Visual direction (unchanged from prior approval): Palette Option B Charcoal/Slate, icons Lucide.
+Roles: Manager (this VS Code Claude Code session) = primary implementer of this record, in an isolated worktree. Independent reviewer: pending, a fresh in-house QA/Testing subagent with no part in this implementation (see "Next recommended action").
+
+## What was built
+
+Frontend only, no backend/migration change. Uses only existing, already-live UOM Master API (`GET/POST/PATCH /api/inventory/uoms`, S-02).
+
+- **Sidebar restructure** (`app/shell/nav-items.ts`, `Sidebar.tsx`, `breadcrumbs.ts`): flat nav list replaced with three labeled sections matching the approved Figma sidebar — **Inventory** (Item Master, Catalog Settings), **Purchasing** (Suppliers, Purchases & Rates — both Pending), **Stock** (Stock Locations, Stock Ledger — both Pending). Sidebar itself now renders in the dark Charcoal/Slate treatment (`bg-[#1e293b]` etc., Tailwind arbitrary values scoped to this one component — the shared `--color-primary-*`/`ink`/`canvas` tokens in `styles/index.css` were deliberately left untouched, so Item Master's own screen is pixel-identical to before this change).
+- **Catalog Settings** (`features/catalog-settings/CatalogSettingsPage.tsx`, new route `/catalog-settings`): tabbed page — UOM Master (live), Brands and Pack Variants (Pending placeholders, same copy the old standalone pages had). Whole page is gated behind `canEditItems` (Owner/Manager) at the page level, matching the real backend: UOM Master's `list()` itself requires Owner/Manager, so a denied identity never even attempts the list call — it sees a single access-denied card, no tabs.
+- **UOM Master tab** (`features/catalog-settings/uom/`): full list + search (client-side, by name) + create + edit + Owner-or-Manager active/inactive toggle, wired to the real API. Duplicate name → field-level error + banner (`409 DUPLICATE_UOM_NAME`); other 400s mapped from `issues`; 401/403 messaged same convention as `ItemFormPage`.
+- **Old routes preserved as redirects**: `/uom`, `/brands`, `/pack-variants` → `/catalog-settings` with the right tab pre-selected via router state, so old links/bookmarks still land correctly. Old standalone page files (`features/uom`, `features/brands`, `features/pack-variants`) removed — their content lives in the new tabs instead.
+- **New placeholder screens** for the four new Pending sidebar entries (`/suppliers`, `/purchases`, `/stock/locations`, `/stock/ledger`), reusing the existing `PlaceholderPage` component with honest status text (S-03/S-04 backend live, frontend pending; the two Stock ones also note the erp_local migration gap from S04-MERGE-001).
+- **Icons**: Lucide icon paths vendored as plain SVG components (`design-system/icons/index.tsx`, ISC License, sourced from `lucide-static` v1.48.0) — **no new npm dependency added**, per the task's instruction to ask first before adding `lucide-react`. 14 icons used across the sidebar and the UOM Master screen's toolbar/dialogs/states.
+- **New `Button` variant** (`dark`, `bg-neutral-700`): the Figma design's dark-slate primary action, reusing the existing `neutral-700` token — added as a new variant rather than changing the existing blue `primary` variant, again to keep Item Master untouched.
+
+## Deviations from the literal Figma mockup (judgment calls, not business-rule changes)
+
+- **Loading state**: reused the existing shared `LoadingState` (spinner + text) instead of building bespoke skeleton table rows — Item Master itself doesn't have skeleton rows either, and inventing a new pattern used nowhere else seemed like more inconsistency than it was worth for a loading spinner.
+- **Access-denied state**: reused the existing `ErrorState` component (title + message), matching `ItemFormPage`'s own established permission-denied convention, instead of a new icon-circle-plus-lock visual treatment not used anywhere else in the app yet.
+- **Table column widths**: fluid (existing shared `Table` component), not the fixed 300/240/160px from Figma — the shared `Table`/`TableCell` components don't support per-column fixed widths today and adding that felt like scope beyond this one screen.
+- **Unit Type cell**: rendered as a `StatusBadge` (neutral tone) rather than Figma's slightly different pill styling, reusing the exact same badge component Item Master's own "Status" column already uses, for consistency.
+
+None of these affect functionality, permissions, or the API contract — flagged for the owner/reviewer's awareness, not as a stop condition.
+
+## Verification (executed in the isolated worktree, Windows, Node v24.18.1)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS — 249 packages, 0 vulnerabilities |
+| typecheck | PASS |
+| lint | PASS |
+| test | PASS — 64/64 (12 files; covers list render, search, create success, edit, active toggle from both the row action and the edit dialog, 409 duplicate-name field error, loading, empty, 403 access-denied, and all three old-route redirects) |
+| build | PASS — dev-identity storage key confirmed absent from `dist/` (production tree-shaking guarantee intact) |
+
+### Browser verification (Playwright, headless Chromium, against the dev server)
+
+Screenshots taken of: `/items` with the new dark sidebar, `/catalog-settings` UOM Master tab (real list rendered), the New unit create dialog, and a duplicate-name (`kg`) submission showing the field error + banner exactly as designed. No unexpected console errors (two benign 404s, one *expected* 409 from the duplicate-name test itself).
+
+**Disclosure:** this dev server's `/api` proxy (`vite.config.ts`, unchanged, pre-existing) forwards to `127.0.0.1:3000`, and a backend process was already running there — `backend/tmp/demo-server.ts` (PID 13772, started independently of this session, before it began; not started or stopped by this record). The duplicate-name test above therefore hit that **real, already-running backend**, not a mock. It returned a genuine `409` (the name `kg` already existed), so **no data was written** — but this was an already-live server this session did not start and does not control, and its actual database target was not verified. Flagging this transparently rather than silently noting "browser-verified": the owner may want to confirm what `tmp/demo-server.ts` connects to. This session's own dev server (Vite, port 5173) was stopped after the check; the pre-existing demo-server on port 3000 was left running, untouched.
+
+## Independent review
+
+Pending. A fresh in-house QA/Testing subagent, with no part in this implementation, will independently verify: the diff matches the approved Figma states, the API contract usage is correct against `backend/README.md`'s UOM Master section, permission gating matches the real backend (`uom-service.ts`, no Owner-only restriction on `active` — confirmed intentionally, not a new rule), redirect behavior, and re-run the full check list above from a clean install. Codex and Google Antigravity remain paused (GOV-MANAGER-SUBAGENT-001) — this is a same-provider review, not a genuinely external one.
+
+## Not done (explicitly out of scope for this record)
+
+Backend/migrations untouched. Brands/Pack Variants/Suppliers/Purchases/Stock actual screens not built (only their nav placeholders exist). No real login/session. `main` untouched. `chore/claude-code-permission-guardrails` and other worktrees/branches untouched. No push, no commit beyond this feature branch, no merge.
+
+## Next recommended action
+
+Independent QA/Testing subagent review of this candidate. If PASS, owner decides on pushing `feat/ui-uom-master` to origin; merge to main is a further, separate owner decision per project policy.
+
+---
+
+## Previous handoff — S04-MERGE-001 (Inventory S-04 Merged to Main)
 
 Date: 2026-09-26. Branch: main. Merged from: feat/inv-s04-locations-opening-stock (commit 7d54b0f, application code unchanged at 16b3464 plus the S04-VERIFY-001 documentation commit — see previous record below).
 Authority: owner-approved controlled merge, given directly in-session, following the S04-VERIFY-001 independent QA review verdict (PASS — ready for controlled merge, 0 BLOCKER/MAJOR) and real Windows/Docker verification recorded below. Explicit owner instruction: verify fresh remote state first and abort with a report if the candidate, main, or the reviewed application code had changed or diverged since S04-VERIFY-001 — none had.

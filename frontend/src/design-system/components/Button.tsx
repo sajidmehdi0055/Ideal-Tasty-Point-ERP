@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { Spinner } from './Spinner';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'dark';
 export type ButtonSize = 'sm' | 'md';
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -9,6 +9,10 @@ const variantClasses: Record<ButtonVariant, string> = {
   secondary: 'bg-canvas text-ink border border-line hover:bg-canvas-muted disabled:text-ink-muted',
   danger: 'bg-danger-600 text-white hover:bg-danger-700 disabled:bg-danger-50 disabled:text-danger-600',
   ghost: 'bg-transparent text-ink hover:bg-canvas-muted disabled:text-ink-muted',
+  // Charcoal/Slate direction (approved Figma proposal, UI-UOM-001): a dark
+  // slate primary action, distinct from the existing blue `primary` so
+  // already-shipped screens (Item Master) keep their current look untouched.
+  dark: 'bg-neutral-700 text-white hover:bg-ink disabled:bg-neutral-50 disabled:text-neutral-600',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
-import { StatusBadge } from '../../design-system/components';
-import { NAV_ITEMS } from './nav-items';
+import { NAV_SECTIONS } from './nav-items';
 
 interface SidebarProps {
   open: boolean;
@@ -54,29 +53,52 @@ export function Sidebar({ open, onClose, isDesktop }: SidebarProps) {
         role={isMobileOverlay ? 'dialog' : undefined}
         aria-modal={isMobileOverlay ? open : undefined}
         aria-label={isMobileOverlay ? 'Primary navigation' : undefined}
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col border-r border-line bg-canvas transition-transform duration-200 md:static md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col bg-[#1e293b] transition-transform duration-200 md:static md:translate-x-0 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex h-16 items-center border-b border-line px-5">
-          <span className="text-base font-semibold text-ink">Ideal Tasty Point</span>
+        <div className="flex h-16 items-center gap-2.5 border-b border-[#334155] px-5">
+          <span aria-hidden="true" className="h-[30px] w-[30px] shrink-0 rounded-lg bg-[#334155]" />
+          <span className="flex flex-col leading-tight">
+            <span className="text-sm font-semibold text-[#e2e8f0]">Ideal Tasty Point</span>
+            <span className="text-[10px] font-medium text-[#94a3b8]">ERP</span>
+          </span>
         </div>
-        <nav aria-label="Primary" className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
-          {NAV_ITEMS.map((item, index) => (
-            <NavLink
-              key={item.to}
-              ref={index === 0 ? firstLinkRef : undefined}
-              to={item.to}
-              onClick={onClose}
-              className={({ isActive }) =>
-                `flex items-center justify-between rounded-control px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive ? 'bg-primary-50 text-primary-700' : 'text-ink hover:bg-canvas-muted'
-                }`
-              }
-            >
-              <span>{item.label}</span>
-              {item.pending ? <StatusBadge label="Pending" tone="warning" /> : null}
-            </NavLink>
+        <nav aria-label="Primary" className="flex flex-1 flex-col gap-4 overflow-y-auto p-3">
+          {NAV_SECTIONS.map((section, sectionIndex) => (
+            <div key={section.label} className="flex flex-col gap-1">
+              <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#94a3b8]">
+                {section.label}
+              </p>
+              {section.items.map((item, itemIndex) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.to}
+                    ref={sectionIndex === 0 && itemIndex === 0 ? firstLinkRef : undefined}
+                    to={item.to}
+                    onClick={onClose}
+                    className={({ isActive }) =>
+                      `flex items-center justify-between rounded-control border-l-2 px-3 py-2 text-[13px] font-medium transition-colors ${
+                        isActive
+                          ? 'border-[#94a3b8] bg-[#94a3b8]/[.12] text-[#e2e8f0]'
+                          : 'border-transparent text-[#94a3b8] hover:bg-[#94a3b8]/[.08] hover:text-[#e2e8f0]'
+                      }`
+                    }
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <Icon className="h-4 w-4 shrink-0" />
+                      {item.label}
+                    </span>
+                    {item.pending ? (
+                      <span className="rounded-full bg-[#f59e0b]/[.16] px-2 py-0.5 text-[10px] font-medium text-[#fcd34d]">
+                        Pending
+                      </span>
+                    ) : null}
+                  </NavLink>
+                );
+              })}
+            </div>
           ))}
         </nav>
       </aside>

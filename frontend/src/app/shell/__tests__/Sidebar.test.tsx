@@ -5,18 +5,31 @@ import { MemoryRouter } from 'react-router-dom';
 import { Sidebar } from '../Sidebar';
 
 describe('Sidebar', () => {
-  it('lists Item Master as active and marks the S-02 screens as pending', () => {
+  it('lists Item Master and Catalog Settings as live, and the rest as pending', () => {
     render(
       <MemoryRouter initialEntries={['/items']}>
         <Sidebar open onClose={vi.fn()} isDesktop={false} />
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('link', { name: /item master/i })).toBeInTheDocument();
-    for (const label of [/uom master/i, /brands/i, /pack variants/i]) {
+    for (const label of [/item master/i, /catalog settings/i]) {
+      expect(screen.getByRole('link', { name: label })).not.toHaveTextContent('Pending');
+    }
+    for (const label of [/suppliers/i, /purchases & rates/i, /stock locations/i, /stock ledger/i]) {
       expect(screen.getByRole('link', { name: label })).toHaveTextContent('Pending');
     }
-    expect(screen.getByRole('link', { name: /item master/i })).not.toHaveTextContent('Pending');
+  });
+
+  it('groups nav items under Inventory, Purchasing and Stock section labels', () => {
+    render(
+      <MemoryRouter initialEntries={['/items']}>
+        <Sidebar open onClose={vi.fn()} isDesktop={false} />
+      </MemoryRouter>,
+    );
+
+    for (const section of ['Inventory', 'Purchasing', 'Stock']) {
+      expect(screen.getByText(section)).toBeInTheDocument();
+    }
   });
 
   it('is inert (unreachable by keyboard/AT) when closed on a mobile viewport', () => {

@@ -9,8 +9,10 @@ export function getBreadcrumb(pathname: string): Breadcrumb {
   if (/^\/items\/[^/]+\/edit$/.test(pathname)) {
     return { title: 'Edit item', crumbs: ['Inventory', 'Item Master', 'Edit item'] };
   }
-  if (pathname === '/uom') return { title: 'UOM Master', crumbs: ['Inventory', 'UOM Master'] };
-  if (pathname === '/brands') return { title: 'Brands', crumbs: ['Inventory', 'Brands'] };
-  if (pathname === '/pack-variants') return { title: 'Pack Variants', crumbs: ['Inventory', 'Pack Variants'] };
+  if (pathname === '/catalog-settings') return { title: 'Catalog Settings', crumbs: ['Inventory', 'Catalog Settings'] };
+  if (pathname === '/suppliers') return { title: 'Suppliers', crumbs: ['Purchasing', 'Suppliers'] };
+  if (pathname === '/purchases') return { title: 'Purchases & Rates', crumbs: ['Purchasing', 'Purchases & Rates'] };
+  if (pathname === '/stock/locations') return { title: 'Stock Locations', crumbs: ['Stock', 'Stock Locations'] };
+  if (pathname === '/stock/ledger') return { title: 'Stock Ledger', crumbs: ['Stock', 'Stock Ledger'] };
   return { title: 'Ideal Tasty Point ERP', crumbs: [] };
 }
