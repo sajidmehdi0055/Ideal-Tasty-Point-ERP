@@ -21,7 +21,7 @@ function isLeapYear(year: number): boolean {
 // "2026-02-30" becomes March 2) instead of rejecting it, so calendar
 // validity is checked manually against the actual days-in-month/leap-year
 // rules rather than relying on JS Date parsing.
-function isValidCalendarDate(value: string): boolean {
+export function isValidCalendarDate(value: string): boolean {
   const parts = value.split('-').map(Number);
   const year = parts[0]; const month = parts[1]; const day = parts[2];
   if (year === undefined || month === undefined || day === undefined) return false;

@@ -11,7 +11,7 @@
 -- This script grants no role membership, ownership, DDL, DELETE or TRUNCATE.
 GRANT USAGE ON SCHEMA :"schema_name" TO :"runtime_role";
 
-GRANT SELECT ON item_master, uom_master, brand_master, pack_variant, supplier_master, purchase_record, stock_location, stock_movement TO :"runtime_role";
+GRANT SELECT ON item_master, uom_master, brand_master, pack_variant, supplier_master, purchase_record, stock_location, stock_movement, goods_receipt, goods_receipt_line TO :"runtime_role";
 
 GRANT INSERT (id, branch_id, item_name, primary_item_type, base_uom_id, brand)
   ON item_master TO :"runtime_role";
@@ -49,3 +49,9 @@ GRANT INSERT ON stock_location_audit TO :"runtime_role";
 -- Corrections are new ADJUSTMENT rows, never edits of existing rows.
 GRANT INSERT (id, item_id, location_id, movement_type, quantity_delta, reason) ON stock_movement TO :"runtime_role";
 GRANT INSERT ON stock_movement_audit TO :"runtime_role";
+
+-- Goods receipts are create-only: no UPDATE grant. Each line also inserts a
+-- purchase_record and a stock_movement through the grants above.
+GRANT INSERT (id, supplier_id, location_id, receipt_date, supplier_bill_no) ON goods_receipt TO :"runtime_role";
+GRANT INSERT (id, goods_receipt_id, line_no, item_id, brand_id, pack_variant_id, pack_quantity, conversion_factor, base_quantity, rate, purchase_record_id, stock_movement_id) ON goods_receipt_line TO :"runtime_role";
+GRANT INSERT ON goods_receipt_audit TO :"runtime_role";

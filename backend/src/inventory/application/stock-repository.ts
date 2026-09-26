@@ -5,13 +5,14 @@ export interface StockRepository {
   /**
    * Returns null when the item or location does not exist in auth's branch
    * (404). Throws AppError(409) for an inactive item/location
-   * (ITEM_INACTIVE / LOCATION_INACTIVE) or an existing opening entry
-   * (OPENING_ALREADY_EXISTS).
+   * (ITEM_INACTIVE / LOCATION_INACTIVE), an existing opening entry
+   * (OPENING_ALREADY_EXISTS), or other earlier entries such as receipts
+   * (STOCK_HISTORY_EXISTS) -- opening must be the first entry (ADR-0009).
    */
   createOpening(input: OpeningStockInput, auth: AuthContext): Promise<StockMovement | null>;
   /**
    * Same not-found/inactive handling as createOpening. Throws AppError(409,
-   * OPENING_REQUIRED) when no opening entry exists yet for the item+location,
+   * OPENING_REQUIRED) when no opening or receipt exists yet for the item+location,
    * and AppError(409, NEGATIVE_BALANCE) when the balance would go below zero.
    */
   createAdjustment(input: StockAdjustmentInput, auth: AuthContext): Promise<StockMovement | null>;

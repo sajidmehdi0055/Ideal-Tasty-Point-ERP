@@ -65,12 +65,15 @@ async function insertMovement(
   return movement;
 }
 
-async function hasOpening(client: PoolClient, itemId: string, locationId: string): Promise<boolean> {
-  const result = await client.query(
-    "SELECT 1 FROM stock_movement WHERE item_id = $1 AND location_id = $2 AND movement_type = 'OPENING'",
+/** What already exists in the ledger for this item+location (called under the pair lock). */
+async function history(client: PoolClient, itemId: string, locationId: string): Promise<{ opening: boolean; any: boolean }> {
+  const result = await client.query<{ opening: boolean; any: boolean }>(
+    `SELECT bool_or(movement_type = 'OPENING') AS opening, count(*) > 0 AS any
+     FROM stock_movement WHERE item_id = $1 AND location_id = $2`,
     [itemId, locationId],
   );
-  return (result.rowCount ?? 0) > 0;
+  const row = result.rows[0];
+  return { opening: row?.opening === true, any: row?.any === true };
 }
 
 export class PgStockRepository implements StockRepository {
@@ -80,7 +83,13 @@ export class PgStockRepository implements StockRepository {
     try {
       return await withTransaction(this.pool, async (client) => {
         if (!await lockPair(client, input.item_id, input.location_id, auth)) return null;
-        if (await hasOpening(client, input.item_id, input.location_id)) throw openingExists();
+        const existing = await history(client, input.item_id, input.location_id);
+        if (existing.opening) throw openingExists();
+        // S-05 (ADR-0009 O-07): a receipt may be the first stock; an opening
+        // entry is then no longer allowed, because opening must come first.
+        if (existing.any) {
+          throw new AppError(409, 'STOCK_HISTORY_EXISTS', 'Opening stock must be the first entry; this item already has stock entries at this location');
+        }
         return insertMovement(client, auth, input.item_id, input.location_id, 'OPENING', input.quantity, null);
       });
     } catch (error) {
@@ -92,8 +101,8 @@ export class PgStockRepository implements StockRepository {
   async createAdjustment(input: StockAdjustmentInput, auth: AuthContext): Promise<StockMovement | null> {
     return withTransaction(this.pool, async (client) => {
       if (!await lockPair(client, input.item_id, input.location_id, auth)) return null;
-      if (!await hasOpening(client, input.item_id, input.location_id)) {
-        throw new AppError(409, 'OPENING_REQUIRED', 'Record opening stock for this item and location before adjusting it');
+      if (!(await history(client, input.item_id, input.location_id)).any) {
+        throw new AppError(409, 'OPENING_REQUIRED', 'Record opening stock or a receipt for this item and location before adjusting it');
       }
       // NUMERIC arithmetic in PostgreSQL, never JS floats.
       const check = await client.query<{ negative: boolean }>(

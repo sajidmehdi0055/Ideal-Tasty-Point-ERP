@@ -26,6 +26,9 @@ import type { StockRepository } from './inventory/application/stock-repository.j
 import { StockService } from './inventory/application/stock-service.js';
 import { registerStockLocationRoutes } from './inventory/api/stock-location-routes.js';
 import { registerStockRoutes } from './inventory/api/stock-routes.js';
+import type { GoodsReceiptRepository } from './inventory/application/goods-receipt-repository.js';
+import { GoodsReceiptService } from './inventory/application/goods-receipt-service.js';
+import { registerGoodsReceiptRoutes } from './inventory/api/goods-receipt-routes.js';
 
 export interface AppOptions {
   repository: ItemRepository;
@@ -36,6 +39,7 @@ export interface AppOptions {
   purchaseRecordRepository: PurchaseRecordRepository;
   stockLocationRepository: StockLocationRepository;
   stockRepository: StockRepository;
+  goodsReceiptRepository: GoodsReceiptRepository;
   authProvider?: AuthContextProvider;
 }
 
@@ -62,5 +66,6 @@ export function buildApp(options: AppOptions) {
   registerPurchaseRecordRoutes(app, new PurchaseRecordService(options.purchaseRecordRepository), authProvider);
   registerStockLocationRoutes(app, new StockLocationService(options.stockLocationRepository), authProvider);
   registerStockRoutes(app, new StockService(options.stockRepository), authProvider);
+  registerGoodsReceiptRoutes(app, new GoodsReceiptService(options.goodsReceiptRepository), authProvider);
   return app;
 }
