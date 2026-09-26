@@ -1,4 +1,50 @@
-# Current Handoff — S04-VERIFY-001 (Stock Locations + Opening Stock — Independent QA Verified on Windows/Docker)
+# Current Handoff — S04-MERGE-001 (Inventory S-04 Merged to Main)
+
+Date: 2026-09-26. Branch: main. Merged from: feat/inv-s04-locations-opening-stock (commit 7d54b0f, application code unchanged at 16b3464 plus the S04-VERIFY-001 documentation commit — see previous record below).
+Authority: owner-approved controlled merge, given directly in-session, following the S04-VERIFY-001 independent QA review verdict (PASS — ready for controlled merge, 0 BLOCKER/MAJOR) and real Windows/Docker verification recorded below. Explicit owner instruction: verify fresh remote state first and abort with a report if the candidate, main, or the reviewed application code had changed or diverged since S04-VERIFY-001 — none had.
+Roles: Manager (this VS Code Claude Code session) executed the pre-merge verification, the fast-forward merge, and this record. Independent QA/Testing subagent (S04-VERIFY-001, no prior involvement in the implementation) = independent reviewer of record (PASS, owner-confirmed). Codex and Google Antigravity remain paused (GOV-MANAGER-SUBAGENT-001) — this was a same-provider substitute for a genuinely external reviewer, not equivalent to it; recorded again here per AGENTS.md so the owner can weigh it at the point of merge, not only at the point of review.
+
+## Pre-merge fresh-state verification (executed immediately before merging, not assumed)
+
+| Check | Result |
+|---|---|
+| `git fetch origin` | clean, no errors |
+| Candidate branch local vs. remote | both `7d54b0f` (match) |
+| `main` local vs. `origin/main` | both `971307f` (match, as expected) |
+| `git merge-base main feat/inv-s04-locations-opening-stock` | `971307f` — confirms `main` is a strict ancestor of the candidate (clean fast-forward possible) |
+| Application code unchanged since reviewed commit | `git diff --stat 16b3464 7d54b0f` touches only `docs/engineering/CURRENT-HANDOFF.md` (the S04-VERIFY-001 doc commit) — zero application/migration/test changes since the commit the independent QA subagent reviewed |
+| Main worktree state | clean (only pre-existing, unrelated untracked files: `00-PROJECT-MASTER.md`, `Claude outputs/`, `backend/tmp/`); no uncommitted tracked work to disturb |
+
+No divergence, no unexpected changes, no conflict risk found — merge proceeded as authorized.
+
+## Merge
+
+- Previous main HEAD: `971307f` (S-01 + S-02 + S-03 + UI foundation + S03-MINOR-001 leap-year coverage).
+- Merged branch HEAD: `7d54b0f`.
+- New main HEAD: `7d54b0f`.
+- Merge type: fast-forward (`git merge --ff-only origin/feat/inv-s04-locations-opening-stock`), executed directly on the main worktree's already-checked-out `main` branch (no checkout/branch switch performed, so no active session or uncommitted work was disturbed). 31 files changed, 1499 insertions(+), 21 deletions(-) — the same file list reported in S04-VERIFY-001/S04-IMPL-001, nothing more.
+- Post-merge tree check: `git diff main feat/inv-s04-locations-opening-stock` — empty, confirming `main`'s tree is byte-identical to the reviewed candidate.
+- `git push origin main`: completed — `971307f..7d54b0f main -> main`.
+- Post-push verification: fresh `git fetch origin` then `git rev-parse main` == `git rev-parse origin/main` == `7d54b0f`.
+- Feature branch `feat/inv-s04-locations-opening-stock` preserved (not deleted) on origin, confirmed still present via `git ls-remote` at `7d54b0f`.
+
+Test suite was not re-run for this merge: the application tree is unchanged since the commit (`16b3464`) that S04-VERIFY-001 already verified twice (Manager run + independent QA subagent run) on the owner's real Docker Desktop PostgreSQL 17.11, with identical PASS results both times. Re-running against unchanged code was judged unnecessary per project token-discipline policy; nothing in this merge introduces new risk that would require it.
+
+## S-04 completion status
+
+S-04 is now officially on `main`: implementation + independent QA review (PASS) + real-environment verification (Windows/Docker Desktop PostgreSQL 17.11) + owner-approved merge + post-merge tree/remote verification are all satisfied. Inventory S-01, S-02, S-03, and S-04 are all merged to main.
+
+## Out of scope for this record (explicitly not done)
+
+No migration or deployment was run against the operational database (`erp_local`) — the new S-04 migration has only ever been applied inside disposable, uniquely-suffixed `erp_test` schemas during testing. Applying it to `erp_local` is a separate, not-yet-authorized action. `chore/claude-code-permission-guardrails` was not touched. No cleanup of the temporary documentation worktree (`Ideal-Tasty-Point-ERP-s04-doc`) was performed — it remains on disk pending owner instruction. S-05 (Goods Receiving) was not started.
+
+## Next recommended action
+
+Owner decides when to authorize applying the S-04 migration to a real environment (`erp_local`, when ready for that data change) and when to start S-05. No further action is blocked by this record.
+
+---
+
+## Previous handoff — S04-VERIFY-001 (Stock Locations + Opening Stock — Independent QA Verified on Windows/Docker)
 
 Date: 2026-09-26. Branch: feat/inv-s04-locations-opening-stock (base: main @ 971307f; HEAD unchanged at 16b3464 — this record adds only this documentation entry on top). Status: implemented + independently reviewed (PASS) + real owner-environment verification complete. Push to origin authorized and performed by this record. **NOT merged to main** — merge requires a separate, further owner approval.
 Authority: owner decisions 2026-09-26 recorded in `docs/decisions/ADR-0008-s04-stock-locations-opening-stock.md` (slice order, freezer-level locations, correction by reasoned adjustment, quantity-only). Implementation: Cowork Manager session (prior record, preserved below as S04-IMPL-001). This record: owner explicitly authorized (a) real Windows/Docker verification and independent QA review, (b) pushing the feature branch, (c) this bounded documentation update — explicitly withholding merge-to-main authorization.
