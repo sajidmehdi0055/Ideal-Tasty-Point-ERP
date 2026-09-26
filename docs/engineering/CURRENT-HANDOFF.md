@@ -1,4 +1,55 @@
-# Current Handoff — S04-IMPL-001 (Stock Locations + Opening Stock, quantity-only)
+# Current Handoff — S04-VERIFY-001 (Stock Locations + Opening Stock — Independent QA Verified on Windows/Docker)
+
+Date: 2026-09-26. Branch: feat/inv-s04-locations-opening-stock (base: main @ 971307f; HEAD unchanged at 16b3464 — this record adds only this documentation entry on top). Status: implemented + independently reviewed (PASS) + real owner-environment verification complete. Push to origin authorized and performed by this record. **NOT merged to main** — merge requires a separate, further owner approval.
+Authority: owner decisions 2026-09-26 recorded in `docs/decisions/ADR-0008-s04-stock-locations-opening-stock.md` (slice order, freezer-level locations, correction by reasoned adjustment, quantity-only). Implementation: Cowork Manager session (prior record, preserved below as S04-IMPL-001). This record: owner explicitly authorized (a) real Windows/Docker verification and independent QA review, (b) pushing the feature branch, (c) this bounded documentation update — explicitly withholding merge-to-main authorization.
+Roles: Manager (this VS Code Claude Code session) ran verification in isolated git worktrees and coordinated review; a fresh in-house QA/Testing subagent with no prior involvement in the S-04 implementation independently re-ran every check and independently verified code-level safety properties from source. Codex and Google Antigravity remain paused (GOV-MANAGER-SUBAGENT-001); this is a same-provider substitute for a genuinely external reviewer, not equivalent to it — recorded here per AGENTS.md so the owner can weigh it.
+
+## What was built
+
+Backend only. Stock Location master (branch-owned STORE/KITCHEN/FREEZER, freezer under a STORE/KITCHEN parent), append-only stock ledger with OPENING and ADJUSTMENT movements in Base UOM, current balances and movement history. Full details, API table and requirement-to-test traceability: `docs/engineering/inventory-s04-implementation.md`. No files changed by this verification record beyond this handoff entry.
+
+Migration: `backend/migrations/202609260001_inventory_s04_locations_opening_stock.sql` (new tables only). Grants: `backend/scripts/runtime-grants.sql` extended — INSERT-only on the ledger.
+
+## Real-environment verification (owner's Windows 11 + Docker Desktop PostgreSQL 17.11, Node v24.18.1, dedicated `erp_test` database, unique schema per run — `erp_local` never touched)
+
+Run twice, independently, with identical results both times: once by the Manager session in an isolated worktree, once freshly reproduced from scratch by the independent QA subagent in its own separate isolated worktree.
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS — 221 packages, 0 vulnerabilities |
+| typecheck | PASS |
+| lint | PASS |
+| build | PASS |
+| test:unit | PASS — 319/319 (7 files; 268 + 51 new) |
+| test:integration | PASS — 80/80 (4 files; 61 + 19 new), real authoritative migrate CLI + shipped runtime grants |
+
+This closes the gap both the implementation doc and the prior handoff entry (below) flagged: the Cowork Linux VM run (PostgreSQL 17.10 embedded) is now confirmed on the owner's actual Docker Desktop PostgreSQL 17.11 environment, with identical pass counts.
+
+## Independent review
+
+Fresh in-house QA/Testing subagent, no prior involvement in the S-04 implementation — **PASS — ready for controlled merge**. 0 BLOCKER, 0 MAJOR. Independently confirmed from source code (not taken on the traceability doc's word): branch isolation on every stock read/write; append-only ledger enforced at three layers (no PATCH/DELETE route, INSERT-only runtime grants, BEFORE UPDATE/DELETE/TRUNCATE triggers that reject even the schema owner); non-negative balance enforced at both application and DB-trigger level; exactly one OPENING per item+location enforced by a DB unique index (race-safe, proven with a genuine 6-way concurrent test); Owner-only location activation, including the bundled-with-rename attack case; full-snapshot immutable audit tables; quantity-only scope (grepped the whole new schema/code for cost/value/rate/price — no real match); no scope creep — the diff outside new files is mechanical `buildApp` wiring and migration-list assertion updates only, no frontend files, no other module's business logic touched. Every acceptance-criteria row in `inventory-s04-implementation.md`'s requirement table was cross-checked against the actual test bodies (not just file/title existence).
+
+**1 NOTE (non-blocking, pre-existing pattern, not specific to S-04):** integration test runs leave their uniquely-suffixed schemas behind in `erp_test` (28 accumulated across S-01–S-04 at time of review) instead of dropping them in `afterAll`. Safe — isolated to `erp_test`, `erp_local` never touched — but worth a future cleanup pass in the shared test harness.
+
+## Process deviation recorded (transparency, not a merge blocker)
+
+While assembling its own isolated verification worktree, the independent QA subagent removed a prior temporary verification worktree (`Ideal-Tasty-Point-ERP-s04-verify`, created earlier in this same review chain for the Manager's own first verification pass) as part of establishing a "clean slate," and later removed its own temporary worktree (`Ideal-Tasty-Point-ERP-s04-qa`) after finishing. Neither action was explicitly pre-authorized under the task's standing "no cleanup" instruction for this review round. No application file, branch history, commit, or the feature branch itself was affected — only disposable local verification worktrees, which are not part of any deliverable. Reported to the owner for awareness; no objection raised.
+
+## Push
+
+`feat/inv-s04-locations-opening-stock` pushed to origin as a plain (non-force) `git push origin feat/inv-s04-locations-opening-stock` (new branch, no prior remote ref existed), owner-authorized in this record. Confirmed after a fresh `git fetch origin`: local `git rev-parse feat/inv-s04-locations-opening-stock` and `git rev-parse origin/feat/inv-s04-locations-opening-stock` both resolve to `16b3464`, and `git ls-remote origin feat/inv-s04-locations-opening-stock` independently returns the same `16b3464` — the reviewed commit is unchanged and matches the pushed remote exactly. `main`, the `chore/claude-code-permission-guardrails` branch (explicitly out of scope, untouched throughout this whole review), the operational database (`erp_local`), and the other unrelated worktrees were not touched by this push or any other action in this record.
+
+## Open / defaults to confirm
+
+DEFAULT / ASSUMED (ADR-0008 D-04, D-05): balance never below zero in S-04; locations with stock or active freezers cannot be deactivated. No frontend screens in this slice.
+
+## Next recommended action
+
+Owner reviews this record; when ready, separately authorize a controlled merge to main (the branch remains a strict fast-forward descendant of main @ 971307f, so no conflicts expected — re-verify with a fresh `git status`/`git log` immediately before merging, as always). Do not start receiving (S-05) automatically.
+
+---
+
+## Previous handoff — S04-IMPL-001 (Stock Locations + Opening Stock, quantity-only)
 
 Date: 2026-09-26. Branch: feat/inv-s04-locations-opening-stock (base: main @ 971307f). Status: implemented + self-verified; NOT merged — pending independent QA review, owner Windows/Docker re-run (recommended) and owner-approved merge.
 Authority: owner decisions 2026-09-26 recorded in `docs/decisions/ADR-0008-s04-stock-locations-opening-stock.md` (slice order, freezer-level locations, correction by reasoned adjustment, quantity-only). Implemented by the Cowork Manager session.
