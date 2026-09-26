@@ -1,4 +1,43 @@
-# Current Handoff — S05-IMPL-001 (Inventory S-05 Goods Receiving, direct without PO)
+# Current Handoff — S05-VERIFY-001 (Goods Receiving — Independent QA Verified on Windows/Docker)
+
+Date: 2026-09-27. Branch: feat/inv-s05-goods-receiving (base: main @ 9abd28c; HEAD unchanged at 0210db7 — this record adds only this documentation entry on top). Status: implemented + independently reviewed (PASS) + real Windows/Docker verification complete. Push to origin authorized and performed by this record. **NOT merged to main** — merge requires a separate, further owner approval.
+Authority: owner decisions 2026-09-27 recorded in `docs/decisions/ADR-0009-s05-goods-receiving.md`. Implementation: Cowork Manager session (prior record, preserved below as S05-IMPL-001). This record: owner explicitly authorized (a) real Windows/Docker verification and independent QA review, (b) pushing the feature branch, (c) this bounded documentation update — explicitly withholding merge-to-main authorization.
+Roles: Manager (this VS Code Claude Code session) ran verification in an isolated worktree and coordinated review. Independent reviewer: a fresh in-house QA/Testing subagent with no prior involvement in the S-05 implementation. Codex and Google Antigravity remain paused (GOV-MANAGER-SUBAGENT-001); this is a same-provider substitute for a genuinely external reviewer, not equivalent to it — recorded here per AGENTS.md so the owner can weigh it.
+
+## Real-environment verification (owner's Windows 11 + Docker Desktop PostgreSQL 17, Node v24.18.1, dedicated `erp_test` database, unique schema per run — `erp_local` never touched)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS — 221 packages, 0 vulnerabilities |
+| typecheck | PASS |
+| lint | PASS |
+| build | PASS |
+| test:unit | PASS — 355/355 (8 files) |
+| test:integration | PASS — 87/87 (5 files), real authoritative migrate CLI + shipped runtime grants |
+
+Independently reproduced by the QA subagent in its own pass with identical counts. This closes the gap the implementation doc flagged: the Cowork Linux VM run (embedded PostgreSQL 17.10) is now confirmed on the owner's actual Docker Desktop PostgreSQL 17, with identical pass counts.
+
+## Independent review
+
+Fresh in-house QA/Testing subagent, no prior involvement in the S-05 implementation — **PASS — 0 BLOCKER, 0 MAJOR, 0 MINOR, 2 NOTE**. Verified from source and its own fresh test run (not taken on the implementer's word): every ADR-0009 owner decision (O-01–O-08) traced to real code and a real, meaningfully-asserted test; O-07 (the one change to shared S-04 stock logic — receipt may create first stock, and a receipt-only history now satisfies the adjustment prerequisite) scrutinized hardest and confirmed to be exactly and only the approved change, with the original S-04 "exactly one OPENING" invariant still enforced at both the application and DB-trigger/unique-index level; the migration confirmed genuinely additive (no `UPDATE`/`DELETE` against any existing table, no window of reduced trigger protection during the constraint/function replacement); branch isolation, the sorted-item-id concurrency/deadlock-avoidance design, create-only enforcement (real attempted UPDATE/DELETE/TRUNCATE rejected, not just an absent route), every documented API error code traced to a distinct real throw site, and authorization all confirmed directly from code and tests. S-01–S-04 regression check: confirmed via the actual diff that every non-S-05 file changed is mechanical wiring only, with the sole real behavior change being the O-07 hunk in `pg-stock-repository.ts` as described above.
+
+**2 NOTE (both non-blocking, process-only, not specific to a code defect):**
+- This Windows/Docker re-run was exactly the "pending" item the implementation doc flagged — now closed, identical counts to the Linux VM run.
+- Integration test runs leave their uniquely-suffixed schemas behind in `erp_test` without dropping them in `afterAll` — the same pre-existing pattern already present in S-01–S-04's integration tests, not introduced by this slice. Safe (isolated to `erp_test`, `erp_local` never touched), but worth a future cleanup pass in the shared test harness.
+
+Codex and Google Antigravity remain paused — this was a same-provider review, not a genuinely external one.
+
+## Push
+
+`feat/inv-s05-goods-receiving` pushed to origin as a plain (non-force) `git push -u origin feat/inv-s05-goods-receiving` (new branch, no prior remote ref existed), owner-authorized in this record. Confirmed after a fresh `git fetch origin`: local and remote both resolve to `0210db7` — the reviewed commit is unchanged and matches the pushed remote exactly. `main`, other branches/worktrees, and the operational database were not touched by this push or any other action in this record. The pre-existing `backend/tmp/demo-server.ts` process (port 3000) was not touched.
+
+## Next recommended action
+
+Owner reviews this record; when ready, separately authorize a controlled merge to main (the branch remains a clean, non-diverged 3-commit-ahead descendant of main @ 9abd28c — re-verify with a fresh `git status`/`git log` immediately before merging, as always). Do not start S-06 (Purchase Orders) automatically.
+
+---
+
+## Previous handoff — S05-IMPL-001 (Inventory S-05 Goods Receiving, direct without PO)
 
 Date: 2026-09-27. Branch: feat/inv-s05-goods-receiving (base: main @ 9abd28c). Status: implemented + self-verified in the Cowork VM; NOT merged — pending push, owner Windows/Docker verification, independent QA review and owner-approved merge.
 Authority: owner decisions 2026-09-27 recorded in `docs/decisions/ADR-0009-s05-goods-receiving.md` (no PO in this slice; one entry creates purchase record + stock; backdating allowed but not future / not before opening; corrections by adjustment; no expiry yet; multi-line receipts; receipt may be first stock; optional supplier bill no). Implemented by the Cowork Manager session.
