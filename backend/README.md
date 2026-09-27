@@ -1,6 +1,6 @@
-# Inventory S-01/S-02/S-03/S-04/S-05 backend
+# Inventory S-01/S-02/S-03/S-04/S-05/S-06 backend
 
-Item Master create/edit (S-01), UOM/Brand/Pack Variant Masters (S-02), Supplier Master + Purchase Record + Rate Comparison (S-03), Stock Locations + Opening Stock + balances (S-04, quantity-only, ADR-0008), and direct Goods Receiving (S-05, ADR-0009) are implemented. No login/session system, Redis, Purchase Orders, issue/transfer/counts, Purchase Orders/GRN/Supplier Ledger/Payments, or costing/valuation.
+Item Master create/edit (S-01), UOM/Brand/Pack Variant Masters (S-02), Supplier Master + Purchase Record + Rate Comparison (S-03), Stock Locations + Opening Stock + balances (S-04, quantity-only, ADR-0008), direct Goods Receiving (S-05, ADR-0009) and Purchase Orders with optional receipt link (S-06, ADR-0010) are implemented. No login/session system, Redis, issue/transfer/counts, Supplier Ledger/Payments, or costing/valuation.
 
 ## Foundation
 
@@ -171,5 +171,15 @@ The ledger (`stock_movement`) is append-only: no edit/delete route, no runtime U
 - `GET /api/inventory/receipts` (summaries) and `GET /api/inventory/receipts/:id` (with lines) -- branch-scoped via the location.
 - `receipt_date`: today or earlier on the Asia/Karachi business date (`400 INVALID_RECEIPT_DATE` for future), and not before the item's opening stock date at that location (`409 RECEIPT_BEFORE_OPENING`). A receipt may be the first stock entry.
 - Inactive supplier/location/item/pack variant -> 409; pack variant not matching item+brand or unknown supplier -> `400 INVALID_REFERENCE`; other-branch location or item -> 404 with nothing written.
-- Create-only: no edit/delete route, INSERT-only grants, triggers reject changes. Correct a wrong quantity with a stock adjustment. No PO, expiry, rejected quantities, invoices or payments in this slice.
+- Create-only: no edit/delete route, INSERT-only grants, triggers reject changes. Correct a wrong quantity with a stock adjustment. No expiry, rejected quantities, invoices or payments in this slice.
+- Since S-06: optional `purchase_order_id` on the receipt; then every line carries `purchase_order_line_id` (see below). Without it the receipt is a direct receipt exactly as before.
+
+### Purchase Orders (S-06, ADR-0010)
+
+- `POST /api/inventory/purchase-orders` `{ "supplier_id", "order_date": "2026-09-27", "lines": [{ "item_id", "brand_id", "pack_variant_id", "ordered_quantity": "10", "rate"?: "1500" }] }` -> 201 with a system `po_number` (`PO-000001`) and status `ISSUED` (no approval step). 1–100 lines, one pack variant at most once; `ordered_quantity` in packs; `rate` optional (estimate). `order_date` today or earlier (Asia/Karachi), backdating allowed.
+- `GET /api/inventory/purchase-orders[?status=ISSUED|PARTIALLY_RECEIVED|RECEIVED|CLOSED|CANCELLED]` and `GET /api/inventory/purchase-orders/:id` (current lines with `received_quantity`, `pending_quantity`, `excess_quantity`, plus linked receipts) -- branch-scoped.
+- `PATCH /api/inventory/purchase-orders/:id` -- nonempty subset of `supplier_id`/`order_date`/`lines`, only while the PO has no receipt (`409 PO_NOT_EDITABLE`). `lines` replaces the whole set as a new revision; earlier revisions are kept, never deleted.
+- `POST .../:id/cancel` `{ "reason" }` (only without receipts) and `POST .../:id/close` `{ "reason" }` (only after a partial receipt) -- Owner or Manager; otherwise `409 PO_STATUS_CONFLICT`.
+- Receiving against a PO: `purchase_order_id` + per-line `purchase_order_line_id` (same item/brand/pack variant; `400 PO_LINE_MISMATCH`), same supplier (`400 PO_SUPPLIER_MISMATCH`), PO open (`409 PO_NOT_OPEN`), receipt date not before the order date (`409 RECEIPT_BEFORE_ORDER`). Partial and excess receipts are allowed; the PO becomes `PARTIALLY_RECEIVED`, or `RECEIVED` automatically once every line is fully received.
+- No delete route; lines and audit are immutable; a guard trigger enforces the lifecycle even for the schema owner. Every create/edit/receipt/cancel/close writes a `purchase_order_audit` row with before/after snapshots.
 

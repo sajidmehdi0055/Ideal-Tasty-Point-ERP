@@ -1,4 +1,38 @@
-# Current Handoff — S05-MERGE-001 (Inventory S-05 Goods Receiving Merged to Main)
+# Current Handoff — S06-IMPL-001 (Inventory S-06 Purchase Order)
+
+Date: 2026-09-27. Branch: feat/inventory-s06-purchase-order (base: main @ c30e289). Status: implemented + self-verified in the Cowork VM; independent QA review in progress (result recorded in the next entry); NOT pushed, NOT merged — push, Windows/Docker verification and merge need the owner.
+Authority: owner decisions 2026-09-27 answered in the Cowork Manager session for S-06 and recorded in `docs/decisions/ADR-0010-s06-purchase-order.md`: O-01 no approval step (saved PO is ISSUED); O-02 receipt link optional, direct receiving stays; O-03 many receipts per PO, excess allowed and shown; O-04 PO rate optional, receipt rate mandatory (bill rate); O-05 edit only before the first receipt, audited; O-06 auto RECEIVED when every line is fully received, manual CLOSE otherwise; O-07 Owner and Manager may cancel (no receipt yet) or close, with reason.
+
+## What was built
+
+Backend only: `POST/GET /api/inventory/purchase-orders`, `GET/PATCH /api/inventory/purchase-orders/:id`, `POST .../:id/cancel`, `POST .../:id/close`; optional `purchase_order_id` / `purchase_order_line_id` on `POST /api/inventory/receipts`. Tables `purchase_order`, `purchase_order_line` (insert-only; edits add a revision), `purchase_order_audit`. Received / pending / excess quantities are derived from receipt lines (never stored). Details, API table and requirement-to-test traceability: `docs/engineering/inventory-s06-implementation.md`.
+
+Migration: `backend/migrations/202609270002_inventory_s06_purchase_order.sql` (additive: new sequence/tables/triggers; two nullable columns + unique constraint on the S-05 receipt tables; no existing row changed). Grants: `backend/scripts/runtime-grants.sql` extended (no DELETE/TRUNCATE; PO UPDATE limited to lifecycle columns).
+
+## Verification (Cowork Linux VM, clean clone, Node v24.21.0, PostgreSQL 17.10 embedded)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS — 221 packages |
+| Baseline on untouched main c30e289 | unit 355/355, integration 87/87 |
+| typecheck / lint / build | PASS / PASS / PASS |
+| test:unit | PASS — 401/401 (9 files; 355 + 46 new) |
+| test:integration | PASS — 96/96 (6 files; 87 + 9 new), authoritative migrate CLI + shipped runtime grants |
+| Mutation check | removing the PO row lock (`FOR UPDATE`) in the receipt path makes the concurrency test fail |
+
+Existing code/tests touched: goods receipt domain/repository (optional PO link; direct path unchanged), `app.ts`/`server.ts` wiring, buildApp wiring in 13 test files, migration-list assertions (2 files), S-05 unit fixture (+2 null fields).
+
+## Open / defaults to confirm
+
+DEFAULT / ASSUMED (ADR-0010 A-01..A-07, owner may revise): order date not future and receipt not before order date (Asia/Karachi); inactive masters blocked; PO receipt lines must match a PO line exactly (other items/brands via direct receipt); receipt supplier = PO supplier; no delivery location, expected date or notes on the PO; RECEIVED PO takes no further receipts; one global PO number sequence. Still open: rejected quantities, invoice-pending receipts, returns, Store Keeper role (B-09), expiry (B-07).
+
+## Next recommended action
+
+Independent QA/Testing subagent review (no part in this implementation) and focused re-review of any fixes; then owner: push the branch, Windows/Docker PostgreSQL 17 re-run, then a separately approved controlled merge. Migration not applied to `erp_local`. Do not start the next slice automatically.
+
+---
+
+## Previous handoff — S05-MERGE-001 (Inventory S-05 Goods Receiving Merged to Main)
 
 Date: 2026-09-27. Branch: main. Merged from: feat/inv-s05-goods-receiving (HEAD 6e81f32 = application code 0210db7 + the S05-VERIFY-001 documentation commit).
 Authority: explicit owner approval in the Cowork Manager session ("Haan, tum merge karo"), following S05-VERIFY-001: Windows/Docker PostgreSQL verification (unit 355/355, integration 87/87) and independent QA/Testing subagent verdict PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR / 2 NOTE (process-only, no fix needed). Same-provider review limitation applies (Codex/Antigravity paused).

@@ -2,6 +2,13 @@
 
 Date: 2026-09-17 (updated). Status: decision register, not answers. Sources: inventory-module.md v0.2, ADR-0001/0002/0003, readiness request. BLOCKING means before coding the affected slice, not that every future decision blocks Item Master. B-01 and B-02 are now CLOSED (ADR-0002, ADR-0003). Approved technical architecture remains a universal implementation gate. No coding currently authorized.
 
+## Update 2026-09-27 (ADR-0010, owner decisions for S-06 Purchase Order)
+
+- INV-17 (partial): ordered vs received per PO line, partial receipts and excess receipts implemented (excess allowed and shown). Rejected quantities, invoice-pending receipt and returns remain OPEN.
+- Purchase Order workflow (roadmap §5.6, partial): no approval step (saved PO is ISSUED); link from receipt to PO is optional (direct receiving stays); PO rate optional, receipt rate mandatory; edit only before the first receipt; auto RECEIVED, manual CLOSE; Owner/Manager cancel (no receipt) or close with reason.
+- DEFAULT / ASSUMED in ADR-0010 A-01..A-07 (owner may revise): order date not future (Asia/Karachi), receipt not before order date; inactive masters blocked; PO receipt lines must match a PO line exactly (other items via direct receipt); receipt supplier = PO supplier; no delivery location on PO; RECEIVED PO takes no more receipts; global PO number sequence; no expected date/notes/payment terms yet.
+- B-09 unchanged: only Owner/Manager exist; a Store Keeper role and any approval matrix remain OPEN.
+
 ## Update 2026-09-27 (ADR-0009, owner decisions for S-05 Goods Receiving)
 
 - B-05 (partial): receipt finality/correction settled — receipts are create-only; corrections via reasoned ADJUSTMENT. Receipt date may be backdated but not future and not before opening stock. General negative stock, cancellation, returns (unused-material and supplier) remain OPEN.
