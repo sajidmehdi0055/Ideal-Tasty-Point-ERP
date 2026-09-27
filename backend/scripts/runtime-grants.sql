@@ -65,3 +65,7 @@ GRANT UPDATE (supplier_id, order_date, status, status_reason, revision, updated_
 GRANT USAGE ON SEQUENCE purchase_order_no_seq TO :"runtime_role";
 GRANT INSERT (id, purchase_order_id, revision, line_no, item_id, brand_id, pack_variant_id, ordered_quantity, rate) ON purchase_order_line TO :"runtime_role";
 GRANT INSERT ON purchase_order_audit TO :"runtime_role";
+
+-- AI audit log (ADR-0011 D-07): insert-only for the runtime role. No SELECT,
+-- UPDATE or DELETE: audit review uses an owner/admin connection.
+GRANT INSERT ON ai_audit_log TO :"runtime_role";

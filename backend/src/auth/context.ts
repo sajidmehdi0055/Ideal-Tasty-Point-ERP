@@ -13,6 +13,13 @@ const contextSchema = z.object({
   branchId: z.string().trim().min(1),
 }).strict();
 
+/** Any valid, trusted AuthContext (401 otherwise). Role checks stay with each feature's own guard. */
+export function requireAuthenticated(value: unknown): AuthContext {
+  const result = contextSchema.safeParse(value);
+  if (!result.success) throw new AppError(401, 'UNAUTHENTICATED', 'Valid authorization context required');
+  return result.data;
+}
+
 export function requireItemEditor(value: unknown): AuthContext {
   const result = contextSchema.safeParse(value);
   if (!result.success) throw new AppError(401, 'UNAUTHENTICATED', 'Valid authorization context required');

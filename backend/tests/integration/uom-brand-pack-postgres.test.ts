@@ -513,6 +513,7 @@ describe('S-02 base_uom migration safety refinement (real authoritative CLI comm
         '202609260001_inventory_s04_locations_opening_stock',
         '202609270001_inventory_s05_goods_receiving',
         '202609270002_inventory_s06_purchase_order',
+        '202609270003_ai_s01_audit_log',
       ]);
 
       // Step i: confirm successful backfill, FK, preserved legacy text, Pack Variant structures, and valid Item behavior.

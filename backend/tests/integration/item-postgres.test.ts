@@ -70,6 +70,7 @@ describe('S-01 real PostgreSQL migration and persistence', () => {
       '202609260001_inventory_s04_locations_opening_stock',
       '202609270001_inventory_s05_goods_receiving',
       '202609270002_inventory_s06_purchase_order',
+      '202609270003_ai_s01_audit_log',
     ]);
     // Re-running the same authoritative command against an up-to-date schema
     // must be a genuine no-op: same migrations recorded, nothing duplicated.
