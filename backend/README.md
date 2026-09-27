@@ -18,6 +18,8 @@ Run commands from backend/. Use Node 24 and `npm ci --ignore-scripts`.
 4. As owner, grant the dedicated runtime login privileges with `psql ... -v runtime_role=YOUR_RUNTIME_ROLE -v schema_name=public -f scripts/runtime-grants.sql`. The login must not inherit elevated memberships, own schema/tables, or have sequence UPDATE privilege. The grant file does not create accounts or passwords. This is the single authoritative grant source: integration tests execute this same file (substituting their own per-run isolated schema for `schema_name`) instead of duplicating grant statements — see `tests/integration/helpers/runtime-grants.ts`.
 5. Set API `DATABASE_URL` to the runtime login (see .env.example), then `npm run dev` or `npm run build` and `npm start`.
 
+**Upgrading an existing database** (e.g. applying a new slice): stop the API, run step 3 (`npm run migrate`), re-run step 4 (`runtime-grants.sql`) — every time, because new code may insert into columns the older grants do not cover — and only then start the new build. For S-06 this is required: the S-05 receipt insert now names `purchase_order_id`/`purchase_order_line_id`, so without the re-applied grants even direct receiving fails with a permission error.
+
 The standalone server binds to 127.0.0.1 and intentionally denies mutations with 401 until a trusted AuthContext provider is composed into `buildApp`. This is a backend slice, not a deployable public authentication system. Tests inject trusted contexts directly. There is no X-Auth-Context/header-to-role shortcut. A future trusted authentication adapter can provide current user/role/authorized branch without coupling domain logic to JWT or sessions.
 
 ## API contract

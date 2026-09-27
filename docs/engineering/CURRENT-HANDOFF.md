@@ -1,4 +1,35 @@
-# Current Handoff — S06-IMPL-001 (Inventory S-06 Purchase Order)
+# Current Handoff — S06-QA-001 (Inventory S-06 Purchase Order — Independent QA PASS in the Cowork VM)
+
+Date: 2026-09-27. Branch: feat/inventory-s06-purchase-order (implementation 6391f93 + this record). Status: implemented + independent QA PASS in the Cowork VM. NOT pushed, NOT merged; Windows/Docker PostgreSQL 17 re-run pending (owner machine).
+Roles: Cowork Manager session = implementation (S06-IMPL-001, below) and this record. Independent reviewer: a fresh in-house QA/Testing subagent with no part in the implementation, working in its own clone. Codex and Google Antigravity remain paused (GOV-MANAGER-SUBAGENT-001): this is a same-provider review, not an external one — the owner should weigh that.
+
+## Independent review — PASS (0 BLOCKER, 0 MAJOR, 0 MINOR, 5 NOTE)
+
+Reproduced by the reviewer in its own clone: npm ci (221 packages), typecheck/lint/build PASS, unit 401/401, integration 96/96, NUL scan and `git diff --check` clean, tests use the shipped `runtime-grants.sql`. Extra evidence gathered by the reviewer:
+- Mutation checks (each reverted): no PO row lock in the receipt path, no status refresh, RECEIPT audit before = after, no branch filter on PO lookup or list, `>=` → `>` in the completion check — each makes existing S-06 tests fail.
+- Migration over a database already holding S-05 receipts (main code + grants, then HEAD migrate): applied cleanly, S-05 audit rows byte-identical, old receipts read back with null PO fields, re-run is a no-op, down is refused.
+- 8 probe tests (single-receipt RECEIVED, final-state 409s, reason/filter/PATCH-field validation, maximum NUMERIC quantities, masters deactivated after PO creation, cross-branch 404 parity, trigger rejections) — all as designed.
+- Mixed parallel stress, 20 rounds × ~36 operations (PO receipts, direct receipts, adjustments, edits, cancels, closes, creates, master updates): 0 deadlocks, 0 raw database errors, PO status always consistent with receipts and RECEIPT audits.
+- O-01..O-07 each traced to code and a meaningful test; every non-S-06 change in the diff is mechanical wiring or the intended optional PO link.
+
+NOTEs (non-blocking):
+1. **Upgrade order** — after `npm run migrate`, `scripts/runtime-grants.sql` must be re-applied before the new build starts; otherwise even S-05 direct receiving returns 500 (the receipt insert now names the PO columns). Addressed in this record: explicit upgrade steps added to `backend/README.md` (focused re-review below). Relevant before applying S-04..S-06 to `erp_local`.
+2. Year `0000` dates pass the shared `isValidCalendarDate` helper and PostgreSQL rejects them → generic 500 (no leak). Verified for S-06 `order_date` and inherited S-05 `receipt_date`; S-03 `purchase_date` uses the same helper (not separately tested). Left for a later shared cleanup.
+3. Database backstops do not cover every raw-SQL misuse by the runtime role (e.g. a revision bump with no lines, a direct status UPDATE without an audit row, a forged audit row — the same INSERT pattern as earlier slices). Not reachable through the application; optional future hardening: a deferred commit-time check.
+4. ADR-0010 A-02 effect: if the PO supplier is deactivated later, any edit returns 409 SUPPLIER_INACTIVE unless the supplier is changed in the same edit (or the PO is cancelled). Owner may revise A-02.
+5. D-01 reading: CLOSE only after a receipt (a PO without receipts is CANCELLED). Consistent with O-06/O-07 as answered; owner may confirm.
+
+## Focused re-review of the post-review change
+
+The only change after the review is documentation (this record + the `backend/README.md` upgrade steps); no code, migration, grant or test changed. Focused re-review by the same QA subagent: **PASS** — documentation only (no code/migration/grant/test change); README upgrade order accurate (its migration-over-S-05 probe had shown `permission denied for table goods_receipt` with new code + old grants); this record faithful to its report (one wording precision on NOTE 2 applied).
+
+## Next recommended action
+
+Owner: push `feat/inventory-s06-purchase-order`; Windows/Docker PostgreSQL 17 re-run (unit 401, integration 96 expected); then a separately approved controlled merge. Migrations S-04..S-06 are still not applied to `erp_local` (separate authorization; follow the upgrade order in NOTE 1). Do not start the next slice automatically.
+
+---
+
+## Previous handoff — S06-IMPL-001 (Inventory S-06 Purchase Order)
 
 Date: 2026-09-27. Branch: feat/inventory-s06-purchase-order (base: main @ c30e289). Status: implemented + self-verified in the Cowork VM; independent QA review in progress (result recorded in the next entry); NOT pushed, NOT merged — push, Windows/Docker verification and merge need the owner.
 Authority: owner decisions 2026-09-27 answered in the Cowork Manager session for S-06 and recorded in `docs/decisions/ADR-0010-s06-purchase-order.md`: O-01 no approval step (saved PO is ISSUED); O-02 receipt link optional, direct receiving stays; O-03 many receipts per PO, excess allowed and shown; O-04 PO rate optional, receipt rate mandatory (bill rate); O-05 edit only before the first receipt, audited; O-06 auto RECEIVED when every line is fully received, manual CLOSE otherwise; O-07 Owner and Manager may cancel (no receipt yet) or close, with reason.
