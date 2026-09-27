@@ -1,4 +1,37 @@
-# Current Handoff — AI-S01-QA-004 (AI Foundation — synced with main ec7833d, independent QA PASS, on feature branch)
+# Current Handoff — AI-S01-MERGE-001 (AI Foundation Merged to Main)
+
+Date: 2026-09-27. Branch: main. Merged from: feat/ai-s01-foundation (HEAD c0c576e = AI-S01 implementation/tests/docs + FIX-001/FIX-002 + sync merge 02689c6 with main ec7833d + QA-004 record e175502 + AI-S01-VERIFY-001 record c0c576e).
+Authority: explicit owner approval in the Cowork Manager session ("Haan, merge karo"), following AI-S01-QA-001..004 (independent QA/Testing subagent; final verdict PASS — ready for controlled merge, 0 BLOCKER/MAJOR/MINOR open) and AI-S01-VERIFY-001 (Windows 11, Node v24.18.1, Docker 29.8.0, PostgreSQL 17.11, `erp_test`: typecheck/lint/build PASS, unit 520/520, integration 112/112; branch pushed, origin == c0c576e). Same-provider review limitation applies (Codex/Antigravity paused).
+
+## Pre-merge checks (executed)
+
+- main == origin/main == ec7833d (unchanged since the sync); main is an ancestor of feat/ai-s01-foundation (fast-forward possible); local branch == pushed c0c576e.
+- Changes after QA-004 (e175502..c0c576e): `CURRENT-HANDOFF.md` only (verification record).
+- Main worktree: `main` checked out, tracked tree clean (only the long-standing untracked 00-PROJECT-MASTER.md, "Claude outputs/", backend/tmp/); no stale `.git/index.lock`. Delete permission granted by the owner and confirmed with a probe file.
+
+## Merge
+
+`git merge --ff-only feat/ai-s01-foundation` on the checked-out main: ec7833d → c0c576e. `git diff HEAD feat/ai-s01-foundation` empty. Feature branch preserved (local and origin). Push of main: from the owner's Windows machine.
+
+## Post-merge verification (fresh clone of merged main c0c576e, Cowork Linux VM, Node v24.21.0, embedded PostgreSQL 17.10)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS |
+| typecheck / lint / build | PASS / PASS / PASS |
+| test:unit | PASS — 520/520 (15 files) |
+| test:integration | PASS — 112/112 (8 files), authoritative migrate CLI + shipped runtime grants |
+| frontend/ diff vs ec7833d | none |
+
+## Status
+
+AI-S01 is on main: implementation + tests + independent QA (PASS) + Windows/Docker verification + owner-approved merge + post-merge verification. AI stays OFF by default (`AI_ENABLED=false`); cloud providers OFF (`AI_CLOUD_ENABLED=false`). Migration `202609270004_ai_s01_audit_log` (and S-04..S-07 migrations) NOT applied to `erp_local` (separate authorization); when authorized: stop API → `npm run migrate` → re-run `scripts/runtime-grants.sql` → start.
+
+## Next recommended action
+
+Owner pushes main. Candidates (owner decides, own chat): AI-S02 (first WRITE tool: AI-proposed PO draft → preview → approve), AI Assistant screen (Figma proposal first), stock-transfer AI tools, local model setup on the restaurant PC.
+
+## Previous handoff — AI-S01-QA-004 (AI Foundation — synced with main ec7833d, independent QA PASS, on feature branch)
 
 Date: 2026-09-27. Branch: `feat/ai-s01-foundation` (from main `a6660e5`; current main `ec7833d` — S-07 Stock Transfer, merged in a parallel session — was merged into the branch in AI-S01-SYNC-001). NOT merged to main.
 Authority: owner request in the Cowork Manager session to make the ERP AI-ready; owner decisions AI-O-01 (Phase 1 read-only + audit) and AI-O-02 (cloud providers built, OFF by default), recorded in ADR-0012.
