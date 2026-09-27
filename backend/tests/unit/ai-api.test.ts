@@ -124,6 +124,7 @@ describe('AI API — chat', () => {
     [{ message: 'x', role: 'OWNER' }],
     [{ message: 'x'.repeat(4001) }],
     [{ message: 'x', history: Array.from({ length: 21 }, () => ({ role: 'user', content: 'a' })) }],
+    [{ message: 'x', history: [{ role: 'user', content: '   ' }] }],
   ])('rejects invalid chat bodies with 400 before any model call: %j', async payload => {
     const provider = new FakeProvider([answer('never')]);
     const { app } = setup({ config: ready(), provider });
@@ -163,13 +164,28 @@ describe('AI API — provider replaced by configuration only', () => {
     const config = ready({ cloudEnabled: true, primary: { name: 'openai', kind: 'openai-compatible', baseUrl: 'https://api.openai.com/v1', model: 'gpt-test', apiKey: 'sk-openai-secret' } });
     const { app } = setup({ config, providerFactory: (s, t) => createProvider(s, t) });
     const response = await app.inject({ method: 'GET', url: '/api/ai/status' });
-    expect(response.json()).toEqual({ enabled: true, state: 'READY', provider: 'openai', model: 'gpt-test', fallback_provider: null, cloud_enabled: true, tool_calling_enabled: true, write_actions_enabled: false });
+    expect(response.json()).toEqual({ enabled: true, state: 'READY', available: true, provider: 'openai', model: 'gpt-test', fallback_provider: null, cloud_enabled: true, tool_calling_enabled: true, write_actions_enabled: false });
     expect(response.body).not.toContain('sk-openai-secret');
     expect(response.body).not.toContain('api.openai.com');
   });
 
-  it('status ?check=true runs the provider health check', async () => {
-    const { app } = setup({ config: ready() });
+  it('status ?check=true runs the provider health check, rate-limited like chat', async () => {
+    const provider = new FakeProvider([]);
+    const health = vi.spyOn(provider, 'healthCheck');
+    const { app } = setup({ config: ready({ rateLimitPerMinute: 1 }), provider });
     expect((await app.inject({ method: 'GET', url: '/api/ai/status?check=true' })).json().health).toEqual({ ok: true });
+    const limited = await app.inject({ method: 'GET', url: '/api/ai/status?check=true' });
+    expect(limited.statusCode).toBe(429);
+    expect(health).toHaveBeenCalledTimes(1);
+  });
+
+  it('status hides provider details from roles without AI access and never runs their health check', async () => {
+    const provider = new FakeProvider([]);
+    const health = vi.spyOn(provider, 'healthCheck');
+    const { app } = setup({ auth: cashier, config: ready(), provider });
+    for (const url of ['/api/ai/status', '/api/ai/status?check=true']) {
+      expect((await app.inject({ method: 'GET', url })).json()).toEqual({ enabled: true, state: 'READY', available: false });
+    }
+    expect(health).not.toHaveBeenCalled();
   });
 });

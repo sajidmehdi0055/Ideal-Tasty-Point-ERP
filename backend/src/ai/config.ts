@@ -80,6 +80,10 @@ export function loadAiConfig(env: Record<string, string | undefined>): AiConfigR
     }
     if (name === 'local') {
       if (!e.AI_LOCAL_MODEL) { problems.push('AI_LOCAL_MODEL is required'); return null; }
+      if (!e.AI_CLOUD_ENABLED && !isOnPremisesUrl(e.AI_LOCAL_BASE_URL)) {
+        problems.push('AI_LOCAL_BASE_URL must point to this computer or the local network unless AI_CLOUD_ENABLED is true');
+        return null;
+      }
       return { name, kind: 'openai-compatible', baseUrl: e.AI_LOCAL_BASE_URL, model: e.AI_LOCAL_MODEL, apiKey: e.AI_LOCAL_API_KEY ?? null };
     }
     if (name === 'openai') {
@@ -110,4 +114,27 @@ export function loadAiConfig(env: Record<string, string | undefined>): AiConfigR
       rateLimitPerMinute: e.AI_RATE_LIMIT_PER_MINUTE,
     },
   };
+}
+
+/**
+ * AI-O-02 guard for the "local" provider: with cloud disabled, the local model
+ * server must be on this machine or the private network (loopback, RFC 1918,
+ * link-local, IPv6 ULA, "localhost", single-label LAN names, *.local / *.lan).
+ */
+export function isOnPremisesUrl(url: string): boolean {
+  let host: string;
+  try {
+    host = new URL(url).hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  } catch {
+    return false;
+  }
+  if (host === 'localhost' || host.endsWith('.localhost') || host === '::1') return true;
+  if (/^(fc|fd)[0-9a-f]{2}:/.test(host) || host.startsWith('fe80:')) return true;
+  const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (ipv4) {
+    const [a, b] = [Number(ipv4[1]), Number(ipv4[2])];
+    return a === 127 || a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254);
+  }
+  if (host.includes(':')) return false;
+  return !host.includes('.') || host.endsWith('.local') || host.endsWith('.lan');
 }

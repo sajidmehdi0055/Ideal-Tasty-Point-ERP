@@ -42,7 +42,7 @@ describe('OpenAI-compatible provider (local model servers and OpenAI)', () => {
     expect(body.messages[3]).toEqual({ role: 'tool', tool_call_id: 't1', content: '{"a":1}' });
     expect(result.toolCalls).toEqual([
       { id: 'c1', name: 'inventory_list_suppliers', arguments: { name_contains: 'ali' } },
-      { id: 'call_1', name: 'inventory_get_stock_balances', arguments: { __invalid_json__: true } },
+      { id: expect.stringMatching(/^call_[0-9a-f-]{36}$/), name: 'inventory_get_stock_balances', arguments: { __invalid_json__: true } },
     ]);
   });
 
@@ -76,6 +76,12 @@ describe('OpenAI-compatible provider (local model servers and OpenAI)', () => {
     expect(((await providerError(provider.chat(request))) as AiProviderError).code).toBe('PROVIDER_BAD_RESPONSE');
   });
 
+  it('never acts on tool calls from a reply cut off by the token limit', async () => {
+    const { impl } = fakeFetch([{ status: 200, body: { choices: [{ finish_reason: 'length', message: { tool_calls: [{ id: 'x', function: { name: 'a', arguments: '{"li' } }] } }] } }]);
+    const error = await providerError(new OpenAiCompatibleProvider('local', 'm', 'http://x/v1', null, 1000, impl).chat(request));
+    expect((error as AiProviderError).code).toBe('PROVIDER_BAD_RESPONSE');
+  });
+
   it('healthCheck never throws', async () => {
     const { impl } = fakeFetch([new TypeError('down')]);
     expect(await new OpenAiCompatibleProvider('local', 'm', 'http://x/v1', null, 1000, impl).healthCheck()).toEqual({ ok: false, code: 'PROVIDER_UNAVAILABLE' });
@@ -105,6 +111,15 @@ describe('Anthropic provider', () => {
     ] });
     expect(body).toMatchObject({ tools: [{ name: 'inventory_get_stock_balances', description: 'd', input_schema: { type: 'object' } }] });
     expect(result).toEqual({ text: 'Checking.', toolCalls: [{ id: 'tu1', name: 'inventory_list_suppliers', arguments: { limit: 3 } }] });
+  });
+
+  it('marks failed tool results with is_error and rejects tool_use cut off by max_tokens', async () => {
+    const { impl, calls } = fakeFetch([{ status: 200, body: { stop_reason: 'max_tokens', content: [{ type: 'tool_use', id: 'x', name: 'a', input: {} }] } }]);
+    const provider = new AnthropicProvider('anthropic', 'c', 'https://a/v1', 'k', 1000, impl);
+    const failed: AiChatRequest = { ...request, messages: [request.messages[0]!, { role: 'assistant', content: '', toolCalls: [{ id: 't1', name: 'x', arguments: {} }] }, { role: 'tool', toolCallId: 't1', toolName: 'x', content: '{}', isError: true }] };
+    const error = await providerError(provider.chat(failed));
+    expect((error as AiProviderError).code).toBe('PROVIDER_BAD_RESPONSE');
+    expect((calls[0]!.body as { messages: unknown[] }).messages[2]).toEqual({ role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: '{}', is_error: true }] });
   });
 
   it('rejects malformed responses', async () => {

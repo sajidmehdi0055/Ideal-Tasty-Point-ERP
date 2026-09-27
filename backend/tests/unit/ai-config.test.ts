@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loadAiConfig } from '../../src/ai/config.js';
+import { isOnPremisesUrl, loadAiConfig } from '../../src/ai/config.js';
 
 describe('AI configuration (ADR-0011)', () => {
   it('is DISABLED by default and ignores every other AI variable, even invalid ones', () => {
@@ -45,5 +45,21 @@ describe('AI configuration (ADR-0011)', () => {
     expect(bad.state).toBe('MISCONFIGURED');
     expect(JSON.stringify(bad)).not.toContain('not a url');
     expect(loadAiConfig({ AI_ENABLED: 'true', AI_LOCAL_MODEL: 'm', AI_MAX_TOOL_ROUNDS: '50' }).state).toBe('MISCONFIGURED');
+  });
+
+  it('with cloud disabled, the "local" provider must really be on this computer or the LAN (AI-O-02)', () => {
+    const external = loadAiConfig({ AI_ENABLED: 'true', AI_LOCAL_MODEL: 'm', AI_LOCAL_BASE_URL: 'https://llm.example.com/v1' });
+    expect(external.state).toBe('MISCONFIGURED');
+    expect(loadAiConfig({ AI_ENABLED: 'true', AI_LOCAL_MODEL: 'm', AI_LOCAL_BASE_URL: 'http://192.168.1.20:11434/v1' }).state).toBe('READY');
+    expect(loadAiConfig({ AI_ENABLED: 'true', AI_LOCAL_MODEL: 'm', AI_LOCAL_BASE_URL: 'https://llm.example.com/v1', AI_CLOUD_ENABLED: 'true' }).state).toBe('READY');
+  });
+
+  it.each([
+    ['http://127.0.0.1:11434/v1', true], ['http://localhost:1234/v1', true], ['http://[::1]:8080/v1', true],
+    ['http://10.0.0.5/v1', true], ['http://172.16.3.4/v1', true], ['http://172.32.0.1/v1', false], ['http://192.168.0.9/v1', true],
+    ['http://restaurant-pc:11434/v1', true], ['http://ai-box.local/v1', true], ['http://[fd12:3456::1]/v1', true],
+    ['https://api.openai.com/v1', false], ['http://8.8.8.8/v1', false], ['http://[2001:db8::1]/v1', false], ['not a url', false],
+  ])('isOnPremisesUrl(%s) = %s', (url, expected) => {
+    expect(isOnPremisesUrl(url)).toBe(expected);
   });
 });

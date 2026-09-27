@@ -30,6 +30,10 @@ export class AnthropicProvider implements AiProvider {
       { 'x-api-key': this.apiKey, 'anthropic-version': ANTHROPIC_VERSION }, body, this.timeoutMs);
     const parsed = responseSchema.safeParse(raw);
     if (!parsed.success) throw new AiProviderError('PROVIDER_BAD_RESPONSE');
+    // A reply cut off by the token limit may contain a truncated tool call: never act on it.
+    if (parsed.data.stop_reason === 'max_tokens' && parsed.data.content.some(block => block.type === 'tool_use')) {
+      throw new AiProviderError('PROVIDER_BAD_RESPONSE');
+    }
     const text: string[] = [];
     const toolCalls: AiChatResult['toolCalls'] = [];
     for (const block of parsed.data.content) {
@@ -62,7 +66,7 @@ function toWire(messages: AiMessage[]): WireMessage[] {
   };
   for (const message of messages) {
     if (message.role === 'user') push('user', { type: 'text', text: message.content });
-    else if (message.role === 'tool') push('user', { type: 'tool_result', tool_use_id: message.toolCallId, content: message.content });
+    else if (message.role === 'tool') push('user', { type: 'tool_result', tool_use_id: message.toolCallId, content: message.content, ...(message.isError ? { is_error: true } : {}) });
     else {
       if (message.content) push('assistant', { type: 'text', text: message.content });
       for (const call of message.toolCalls ?? []) push('assistant', { type: 'tool_use', id: call.id, name: call.name, input: call.arguments ?? {} });
@@ -72,6 +76,7 @@ function toWire(messages: AiMessage[]): WireMessage[] {
 }
 
 const responseSchema = z.object({
+  stop_reason: z.string().nullish(),
   content: z.array(z.object({
     type: z.string(),
     text: z.string().optional(),

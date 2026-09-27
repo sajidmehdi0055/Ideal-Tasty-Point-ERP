@@ -152,17 +152,55 @@ describe('AI gateway (ADR-0011)', () => {
     expect(s.audit.entries.at(-1)).toMatchObject({ eventType: 'CHAT', outcome: 'LIMIT_REACHED' });
   });
 
-  it('caps tool calls per round and truncates oversized tool results', async () => {
-    const many = { text: '', toolCalls: Array.from({ length: 12 }, (_, i) => ({ id: `c${i}`, name: 'get_stock', arguments: {} })) };
+  it('caps executed tool calls per round (the rest are audited and answered, not run) and truncates oversized results', async () => {
+    const many = { text: '', toolCalls: Array.from({ length: 40 }, (_, i) => ({ id: `c${i}`, name: 'get_stock', arguments: {} })) };
     const s = setup([many, answer('ok')], { maxToolCallsPerRound: 3, maxToolResultChars: 50 });
     const response = await s.gateway.chat(ask(), owner);
-    expect(response.tool_calls).toHaveLength(3);
-    const content = (s.primary.requests[1]!.messages.at(-1) as { content: string }).content;
-    expect(JSON.parse(content).note).toContain('too large');
+    expect(s.stockExecute).toHaveBeenCalledTimes(3);
+    expect(response.tool_calls).toHaveLength(32);
+    expect(response.tool_calls.filter(call => call.error_code === 'TOOL_CALL_LIMIT')).toHaveLength(29);
+    const toolRows = s.audit.entries.filter(e => e.eventType === 'TOOL_CALL');
+    expect(toolRows).toHaveLength(32);
+    expect(s.audit.entries.at(-1)!.details).toMatchObject({ dropped_tool_calls: 8 });
+    const messages = s.primary.requests[1]!.messages;
+    expect(JSON.parse((messages[2] as { content: string }).content).note).toContain('too large');
+    expect(messages.at(-1)).toMatchObject({ role: 'tool', isError: true });
+  });
+
+  it('audits a failed fallback against the fallback provider', async () => {
+    const s = setup([new AiProviderError('PROVIDER_UNAVAILABLE')], {}, [new AiProviderError('PROVIDER_AUTH_FAILED')]);
+    await expect(s.gateway.chat(ask(), owner)).rejects.toMatchObject({ code: 'AI_PROVIDER_UNAVAILABLE' });
+    expect(s.audit.entries).toMatchObject([{ eventType: 'CHAT', outcome: 'PROVIDER_ERROR', provider: 'anthropic', model: 'claude-fake', errorCode: 'PROVIDER_AUTH_FAILED', details: { fallback_used: true } }]);
+  });
+
+  it('audits refused requests (403 no access, 429 rate limit)', async () => {
+    const s = setup([answer('1')], { rateLimitPerMinute: 1 });
+    await expect(s.gateway.chat(ask(), cashier)).rejects.toMatchObject({ code: 'AI_FORBIDDEN' });
+    await s.gateway.chat(ask(), owner);
+    await expect(s.gateway.chat(ask(), owner)).rejects.toMatchObject({ code: 'AI_RATE_LIMITED' });
+    expect(s.audit.entries.filter(e => e.errorCode).map(e => [e.eventType, e.outcome, e.errorCode, e.auth.userId])).toEqual([
+      ['CHAT', 'DENIED', 'AI_FORBIDDEN', 'cashier-1'],
+      ['CHAT', 'RATE_LIMITED', 'AI_RATE_LIMITED', 'owner-1'],
+    ]);
+  });
+
+  it('strips control characters (NUL) from model-controlled text before auditing', async () => {
+    const s = setup([{ text: '', toolCalls: [{ id: 'a', name: 'get_stock', arguments: { item_name_contains: 'mo\u0000zz' } }, { id: 'b', name: 'bad\u0000tool', arguments: {} }] }, answer('ok')]);
+    await s.gateway.chat(ask(), owner);
+    expect(JSON.stringify(s.audit.entries)).not.toContain('\\u0000');
+    expect(s.audit.entries[0]!.toolParams).toEqual({ item_name_contains: 'mo zz' });
+    expect(s.audit.entries[1]!.toolName).toBe('bad tool');
+  });
+
+  it('is fail-closed on the provider-error path too', async () => {
+    const s = setup([new AiProviderError('PROVIDER_UNAVAILABLE')]);
+    s.audit.failWith = new Error('db down');
+    await expect(s.gateway.chat(ask(), owner)).rejects.toMatchObject({ status: 500, code: 'AI_AUDIT_FAILED' });
   });
 
   it('rate-limits per user', async () => {
     const s = setup([answer('1'), answer('2')], { rateLimitPerMinute: 1 });
+    await s.gateway.chat(ask(), { ...owner, userId: 'someone-else' });
     await s.gateway.chat(ask(), owner);
     await expect(s.gateway.chat(ask(), owner)).rejects.toMatchObject({ status: 429, code: 'AI_RATE_LIMITED' });
   });

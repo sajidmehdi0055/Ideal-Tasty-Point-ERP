@@ -14,7 +14,7 @@ const chatBodySchema = z.object({
   module: z.enum(['inventory', 'purchasing', 'stock']).optional(),
   history: z.array(z.object({
     role: z.enum(['user', 'assistant']),
-    content: z.string().min(1).max(8000).refine(noNul, 'NUL characters are invalid'),
+    content: z.string().trim().min(1).max(8000).refine(noNul, 'NUL characters are invalid'),
   }).strict()).max(20).optional(),
 }).strict().refine(
   body => (body.history ?? []).reduce((sum, turn) => sum + turn.content.length, 0) <= 32000,
@@ -30,13 +30,16 @@ const statusQuerySchema = z.object({ check: z.enum(['true', 'false']).optional()
  */
 export function registerAiRoutes(app: FastifyInstance, runtime: AiRuntime, authProvider: AuthContextProvider) {
   app.get('/api/ai/status', async request => {
-    requireAuthenticated(await authProvider(request));
+    const auth = requireAuthenticated(await authProvider(request));
     const query = statusQuerySchema.parse(request.query ?? {});
     if (runtime.state !== 'READY') return { enabled: false, state: runtime.state };
+    // Provider details only for users who may use the assistant.
+    if (!runtime.gateway.isAvailableTo(auth)) return { enabled: true, state: runtime.state, available: false };
     const { config } = runtime;
     const status = {
       enabled: true,
       state: runtime.state,
+      available: true,
       provider: runtime.primary.name,
       model: runtime.primary.model,
       fallback_provider: runtime.fallback?.name ?? null,
@@ -45,7 +48,8 @@ export function registerAiRoutes(app: FastifyInstance, runtime: AiRuntime, authP
       write_actions_enabled: config.writeActionsEnabled,
     };
     if (query.check !== 'true') return status;
-    return { ...status, health: await runtime.primary.healthCheck() };
+    // A health check is a real model call: same role gate and rate limit as chat.
+    return { ...status, health: await runtime.gateway.healthCheck(auth) };
   });
 
   app.post('/api/ai/chat', async request => {

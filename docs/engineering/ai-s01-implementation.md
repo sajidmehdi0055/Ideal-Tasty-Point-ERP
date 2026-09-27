@@ -32,7 +32,27 @@ Branch: `feat/ai-s01-foundation` (from main `a6660e5`). Decision: [ADR-0011](../
 
 ## Verification (Cowork VM, Node 24.21.0, embedded PostgreSQL 17.10)
 
-typecheck PASS, lint PASS, build PASS, unit 458/458, integration 100/100 (baseline before AI-S01: 401/96).
+Initial (IMPL-001): typecheck/lint/build PASS, unit 458/458, integration 100/100 (baseline before AI-S01: 401/96).
+
+After AI-S01-QA-001 corrections (FIX-001): typecheck/lint/build PASS, unit 481/481, integration 101/101.
+
+## AI-S01-QA-001 (independent QA subagent) — findings and fixes
+
+Verdict FAIL (0 BLOCKER, 1 MAJOR, 6 MINOR, 4 NOTE); all test claims reproduced (458/100).
+
+| Finding | Fix |
+|---|---|
+| MAJOR-1 CURRENT-HANDOFF history deleted | AI-S01 section put on top; all earlier sections restored verbatim below |
+| MINOR-2 fallback failure audited against primary | `FailedModelCall` carries the provider tried last; CHAT row shows fallback provider and `fallback_used: true` |
+| MINOR-3 missing audit rows (over-limit calls, 403/429) | over-limit calls audited as `TOOL_CALL_LIMIT` and answered; >32 dropped and counted; 403 → `DENIED`, 429 → `RATE_LIMITED` CHAT rows (outcome added to CHECK) |
+| MINOR-4 NUL in model text → 500 | `cleanAuditText` strips control characters from tool names/param keys/values; PG integration test |
+| MINOR-5 `status?check=true` ungated | same role gate + rate limit as chat; provider details hidden from users without AI access |
+| MINOR-6 cloud gate by name only | `isOnPremisesUrl` guard on `AI_LOCAL_BASE_URL` when cloud disabled |
+| MINOR-7 whitespace-only history | history content trimmed, `min(1)` |
+| NOTE-8 | unique generated tool-call ids; Anthropic `is_error` on failed tool results; truncated (token-limit) tool calls rejected; no overall deadline documented |
+| NOTE-9 | docs: `AI_MAX_TOOL_ROUNDS` counts model calls; fallback wording in D-03 |
+| NOTE-10 | tests added for fallback-failure audit, fail-closed on provider-error path, status gating, refused-request audit |
+| NOTE-11 | forged assistant turns in client history documented as own-session only |
 
 ## Deferred
 

@@ -78,6 +78,25 @@ describe('AI-S01 audit log and tools (real PostgreSQL)', () => {
     await expect(admin.query('TRUNCATE ai_audit_log')).rejects.toThrow(/append-only/);
   });
 
+  it('model text with NUL characters never breaks the audit insert', async () => {
+    const provider = new FakeProvider([{ text: '', toolCalls: [
+      { id: 'a', name: 'inventory_list_suppliers', arguments: { name_contains: 'al\u0000i' } },
+      { id: 'b', name: 'drop\u0000tables', arguments: {} },
+    ] }, answer('ok')]);
+    const app = buildAiApp(ownerA, provider);
+    try {
+      const res = await app.inject({ method: 'POST', url: '/api/ai/chat', payload: { message: 'suppliers' } });
+      expect(res.statusCode).toBe(200);
+      const rows = (await admin.query(`SELECT tool_name, tool_params, outcome FROM ai_audit_log WHERE request_id = $1 AND event_type = 'TOOL_CALL' ORDER BY occurred_at`, [res.json().metadata.request_id])).rows;
+      expect(rows).toEqual([
+        { tool_name: 'inventory_list_suppliers', tool_params: { name_contains: 'al i' }, outcome: 'SUCCESS' },
+        { tool_name: 'drop tables', tool_params: null, outcome: 'UNKNOWN_TOOL' },
+      ]);
+    } finally {
+      await app.close();
+    }
+  });
+
   it('check constraints reject inconsistent rows', async () => {
     await expect(sink.record(entry({ eventType: 'TOOL_CALL', toolName: null }))).rejects.toMatchObject({ code: '23514' });
     await expect(sink.record(entry({ eventType: 'CHAT', toolMode: 'READ' }))).rejects.toMatchObject({ code: '23514' });

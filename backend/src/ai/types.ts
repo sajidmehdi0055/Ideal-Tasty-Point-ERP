@@ -9,7 +9,7 @@ export interface AiToolCall {
 export type AiMessage =
   | { role: 'user'; content: string }
   | { role: 'assistant'; content: string; toolCalls?: AiToolCall[] }
-  | { role: 'tool'; toolCallId: string; toolName: string; content: string };
+  | { role: 'tool'; toolCallId: string; toolName: string; content: string; isError?: boolean };
 
 export interface AiToolSpec {
   name: string;

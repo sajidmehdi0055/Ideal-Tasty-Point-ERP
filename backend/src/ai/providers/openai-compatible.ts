@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { AiChatRequest, AiChatResult, AiMessage, AiProvider, FetchLike } from '../types.js';
 import { AiProviderError } from '../types.js';
@@ -36,11 +37,15 @@ export class OpenAiCompatibleProvider implements AiProvider {
     const raw = await postJson(this.fetchImpl, joinUrl(this.baseUrl, 'chat/completions'), this.headers(), body, this.timeoutMs);
     const parsed = responseSchema.safeParse(raw);
     if (!parsed.success) throw new AiProviderError('PROVIDER_BAD_RESPONSE');
-    const message = parsed.data.choices[0]!.message;
+    const choice = parsed.data.choices[0]!;
+    const message = choice.message;
+    // A reply cut off by the token limit may contain truncated tool arguments: never act on it.
+    if (choice.finish_reason === 'length' && message.tool_calls?.length) throw new AiProviderError('PROVIDER_BAD_RESPONSE');
     return {
       text: message.content ?? '',
-      toolCalls: (message.tool_calls ?? []).map((call, index) => ({
-        id: call.id ?? `call_${index}`,
+      toolCalls: (message.tool_calls ?? []).map(call => ({
+        // Some local servers omit ids; ids must stay unique across rounds (and providers).
+        id: call.id || `call_${randomUUID()}`,
         name: call.function.name,
         arguments: parseArguments(call.function.arguments),
       })),
@@ -71,6 +76,7 @@ function toWire(message: AiMessage) {
 
 const responseSchema = z.object({
   choices: z.array(z.object({
+    finish_reason: z.string().nullish(),
     message: z.object({
       content: z.string().nullish(),
       tool_calls: z.array(z.object({

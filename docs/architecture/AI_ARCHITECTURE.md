@@ -27,8 +27,9 @@ The model never gets SQL, shell, file or network access. It can only ask for a r
 
 - Interface `AiProvider` (`ai/types.ts`): `chat(request)` (one model turn; with no tools it is plain generate/chat), `healthCheck()`, `name`, `model`.
 - Adapters use Node's built-in `fetch` (no SDK dependency). Errors are mapped to stable codes (`PROVIDER_UNAVAILABLE`, `PROVIDER_TIMEOUT`, `PROVIDER_RATE_LIMITED`, `PROVIDER_AUTH_FAILED`, `PROVIDER_BAD_REQUEST`, `PROVIDER_BAD_RESPONSE`); provider bodies and keys are never returned or logged.
-- Fallback: used only when the primary fails with a retryable error (unavailable, timeout, 429, malformed reply). Once used, the rest of that request stays on the fallback.
-- Cloud gate: `openai` and `anthropic` are cloud providers. Using one (as primary or fallback) without `AI_CLOUD_ENABLED=true` makes the AI state `MISCONFIGURED` (owner decision AI-O-02).
+- Fallback: used for a model call whose primary attempt fails with a retryable error (unavailable, timeout, 429, malformed reply), in any round of the request. Once used, the rest of that request stays on the fallback. Auth failures and bad requests are not retried.
+- A reply cut off by the token limit (`finish_reason: length` / `stop_reason: max_tokens`) that contains tool calls is rejected, never executed.
+- Cloud gate: `openai` and `anthropic` are cloud providers. Using one (as primary or fallback) without `AI_CLOUD_ENABLED=true` makes the AI state `MISCONFIGURED` (owner decision AI-O-02). With cloud disabled, `AI_LOCAL_BASE_URL` must also point to this computer or the LAN (loopback, 10.x / 172.16–31.x / 192.168.x, link-local, IPv6 ULA, `localhost`, a single-label name like `restaurant-pc`, or `*.local` / `*.lan`).
 
 ### Local small model
 
@@ -111,11 +112,15 @@ Not available yet because the ERP has no such data or rule: low-stock alerts (no
 
 Request: `{ "message": "…", "conversation_id"?: uuid, "module"?: "inventory" | "purchasing" | "stock", "history"?: [{ "role": "user" | "assistant", "content": "…" }] }` (max 20 turns). Conversations are stateless: the client sends recent history.
 
+`GET /api/ai/status` shows provider/model/flags only to users who may use the assistant (`available: true`); others get `{ enabled, state, available: false }`. `?check=true` makes a real model call, so it has the chat role gate and rate limit.
+
+A client can put invented assistant turns into its own `history`; that only affects that user's own answer (tool/system roles are rejected, permissions and the system prompt cannot be changed).
+
 Errors: `400 VALIDATION_ERROR`, `401 UNAUTHENTICATED`, `403 AI_FORBIDDEN`, `429 AI_RATE_LIMITED`, `503 AI_DISABLED` / `AI_UNAVAILABLE` / `AI_PROVIDER_UNAVAILABLE`, `500 AI_AUDIT_FAILED`.
 
 ## 7. Audit
 
-Table `ai_audit_log` (migration `202609270003_ai_s01_audit_log.sql`): one `CHAT` row per request and one `TOOL_CALL` row per requested tool (also denied, invalid and unknown ones) with actor, role, branch, request/conversation id, provider, model, prompt version, tool name/mode, sanitized parameters, permission result, approval status, outcome, error code, duration. Message text and model answers are not stored.
+Table `ai_audit_log` (migration `202609270003_ai_s01_audit_log.sql`): one `CHAT` row per request (also for requests refused with 403 `DENIED` / 429 `RATE_LIMITED`) and one `TOOL_CALL` row per acknowledged tool call (also denied, invalid, unknown and over-limit `TOOL_CALL_LIMIT` ones; more than 32 calls in one model turn are dropped and counted in `details.dropped_tool_calls`) with actor, role, branch, request/conversation id, provider, model, prompt version, tool name/mode, sanitized parameters (control characters such as NUL removed), permission result, approval status, outcome, error code, duration. Message text and model answers are not stored.
 
 Rows are append-only (triggers block UPDATE/DELETE/TRUNCATE for everyone); the runtime role has INSERT only. Review with an owner/admin connection, e.g.:
 
@@ -128,7 +133,7 @@ If an audit row cannot be written the AI request fails (`AI_AUDIT_FAILED`).
 
 ## 8. Safety limits
 
-Provider timeout (`AI_REQUEST_TIMEOUT_MS`), tool rounds per request (`AI_MAX_TOOL_ROUNDS`), 8 tool calls per round, 12 000 characters per tool result, per-user rate limit (`AI_RATE_LIMIT_PER_MINUTE`, in-memory per API process), message ≤ 4 000 chars, history ≤ 20 turns / 32 000 chars. Tool results are wrapped with a note that they are data, not instructions.
+Provider timeout per model call (`AI_REQUEST_TIMEOUT_MS`), model calls per request (`AI_MAX_TOOL_ROUNDS`, default 4, counting the final answer — so at most 3 tool rounds), 8 executed tool calls per round, 12 000 characters per tool result, per-user rate limit (`AI_RATE_LIMIT_PER_MINUTE`, in-memory per API process), message ≤ 4 000 chars, history ≤ 20 turns / 32 000 chars. Tool results are wrapped with a note that they are data, not instructions. There is no single overall deadline: worst case is `AI_MAX_TOOL_ROUNDS` model calls (+1 fallback attempt) each up to `AI_REQUEST_TIMEOUT_MS`; lower the timeout for a snappier UI.
 
 ## 9. System prompt
 

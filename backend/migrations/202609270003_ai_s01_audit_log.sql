@@ -21,7 +21,7 @@ CREATE TABLE ai_audit_log (
   tool_params jsonb,
   permission_result text CHECK (permission_result IN ('ALLOWED', 'DENIED')),
   approval_status text CHECK (approval_status IN ('NOT_REQUIRED', 'PENDING')),
-  outcome text NOT NULL CHECK (outcome IN ('SUCCESS', 'ERROR', 'DENIED', 'INVALID', 'UNKNOWN_TOOL', 'PROPOSED', 'PROVIDER_ERROR', 'LIMIT_REACHED')),
+  outcome text NOT NULL CHECK (outcome IN ('SUCCESS', 'ERROR', 'DENIED', 'INVALID', 'UNKNOWN_TOOL', 'PROPOSED', 'PROVIDER_ERROR', 'LIMIT_REACHED', 'RATE_LIMITED')),
   error_code text,
   duration_ms integer NOT NULL CHECK (duration_ms >= 0),
   details jsonb,
