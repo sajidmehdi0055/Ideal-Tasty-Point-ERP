@@ -1,4 +1,34 @@
-# Current Handoff — S06-QA-001 (Inventory S-06 Purchase Order — Independent QA PASS in the Cowork VM)
+# Current Handoff — S06-VERIFY-001 (Purchase Order — Windows/Docker Verification, Branch Push)
+
+Date: 2026-09-27. Branch: feat/inventory-s06-purchase-order (base: main @ c30e289; HEAD unchanged at 3459b8f — this record adds only this documentation entry on top). Status: implemented + independently QA-reviewed in the Cowork Linux VM (S06-QA-001, PASS) + now also verified on the owner's real Windows/Docker environment. Push to origin authorized and performed by this record. **NOT merged to main** — merge requires a separate, further owner approval.
+Authority: owner decisions recorded in `docs/decisions/ADR-0010-s06-purchase-order.md`. This record: owner explicitly authorized (a) verification in a new isolated worktree, (b) one docs-only record commit on this branch, (c) a plain push of this feature branch — explicitly withholding merge-to-main, force-push, rebase/reset/clean, deletion, and any operational-database or process-management authorization.
+
+## Real-environment verification (Windows 11, Node v24.18.1, Docker Desktop PostgreSQL 17, dedicated `erp_test` database, unique schema per run — `erp_local` never touched)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS — 221 packages, 0 vulnerabilities |
+| typecheck | PASS |
+| lint | PASS |
+| build | PASS |
+| test:unit | PASS — 401/401 (9 files) |
+| test:integration | PASS — 96/96 (6 files), real authoritative migrate CLI + shipped runtime grants |
+
+This closes the Windows/Docker verification gap noted in the prior Cowork VM records (S06-IMPL-001/S06-QA-001), with identical pass counts.
+
+**Environment note:** at the start of this verification, Docker Desktop was not running and the `ideal-tasty-point-s01-dev-postgres-1` container (the same one used in S04-VERIFY-001/S05-VERIFY-001) was stopped (`Exited`, from an earlier machine restart). Docker Desktop was started and the existing container was started (`docker start`, not recreated — no data loss, same container/volume as before) and reached `healthy` before integration tests ran. The pre-existing `backend/tmp/demo-server.ts` process (port 3000) was not touched.
+
+## Push
+
+`feat/inventory-s06-purchase-order` pushed to origin as a plain (non-force) `git push -u origin feat/inventory-s06-purchase-order` (new branch, no prior remote ref existed), owner-authorized in this record. Confirmed after a fresh `git fetch origin`: local and remote both resolve to `3459b8f` — the reviewed commit is unchanged and matches the pushed remote exactly. `main` and other branches/worktrees were not touched by this record.
+
+## Next recommended action
+
+Owner reviews this record; when ready, separately authorize a controlled merge to main (the branch remains a clean, non-diverged 4-commit-ahead descendant of main @ c30e289 — re-verify with a fresh `git status`/`git log` immediately before merging, as always).
+
+---
+
+## Previous handoff — S06-QA-001 (Inventory S-06 Purchase Order — Independent QA PASS in the Cowork VM)
 
 Date: 2026-09-27. Branch: feat/inventory-s06-purchase-order (implementation 6391f93 + this record). Status: implemented + independent QA PASS in the Cowork VM. NOT pushed, NOT merged; Windows/Docker PostgreSQL 17 re-run pending (owner machine).
 Roles: Cowork Manager session = implementation (S06-IMPL-001, below) and this record. Independent reviewer: a fresh in-house QA/Testing subagent with no part in the implementation, working in its own clone. Codex and Google Antigravity remain paused (GOV-MANAGER-SUBAGENT-001): this is a same-provider review, not an external one — the owner should weigh that.
