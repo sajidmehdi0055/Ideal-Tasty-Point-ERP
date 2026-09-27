@@ -1,4 +1,4 @@
-# Current Handoff — AI-S01-QA-003 (AI Foundation — independent QA PASS, on feature branch)
+# Current Handoff — AI-S01-QA-004 (AI Foundation — synced with main ec7833d, independent QA PASS, on feature branch)
 
 Date: 2026-09-27. Branch: `feat/ai-s01-foundation` (from main `a6660e5`; current main `ec7833d` — S-07 Stock Transfer, merged in a parallel session — was merged into the branch in AI-S01-SYNC-001). NOT merged to main.
 Authority: owner request in the Cowork Manager session to make the ERP AI-ready; owner decisions AI-O-01 (Phase 1 read-only + audit) and AI-O-02 (cloud providers built, OFF by default), recorded in ADR-0012.
@@ -14,14 +14,14 @@ Optional AI layer, OFF by default: provider abstraction (OpenAI-compatible adapt
 - AI-S01-QA-002 (focused independent re-review of FIX-001): reproduced 481/101; verdict PASS — one remaining MINOR (N-1 lone-surrogate audit insert) and 2 NOTEs.
 - AI-S01-FIX-002: N-1 and the doc NOTE fixed; unit 481/481, integration 101/101.
 - AI-S01-QA-003 (focused check of FIX-002 `d1762a0`): typecheck/lint PASS, unit 481/481, integration 101/101; N-1 FIXED, N-3 FIXED, no new issue; verdict **PASS — ready for controlled merge**. Open: N-2 NOTE only.
-- AI-S01-SYNC-001: merged current main `ec7833d` (S-07) into the branch; conflicts in `app.ts`, `server.ts`, `runtime-grants.sql`, migration-list tests, READMEs and this file resolved keeping both sides; ADR renumbered 0011 → 0012 and AI migration renamed to `202609270004_ai_s01_audit_log` (S-07 owns `202609270003` and ADR-0011); AI tests given the new `stockTransferRepository` option; stock-movements tool description lists transfer movement types. Implementer run: typecheck/lint/build PASS, unit 520/520 (main 440 + AI 80), integration 112/112 (main 107 + AI 5). Focused independent re-review of the sync: pending.
+- AI-S01-SYNC-001: merged current main `ec7833d` (S-07) into the branch; conflicts in `app.ts`, `server.ts`, `runtime-grants.sql`, migration-list tests, READMEs and this file resolved keeping both sides; ADR renumbered 0011 → 0012 and AI migration renamed to `202609270004_ai_s01_audit_log` (S-07 owns `202609270003` and ADR-0011); AI tests given the new `stockTransferRepository` option; stock-movements tool description lists transfer movement types. Implementer run: typecheck/lint/build PASS, unit 520/520 (main 440 + AI 80), integration 112/112 (main 107 + AI 5). 
+- AI-S01-QA-004 (focused independent re-review of the sync merge `02689c6`): typecheck/lint/build PASS, unit 520/520, integration 112/112; conflict resolution, ADR renumbering, migration order and handoff history all correct; S-07 code untouched; 0 BLOCKER/MAJOR/MINOR, 2 NOTE (cosmetic title — fixed here; migration renamed while unmerged — recreate any kept test schema that recorded the old name). Verdict **PASS — ready for controlled merge**.
 
 ## Next steps
 
-1. Focused independent re-review of AI-S01-SYNC-001.
-2. Owner: push the branch; Windows/Docker PostgreSQL 17 verification (AI-S01-VERIFY-001).
-3. Owner-approved merge; post-merge verification.
-4. Migration `202609270004_ai_s01_audit_log` is not applied to `erp_local`; when authorized: stop API → `npm run migrate` → re-run `scripts/runtime-grants.sql` → start.
+1. Owner: push the branch; Windows/Docker PostgreSQL 17 verification (AI-S01-VERIFY-001).
+2. Owner-approved merge; post-merge verification.
+3. Migration `202609270004_ai_s01_audit_log` is not applied to `erp_local`; when authorized: stop API → `npm run migrate` → re-run `scripts/runtime-grants.sql` → start.
 
 ## Carried forward (unchanged)
 
