@@ -38,17 +38,19 @@ export function AppShell({ children }: { children: ReactNode }) {
   const timerRef = useRef<number | null>(null);
   const hoveringRef = useRef(false);
   const pointerDownRef = useRef(false);
-  const suppressFocusOpenRef = useRef(false);
+  const peekRef = useRef<HTMLDivElement>(null);
 
   // Crossing the breakpoint resets whichever overlay belongs to the other
   // layout, so it doesn't reappear open later. Adjusted during render
   // (React's documented pattern for resetting state on a derived-value
   // change) rather than in an effect, so there is no extra commit.
-  const [prevIsWide, setPrevIsWide] = useState(isWide);
-  if (isWide !== prevIsWide) {
-    setPrevIsWide(isWide);
+  // Switching between mouse and touch (e.g. a detachable tablet) also drops
+  // an open peek, since it would change between non-modal and modal.
+  const [prevLayout, setPrevLayout] = useState({ isWide, canHover });
+  if (isWide !== prevLayout.isWide || canHover !== prevLayout.canHover) {
+    setPrevLayout({ isWide, canHover });
+    setPeekOpen(false);
     if (isWide) setDrawerOpen(false);
-    else setPeekOpen(false);
   }
 
   const clearTimer = useCallback(() => {
@@ -58,6 +60,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   }, []);
   useEffect(() => clearTimer, [clearTimer]);
+  // A hover timer started before a breakpoint/input change must not fire
+  // afterwards and re-open the peek in the new layout.
+  useEffect(() => {
+    clearTimer();
+  }, [isWide, canHover, clearTimer]);
 
   const showPeek = isWide && !pinned && peekOpen;
   const peekIsModal = showPeek && !canHover;
@@ -100,20 +107,19 @@ export function AppShell({ children }: { children: ReactNode }) {
         setDrawerOpen(false);
         return;
       }
+      // A non-modal (hover) peek may be open while the user works in the
+      // content; Esc there belongs to the content, not to the sidebar.
+      const focusInPeek = peekRef.current?.contains(document.activeElement) ?? false;
+      if (!peekIsModal && !focusInPeek) return;
       clearTimer();
       setPeekOpen(false);
-      // Keep keyboard users on the rail rather than dropping focus to <body>
-      // when the peek (which may hold focus) unmounts. That focus must not
-      // re-open the peek it just closed.
-      suppressFocusOpenRef.current = true;
-      window.setTimeout(() => {
-        railExpandRef.current?.focus();
-        suppressFocusOpenRef.current = false;
-      }, 0);
+      // Keep keyboard users on the rail instead of dropping focus to <body>
+      // when the peek (which held focus) unmounts.
+      window.setTimeout(() => railExpandRef.current?.focus(), 0);
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [drawerIsOpen, showPeek, clearTimer]);
+  }, [drawerIsOpen, showPeek, peekIsModal, clearTimer]);
 
   const hoverPeekEnabled = isWide && canHover && !pinned;
 
@@ -144,7 +150,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   function handleRailLinkFocus(index: number) {
     if (!hoverPeekEnabled) return;
-    if (suppressFocusOpenRef.current || pointerDownRef.current) return;
+    if (pointerDownRef.current) return;
     openPeek(index);
   }
 
@@ -155,10 +161,27 @@ export function AppShell({ children }: { children: ReactNode }) {
     closePeek();
   }
 
+  // Pinning/collapsing swaps the rail region in or out from under the
+  // pointer without a mouseleave, so the hover flag must be reset by hand.
+  function pin() {
+    hoveringRef.current = false;
+    setPinned(true);
+    closePeek();
+  }
+
+  function collapse() {
+    hoveringRef.current = false;
+    setPinned(false);
+  }
+
+  function closeModalPeekFromScrim() {
+    closePeek();
+    window.setTimeout(() => railExpandRef.current?.focus(), 0);
+  }
+
   function handleRailExpand() {
     if (canHover) {
-      setPinned(true);
-      closePeek();
+      pin();
     } else {
       openPeek(0);
     }
@@ -175,7 +198,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             navLabel="Primary"
             collapsedGroups={collapsedGroups}
             onToggleGroup={toggleGroup}
-            onCollapse={() => setPinned(false)}
+            onCollapse={collapse}
           />
         </aside>
       ) : null}
@@ -203,6 +226,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           {showPeek ? (
             <div
+              ref={peekRef}
               className="fixed inset-y-0 left-0 z-40 shadow-peek"
               role={peekIsModal ? 'dialog' : undefined}
               aria-modal={peekIsModal ? true : undefined}
@@ -215,10 +239,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 collapsedGroups={collapsedGroups}
                 onToggleGroup={toggleGroup}
                 onNavigate={peekIsModal ? closePeek : undefined}
-                onPin={() => {
-                  setPinned(true);
-                  closePeek();
-                }}
+                onPin={pin}
                 autoFocusIndex={peekIsModal ? 0 : peekFocusIndex}
               />
             </div>
@@ -254,7 +275,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           aria-hidden="true"
           data-testid="sidebar-scrim"
           className="fixed inset-0 z-30 bg-overlay"
-          onClick={() => (drawerIsOpen ? setDrawerOpen(false) : closePeek())}
+          onClick={() => (drawerIsOpen ? setDrawerOpen(false) : closeModalPeekFromScrim())}
         />
       ) : null}
 

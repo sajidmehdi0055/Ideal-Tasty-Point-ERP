@@ -1,7 +1,7 @@
 # Current Handoff — UI-SHELL-V2-001 (ERP Shell v2: collapsible sidebar, header, Light/Dark theme)
 
 Date: 2026-09-27. Branch: `feat/ui-shell-v2` (base: main @ c30e289; main @ 5b39a3c merged in — S-06, S-07, AI-S01). Track: PARALLEL TRACK (frontend only — no backend, migration, API or auth change).
-Status: implemented + tests pass locally. **Not independently reviewed, not pushed to origin, not merged.**
+Status: implemented + independently reviewed (PASS, 4 MINOR fixed on-branch — see "Independent review") + main merged in. **Not pushed to origin, not merged to main.**
 Authority: owner approved the Figma design ("acha ha ok kr do", 2026-09-27) and then authorized both the documentation update and the implementation ("dono").
 Design source: Figma file `N9KkqXIQuvCUj9NVAj6Cx4` — section `89:2` "APPROVED 2026-09-27 — ERP Shell v2" (12 frames: desktop collapsed / hover peek / pinned, tablet tap-open, mobile closed / drawer; each in Light and Dark), components section `86:2` (`Shell/Sidebar` Peek·Pinned·Drawer, `Shell/Rail`, `Shell/Tooltip`, `Shell/Header` Desktop·Mobile), variable collection `ITP / Theme` (Light + Dark modes).
 
@@ -29,11 +29,23 @@ Design source: Figma file `N9KkqXIQuvCUj9NVAj6Cx4` — section `89:2` "APPROVED 
 |---|---|
 | npm ci --ignore-scripts | PASS |
 | typecheck / lint / build | PASS / PASS / PASS |
-| vitest | PASS — 83/83 (13 files; was 65/65 on main) |
+| vitest | PASS — 88/88 (13 files; was 65/65 on main) |
 | Production build excludes dev identity (`itp-erp:dev-identity` not in dist) | PASS |
 | Visual check (Playwright/Chromium on the built app: desktop collapsed, tooltip, hover peek, pinned, dark, tablet touch, mobile, mobile drawer) | matches approved Figma |
 
 New tests cover: hover open delay / close grace / pass-over, pin + collapse persistence, keyboard open + Esc focus return, focus-leave close, touch modal peek (scrim, inert content, focus), mobile drawer (open/close paths, focus return ordering, breakpoint reset), group collapse persistence, corrupt stored prefs, breadcrumb, theme default/override/persistence/invalid value.
+
+## Independent review (UI-SHELL-V2-REVIEW-001)
+
+Reviewer: fresh in-house QA/Code-review subagent with no part in the implementation, own clone, own runs (Codex/Antigravity paused — same-provider substitute, not equivalent to an external reviewer; recorded per AGENTS.md so the owner can weigh it).
+Result on 7cfd43c: **PASS — 0 BLOCKER, 0 MAJOR, 4 MINOR, 6 NOTE.** npm ci, typecheck, lint, 83/83 tests, build, dev-identity-stripped check all reproduced; token parity Light/Dark (42 vars each), no legacy token removed; mutation checks confirmed tests are meaningful.
+
+MINORs (all fixed on this branch, each with a regression test that fails on the pre-fix code):
+1. Stale hover flag after pin-from-peek → collapse kept a keyboard-opened peek open on focus-out. Fixed: hover flag reset on pin/collapse.
+2. A pending hover-open timer could fire after a breakpoint change and re-open the peek later. Fixed: timer cleared and peek dropped on any breakpoint change.
+3. Switching mouse ↔ touch did not reset an open peek (could turn into a modal without focus inside). Fixed: peek dropped on input-type change.
+4. Esc with a hover peek open stole focus from the content. Fixed: Esc only handled when the peek is modal or holds focus.
+NOTEs addressed: focus now returns to the rail button after the touch peek is closed by the scrim; dead `suppressFocusOpenRef` removed. NOTEs left: two harmless un-cleared 0 ms timeouts; inline theme script falls back to light if storage access throws, and needs a CSP hash if a CSP is added later; `bg-white` toggle knob in UomFormDialog (pre-existing).
 
 ## Deliberate deviations from the Figma (Frontend Contract Discipline)
 

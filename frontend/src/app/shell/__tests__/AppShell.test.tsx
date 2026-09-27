@@ -279,3 +279,75 @@ describe('Header', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Catalog Settings' })).toBeInTheDocument();
   });
 });
+
+describe('AppShell — edge cases from independent review', () => {
+  it('closes a keyboard-opened peek on focus-out after pinning from the peek and collapsing again', async () => {
+    vi.useFakeTimers();
+    stubMatchMedia({ wide: true, hover: true });
+    renderShell();
+    fireEvent.mouseEnter(railRegion());
+    act(() => vi.advanceTimersByTime(PEEK_OPEN_DELAY_MS));
+    // Pinning swaps the rail region out from under the pointer: no mouseleave fires.
+    fireEvent.click(within(screen.getByTestId('sidebar-peek')).getByRole('button', { name: 'Pin sidebar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }));
+
+    const railLink = within(screen.getByRole('navigation', { name: 'Primary' })).getByRole('link', { name: 'Item Master' });
+    act(() => railLink.focus());
+    expect(screen.getByTestId('sidebar-peek')).toBeInTheDocument();
+    act(() => screen.getByRole('button', { name: 'Dark theme' }).focus());
+    expect(screen.queryByTestId('sidebar-peek')).not.toBeInTheDocument();
+  });
+
+  it('does not let a pending hover timer open the peek after a breakpoint change', () => {
+    vi.useFakeTimers();
+    const media = stubMatchMedia({ wide: true, hover: true });
+    renderShell();
+    fireEvent.mouseEnter(railRegion());
+    act(() => media.set({ wide: false }));
+    act(() => vi.advanceTimersByTime(PEEK_OPEN_DELAY_MS * 2));
+    act(() => media.set({ wide: true }));
+    expect(screen.queryByTestId('sidebar-peek')).not.toBeInTheDocument();
+  });
+
+  it('drops an open hover peek when the device switches to touch (and back)', () => {
+    vi.useFakeTimers();
+    const media = stubMatchMedia({ wide: true, hover: true });
+    renderShell();
+    fireEvent.mouseEnter(railRegion());
+    act(() => vi.advanceTimersByTime(PEEK_OPEN_DELAY_MS));
+    expect(screen.getByTestId('sidebar-peek')).toBeInTheDocument();
+
+    act(() => media.set({ hover: false }));
+    expect(screen.queryByTestId('sidebar-peek')).not.toBeInTheDocument();
+    expect(content()).not.toHaveAttribute('inert');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand navigation' }));
+    expect(screen.getByRole('dialog', { name: 'Primary navigation' })).toBeInTheDocument();
+    act(() => media.set({ hover: true }));
+    expect(screen.queryByTestId('sidebar-peek')).not.toBeInTheDocument();
+  });
+
+  it('leaves Esc to the content when a hover peek is open but focus is outside it', () => {
+    vi.useFakeTimers();
+    stubMatchMedia({ wide: true, hover: true });
+    renderShell();
+    fireEvent.mouseEnter(railRegion());
+    act(() => vi.advanceTimersByTime(PEEK_OPEN_DELAY_MS));
+    const contentControl = screen.getByRole('button', { name: 'Dark theme' });
+    act(() => contentControl.focus());
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    act(() => vi.advanceTimersByTime(10));
+    expect(contentControl).toHaveFocus();
+    expect(screen.getByTestId('sidebar-peek')).toBeInTheDocument();
+  });
+
+  it('returns focus to the rail button after the touch peek is dismissed by the scrim', async () => {
+    stubMatchMedia({ wide: true, hover: false });
+    renderShell();
+    const expand = screen.getByRole('button', { name: 'Expand navigation' });
+    await userEvent.click(expand);
+    fireEvent.click(screen.getByTestId('sidebar-scrim'));
+    await waitFor(() => expect(expand).toHaveFocus());
+  });
+});
