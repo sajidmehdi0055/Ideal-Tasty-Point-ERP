@@ -5,14 +5,14 @@ export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'dark
 export type ButtonSize = 'sm' | 'md';
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: 'bg-primary-600 text-white hover:bg-primary-700 disabled:bg-primary-300',
+  primary: 'bg-action text-on-action hover:bg-action-hover disabled:bg-action-disabled',
   secondary: 'bg-canvas text-ink border border-line hover:bg-canvas-muted disabled:text-ink-muted',
-  danger: 'bg-danger-600 text-white hover:bg-danger-700 disabled:bg-danger-50 disabled:text-danger-600',
+  danger: 'bg-danger-solid text-white hover:bg-danger-solid-hover disabled:bg-danger-50 disabled:text-danger-600',
   ghost: 'bg-transparent text-ink hover:bg-canvas-muted disabled:text-ink-muted',
-  // Charcoal/Slate direction (approved Figma proposal, UI-UOM-001): a dark
-  // slate primary action, distinct from the existing blue `primary` so
-  // already-shipped screens (Item Master) keep their current look untouched.
-  dark: 'bg-neutral-700 text-white hover:bg-ink disabled:bg-neutral-50 disabled:text-neutral-600',
+  // Kept as an alias of `primary`: ERP Shell v2 (owner-approved 2026-09-27)
+  // made Charcoal/Slate the single primary action colour everywhere, so the
+  // separate slate variant introduced for UI-UOM-001 is no longer distinct.
+  dark: 'bg-action text-on-action hover:bg-action-hover disabled:bg-action-disabled',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -27,7 +27,7 @@ const sizeClasses: Record<ButtonSize, string> = {
  */
 export function getButtonClassName(options: { variant?: ButtonVariant; size?: ButtonSize; className?: string } = {}) {
   const { variant = 'primary', size = 'md', className = '' } = options;
-  return `inline-flex items-center justify-center rounded-control font-medium transition-colors disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 ${variantClasses[variant]} ${sizeClasses[size]} ${className}`;
+  return `inline-flex items-center justify-center rounded-control font-medium transition-colors disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${variantClasses[variant]} ${sizeClasses[size]} ${className}`;
 }
 
 interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {

@@ -1,4 +1,58 @@
-# Current Handoff — S05-MERGE-001 (Inventory S-05 Goods Receiving Merged to Main)
+# Current Handoff — UI-SHELL-V2-001 (ERP Shell v2: collapsible sidebar, header, Light/Dark theme)
+
+Date: 2026-09-27. Branch: `feat/ui-shell-v2` (base: main @ c30e289). Track: PARALLEL TRACK (frontend only — no backend, migration, API or auth change).
+Status: implemented + tests pass locally. **Not independently reviewed, not pushed to origin, not merged.**
+Authority: owner approved the Figma design ("acha ha ok kr do", 2026-09-27) and then authorized both the documentation update and the implementation ("dono").
+Design source: Figma file `N9KkqXIQuvCUj9NVAj6Cx4` — section `89:2` "APPROVED 2026-09-27 — ERP Shell v2" (12 frames: desktop collapsed / hover peek / pinned, tablet tap-open, mobile closed / drawer; each in Light and Dark), components section `86:2` (`Shell/Sidebar` Peek·Pinned·Drawer, `Shell/Rail`, `Shell/Tooltip`, `Shell/Header` Desktop·Mobile), variable collection `ITP / Theme` (Light + Dark modes).
+
+## Owner-approved behaviour (implemented)
+
+- Behaviour follows input type, not only width. `< 768px`: no rail; header menu button opens a modal drawer (scrim, ✕, Esc, focus management as before).
+- `≥ 768px`, mouse/trackpad (`(hover: hover) and (pointer: fine)`): 64px icons-only rail by default with name tooltips; resting 150 ms opens a non-modal "peek" (264px) over the content with no layout shift; leaving closes it after 300 ms. Keyboard focus on a rail link opens the peek and moves focus to the same item; Esc closes and returns focus to the rail.
+- `≥ 768px`, touch (tablet): no hover behaviour; the rail's bottom button opens the peek as a modal overlay with scrim; scrim, link or Esc closes it.
+- "Pin sidebar" keeps the full sidebar in the page flow; "Collapse sidebar" returns to the rail. Pin state and collapsed groups (Inventory / Purchasing / Stock) are remembered per device (localStorage, UI convenience only).
+- Pending modules keep an amber "Pending" badge (expanded) / amber dot (rail).
+- Light/Dark theme: defaults to the device setting; the header toggle overrides it and is remembered (`itp-erp:theme`). An inline script in `index.html` applies it before first paint (no light flash).
+
+## Implementation
+
+- `frontend/src/styles/index.css`: two-layer tokens — `--itp-*` values for Light (`:root`) and Dark (`[data-theme="dark"]`), mapped via `@theme inline` to Tailwind names. Legacy names (`canvas`, `line`, `ink`, `primary-*`, status colours) kept and remapped, so existing screens theme automatically; `primary-*` now resolves to the approved Charcoal/Slate action colour instead of the old blue. New names: `action`, `on-action`, `focus`, `canvas-sunken`, `canvas-hover`, `line-strong`, `ink-secondary`, `overlay`, `sidebar-*`, `danger-solid`. Radii aligned to Figma (control 6px, card 8px). Font stack starts with Inter (not bundled — see gaps).
+- `lib/theme.tsx` (ThemeProvider/useTheme), `app/shell/ThemeToggle.tsx`, `app/shell/sidebar-prefs.ts`.
+- `app/shell/Sidebar.tsx` → `SidebarPanel` (pinned / peek / drawer) + `SidebarRail`; `AppShell.tsx` owns open/close logic; `Header.tsx` restyled (breadcrumb, Lucide menu icon, theme toggle).
+- Hard-coded colours removed from the shell (`#1e293b`, `bg-slate-900/40`, …). `Button` primary/dark now use `action` tokens; danger uses `danger-solid`; `Modal` backdrop uses `overlay`.
+- Lucide icons vendored as before (lucide-static 1.48.0, ISC): Menu, Pin, PanelLeftClose, PanelLeftOpen, ChevronRight, Sun, Moon. No new npm dependency.
+- Main content width: `max-w-5xl` → `max-w-[1600px]` (data-dense screens).
+
+## Verification (clean local clone of main c30e289 + this branch, Cowork Linux VM, Node v24)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS |
+| typecheck / lint / build | PASS / PASS / PASS |
+| vitest | PASS — 83/83 (13 files; was 65/65 on main) |
+| Production build excludes dev identity (`itp-erp:dev-identity` not in dist) | PASS |
+| Visual check (Playwright/Chromium on the built app: desktop collapsed, tooltip, hover peek, pinned, dark, tablet touch, mobile, mobile drawer) | matches approved Figma |
+
+New tests cover: hover open delay / close grace / pass-over, pin + collapse persistence, keyboard open + Esc focus return, focus-leave close, touch modal peek (scrim, inert content, focus), mobile drawer (open/close paths, focus return ordering, breakpoint reset), group collapse persistence, corrupt stored prefs, breadcrumb, theme default/override/persistence/invalid value.
+
+## Deliberate deviations from the Figma (Frontend Contract Discipline)
+
+- **Branch switcher and user menu are not rendered.** The backend has no real session/auth and no branch-name endpoint; showing "Main branch"/"Owner" would invent capabilities. The DEV-only identity switch remains in the header (stripped from production builds). Backend contract gap recorded here.
+- Logo is still a placeholder square until the official logo file is supplied (to be used unchanged).
+
+## Known gaps / notes
+
+- Inter is not bundled (no new dependency added); the system font is used where Inter isn't installed. Bundling needs an approved dependency or a self-hosted font file.
+- Colour sources outside this branch are now stale: Figma collection "Ideal Tasty Point / Colors — Midnight Teal" and the Cowork Design System artifact (navy `#1e3a5c`, Source Serif/Sans). Figma "ITP / Theme" + this token file are the approved values; reconcile the other two in a separate step.
+- Rail links do not scroll: fine for the current 6 modules; move tooltips to a portal before adding overflow when modules grow.
+
+## Next recommended action
+
+Independent review of `feat/ui-shell-v2` (Codex, or a fresh QA/Testing subagent while Codex is paused), then owner decision on push and merge. Push needs the owner's Windows machine (Cowork VM has no GitHub credentials).
+
+---
+
+## Previous handoff — S05-MERGE-001 (Inventory S-05 Goods Receiving Merged to Main)
 
 Date: 2026-09-27. Branch: main. Merged from: feat/inv-s05-goods-receiving (HEAD 6e81f32 = application code 0210db7 + the S05-VERIFY-001 documentation commit).
 Authority: explicit owner approval in the Cowork Manager session ("Haan, tum merge karo"), following S05-VERIFY-001: Windows/Docker PostgreSQL verification (unit 355/355, integration 87/87) and independent QA/Testing subagent verdict PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR / 2 NOTE (process-only, no fix needed). Same-provider review limitation applies (Codex/Antigravity paused).

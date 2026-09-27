@@ -31,7 +31,7 @@ export function Modal({ open, title, onClose, children, footer }: ModalProps) {
         if (event.target === dialogRef.current) onClose();
       }}
       aria-labelledby={titleId}
-      className="m-auto w-full max-w-md rounded-card border border-line bg-canvas p-0 shadow-modal backdrop:bg-slate-900/40"
+      className="m-auto w-full max-w-md rounded-card border border-line bg-canvas p-0 shadow-modal backdrop:bg-overlay"
     >
       <div onClick={event => event.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
