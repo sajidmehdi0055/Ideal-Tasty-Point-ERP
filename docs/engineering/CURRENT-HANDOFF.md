@@ -1,4 +1,38 @@
-# Current Handoff — S07-IMPL-001 (Inventory S-07 Stock Transfer — Implementation)
+# Current Handoff — S07-VERIFY-001 (Stock Transfer — Windows/Docker Verification, Branch Push)
+
+Date: 2026-09-27. Branch: feat/inventory-s07-stock-transfer (base: main @ a6660e5; verified HEAD 6e5dead — this record adds only this documentation entry on top). Status: implemented + independently QA-reviewed in the Cowork Linux VM (S07-QA-001/S07-FIX-001, PASS) + now also verified on the owner's Windows/Docker environment. Push to origin authorized and performed by this record. **NOT merged to main** — merge requires a separate owner approval.
+Authority: owner explicitly authorized (a) verification in a new isolated worktree (`Ideal-Tasty-Point-ERP-s07-verify`), (b) one docs-only record commit on this branch, (c) a plain push of this branch — withholding merge-to-main, force-push, rebase/reset/clean, deletion, `erp_local` access and process management.
+
+## Pre-checks
+
+After `git fetch origin`: main == origin/main == a6660e5; local `feat/inventory-s07-stock-transfer` == 6e5dead (no remote ref yet).
+
+## Real-environment verification (Windows 11, Node v24.18.1, npm 11.16.0, Docker 29.8.0, PostgreSQL 17.11 in the existing `ideal-tasty-point-s01-dev-postgres-1` container, dedicated `erp_test` database — `erp_local` never touched)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS — 221 packages, 0 vulnerabilities |
+| typecheck | PASS (exit 0) |
+| lint | PASS (exit 0) |
+| build | PASS (exit 0) |
+| test:unit | PASS — 440/440 (10 files) |
+| test:integration | PASS — 107/107 (7 files), real authoritative migrate CLI + shipped runtime grants |
+
+Pass counts match the Cowork VM results. The integration harness creates a fresh unique schema per run, so the S-07 migration ran in its final (post-S07-FIX-001) form — this satisfies the S07-QA-001 re-review NOTE about the in-place migration edit.
+
+**Environment note:** the container was already running and `healthy` (no `docker start` needed; nothing recreated). The pre-existing `backend/tmp/demo-server.ts` process (port 3000) was not touched. No EPERM/locking issue occurred.
+
+## Push
+
+Plain (non-force) `git push -u origin feat/inventory-s07-stock-transfer` (new remote branch). The pushed head is this record commit; see the VS Code session report for the post-push `git fetch` confirmation that origin == local.
+
+## Next recommended action
+
+Owner merge decision (separate approval). Re-verify with a fresh `git fetch`/`git status` immediately before merging.
+
+---
+
+## Previous handoff — S07-IMPL-001 (Inventory S-07 Stock Transfer — Implementation)
 
 Date: 2026-09-27. Branch: feat/inventory-s07-stock-transfer (base: main @ a6660e5). Status: implemented and tested in the Cowork Linux VM; independent QA review S07-QA-001 PASS (0 BLOCKER / 0 MAJOR / 2 MINOR / 3 NOTE) — all five addressed in S07-FIX-001; focused re-review of the fix PASS (0 new BLOCKER/MAJOR/MINOR, 1 NOTE); **NOT pushed; NOT merged.**
 Authority: owner decisions 2026-09-27 recorded in `docs/decisions/ADR-0011-s07-stock-transfer.md` (slice choice; two-step send → receive; short receipt = variance with mandatory reason; Base UOM; cancel with reason only before receipt). Technical design by the Manager within those decisions; DEFAULT / ASSUMED A-01..A-08 (owner may revise).
