@@ -15,8 +15,10 @@ import type { StockLocation } from '../../src/inventory/domain/stock-location.js
 import type { StockMovement } from '../../src/inventory/domain/stock.js';
 import type { GoodsReceiptRepository } from '../../src/inventory/application/goods-receipt-repository.js';
 import type { PurchaseOrderRepository } from '../../src/inventory/application/purchase-order-repository.js';
+import type { StockTransferRepository } from '../../src/inventory/application/stock-transfer-repository.js';
 const unusedGoodsReceiptRepository: GoodsReceiptRepository = { create: vi.fn(), list: vi.fn(), get: vi.fn() };
 const unusedPurchaseOrderRepository: PurchaseOrderRepository = { create: vi.fn(), update: vi.fn(), cancel: vi.fn(), close: vi.fn(), list: vi.fn(), get: vi.fn() };
+const unusedStockTransferRepository: StockTransferRepository = { send: vi.fn(), receive: vi.fn(), cancel: vi.fn(), list: vi.fn(), get: vi.fn() };
 
 const locationId = 'a1a1a1a1-1111-4111-8111-111111111111';
 const parentId = 'b2b2b2b2-2222-4222-8222-222222222222';
@@ -58,7 +60,7 @@ function setup(auth: AuthContext | null = owner) {
     repository: unusedItemRepository, uomRepository: unusedUomRepository,
     brandRepository: unusedBrandRepository, packVariantRepository: unusedPackVariantRepository,
     supplierRepository: unusedSupplierRepository, purchaseRecordRepository: unusedPurchaseRecordRepository,
-    stockLocationRepository: locations, stockRepository: stock, goodsReceiptRepository: unusedGoodsReceiptRepository, purchaseOrderRepository: unusedPurchaseOrderRepository, authProvider: async () => auth,
+    stockLocationRepository: locations, stockRepository: stock, goodsReceiptRepository: unusedGoodsReceiptRepository, purchaseOrderRepository: unusedPurchaseOrderRepository, stockTransferRepository: unusedStockTransferRepository, authProvider: async () => auth,
   });
   apps.push(app); return { app, locations, stock };
 }

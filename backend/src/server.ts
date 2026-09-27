@@ -12,6 +12,7 @@ import { PgStockLocationRepository } from './inventory/persistence/pg-stock-loca
 import { PgStockRepository } from './inventory/persistence/pg-stock-repository.js';
 import { PgGoodsReceiptRepository } from './inventory/persistence/pg-goods-receipt-repository.js';
 import { PgPurchaseOrderRepository } from './inventory/persistence/pg-purchase-order-repository.js';
+import { PgStockTransferRepository } from './inventory/persistence/pg-stock-transfer-repository.js';
 
 const env = z.object({ DATABASE_URL: z.string().min(1), PORT: z.coerce.number().int().min(1).max(65535).default(3000) }).parse(process.env);
 const pool = new Pool({ connectionString: env.DATABASE_URL });
@@ -28,6 +29,7 @@ const app = buildApp({
   stockRepository: new PgStockRepository(pool),
   goodsReceiptRepository: new PgGoodsReceiptRepository(pool),
   purchaseOrderRepository: new PgPurchaseOrderRepository(pool),
+  stockTransferRepository: new PgStockTransferRepository(pool),
 });
 app.addHook('onClose', async () => { await pool.end(); });
 for (const signal of ['SIGINT', 'SIGTERM'] as const) process.once(signal, () => { void app.close(); });

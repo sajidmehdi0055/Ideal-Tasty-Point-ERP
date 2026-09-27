@@ -1,4 +1,36 @@
-# Current Handoff — S06-MERGE-001 (Inventory S-06 Purchase Order Merged to Main)
+# Current Handoff — S07-IMPL-001 (Inventory S-07 Stock Transfer — Implementation)
+
+Date: 2026-09-27. Branch: feat/inventory-s07-stock-transfer (base: main @ a6660e5). Status: implemented and tested in the Cowork Linux VM; **independent QA review pending; NOT pushed; NOT merged.**
+Authority: owner decisions 2026-09-27 recorded in `docs/decisions/ADR-0011-s07-stock-transfer.md` (slice choice; two-step send → receive; short receipt = variance with mandatory reason; Base UOM; cancel with reason only before receipt). Technical design by the Manager within those decisions; DEFAULT / ASSUMED A-01..A-08 (owner may revise).
+
+## What changed
+
+- Migration `202609270003_inventory_s07_stock_transfer.sql` (additive): transfer ledger types, `stock_transfer`, `stock_transfer_line`, `stock_transfer_settlement`, `stock_transfer_audit`, `stock_transfer_no_seq`, guard/validation/deferred triggers, deactivation block for locations with pending transfers.
+- `scripts/runtime-grants.sql`: grants for the new tables and sequence (no DELETE/TRUNCATE; header UPDATE limited to status/reason/updated_at).
+- APIs: `POST/GET /api/inventory/transfers`, `GET /api/inventory/transfers/:id`, `POST .../:id/receive`, `POST .../:id/cancel`; location deactivation gains `409 LOCATION_HAS_PENDING_TRANSFERS`.
+- Docs: ADR-0011, `inventory-s07-implementation.md`, open-decisions update (B-04 partial), backend README (API + upgrade order).
+
+## Verification (Cowork VM, Node v24.21.0, embedded PostgreSQL 17.10)
+
+| Check | Result |
+|---|---|
+| npm ci | PASS — 221 packages |
+| typecheck / lint / build | PASS / PASS / PASS |
+| test:unit | PASS — 439/439 (10 files; 401 + 38 new) |
+| test:integration | PASS — 106/106 (7 files; 96 + 10 new), authoritative migrate CLI + shipped runtime grants |
+| Mutation checks | 4/4 caught (row lock, balance check, list branch filter, destination branch check) — see implementation doc |
+
+## Upgrade order (when applied to a real database)
+
+Stop the API → `npm run migrate` → re-run `scripts/runtime-grants.sql` → start the new build. Without the re-applied grants every transfer call fails with a permission error. S-04..S-07 migrations are NOT applied to `erp_local` (separate authorization).
+
+## Next recommended action
+
+Independent QA/Testing subagent review (separate clone), focused re-review of any fixes, then Windows/Docker verification + push by VS Code Claude, then owner merge decision.
+
+---
+
+## Previous handoff — S06-MERGE-001 (Inventory S-06 Purchase Order Merged to Main)
 
 Date: 2026-09-27. Branch: main. Merged from: feat/inventory-s06-purchase-order (HEAD 51fbf6c = application code/tests/docs 6391f93 + S06-QA-001 record 3459b8f + S06-VERIFY-001 record 51fbf6c).
 Authority: explicit owner approval in the Cowork Manager session ("Haan, merge karo"), following S06-QA-001 (independent QA/Testing subagent PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR / 5 NOTE, focused re-review of the docs fix PASS) and S06-VERIFY-001 (Windows/Docker PostgreSQL 17: unit 401/401, integration 96/96, branch pushed). Same-provider review limitation applies (Codex/Antigravity paused).

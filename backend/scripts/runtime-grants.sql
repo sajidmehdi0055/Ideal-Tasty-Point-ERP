@@ -65,3 +65,15 @@ GRANT UPDATE (supplier_id, order_date, status, status_reason, revision, updated_
 GRANT USAGE ON SEQUENCE purchase_order_no_seq TO :"runtime_role";
 GRANT INSERT (id, purchase_order_id, revision, line_no, item_id, brand_id, pack_variant_id, ordered_quantity, rate) ON purchase_order_line TO :"runtime_role";
 GRANT INSERT ON purchase_order_audit TO :"runtime_role";
+
+-- Stock transfers (ADR-0011): header status changes only as the guard trigger
+-- allows (SENT -> RECEIVED / CANCELLED); lines and settlements are
+-- insert-only; transfer_number comes from the sequence via trigger. Each
+-- send/receive/cancel also inserts stock_movement rows through the grants above.
+GRANT SELECT ON stock_transfer, stock_transfer_line, stock_transfer_settlement TO :"runtime_role";
+GRANT INSERT (id, from_location_id, to_location_id) ON stock_transfer TO :"runtime_role";
+GRANT UPDATE (status, status_reason, updated_at) ON stock_transfer TO :"runtime_role";
+GRANT USAGE ON SEQUENCE stock_transfer_no_seq TO :"runtime_role";
+GRANT INSERT (id, stock_transfer_id, line_no, item_id, sent_quantity, out_movement_id) ON stock_transfer_line TO :"runtime_role";
+GRANT INSERT (id, stock_transfer_line_id, kind, received_quantity, variance_quantity, variance_reason, movement_id) ON stock_transfer_settlement TO :"runtime_role";
+GRANT INSERT ON stock_transfer_audit TO :"runtime_role";
