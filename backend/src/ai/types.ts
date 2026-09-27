@@ -1,4 +1,4 @@
-/** Provider-neutral chat types (ADR-0011 D-01). Business modules never see provider formats. */
+/** Provider-neutral chat types (ADR-0012 D-01). Business modules never see provider formats. */
 export interface AiToolCall {
   id: string;
   name: string;

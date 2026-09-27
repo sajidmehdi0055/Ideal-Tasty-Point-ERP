@@ -13,8 +13,10 @@ import type { StockLocationRepository } from '../../src/inventory/application/st
 import type { StockRepository } from '../../src/inventory/application/stock-repository.js';
 import type { GoodsReceiptRepository } from '../../src/inventory/application/goods-receipt-repository.js';
 import type { PurchaseOrderRepository } from '../../src/inventory/application/purchase-order-repository.js';
+import type { StockTransferRepository } from '../../src/inventory/application/stock-transfer-repository.js';
 const unusedGoodsReceiptRepository: GoodsReceiptRepository = { create: vi.fn(), list: vi.fn(), get: vi.fn() };
 const unusedPurchaseOrderRepository: PurchaseOrderRepository = { create: vi.fn(), update: vi.fn(), cancel: vi.fn(), close: vi.fn(), list: vi.fn(), get: vi.fn() };
+const unusedStockTransferRepository: StockTransferRepository = { send: vi.fn(), receive: vi.fn(), cancel: vi.fn(), list: vi.fn(), get: vi.fn() };
 const unusedStockLocationRepository: StockLocationRepository = { create: vi.fn(), update: vi.fn(), list: vi.fn() };
 const unusedStockRepository: StockRepository = { createOpening: vi.fn(), createAdjustment: vi.fn(), listBalances: vi.fn(), listMovements: vi.fn() };
 
@@ -39,7 +41,7 @@ function setup(auth: AuthContext | null = owner, defaultProvider = false) {
   const app = buildApp({
     repository: unusedItemRepository, uomRepository: unusedUomRepository,
     brandRepository: unusedBrandRepository, packVariantRepository: unusedPackVariantRepository,
-    supplierRepository: repository, purchaseRecordRepository: unusedPurchaseRecordRepository, stockLocationRepository: unusedStockLocationRepository, stockRepository: unusedStockRepository, goodsReceiptRepository: unusedGoodsReceiptRepository, purchaseOrderRepository: unusedPurchaseOrderRepository,
+    supplierRepository: repository, purchaseRecordRepository: unusedPurchaseRecordRepository, stockLocationRepository: unusedStockLocationRepository, stockRepository: unusedStockRepository, goodsReceiptRepository: unusedGoodsReceiptRepository, purchaseOrderRepository: unusedPurchaseOrderRepository, stockTransferRepository: unusedStockTransferRepository,
     ...(defaultProvider ? {} : { authProvider: async () => auth }),
   });
   apps.push(app); return { app, repository };

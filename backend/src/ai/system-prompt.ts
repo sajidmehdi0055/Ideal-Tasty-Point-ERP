@@ -1,5 +1,5 @@
 /**
- * Central, versioned AI system instructions (ADR-0011 D-10). Change the text
+ * Central, versioned AI system instructions (ADR-0012 D-10). Change the text
  * only together with a new version string so audit rows show which prompt was used.
  */
 export const SYSTEM_PROMPT_VERSION = 'erp-ai-v1';

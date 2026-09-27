@@ -24,7 +24,7 @@ export interface InventoryToolServices {
 
 /**
  * Same rule as every Inventory/Purchasing endpoint today (OWNER or MANAGER):
- * reuses the existing guard instead of re-typing role lists (ADR-0011 D-04).
+ * reuses the existing guard instead of re-typing role lists (ADR-0012 D-04).
  * The services called below apply the guard and branch scoping again.
  */
 function inventoryReader(auth: AuthContext): boolean {
@@ -41,7 +41,7 @@ const searchSchema = z.string().trim().min(1).max(100).optional();
 
 /**
  * Presentation-only list shaping for the model: optional case-insensitive text
- * filter and a row limit. No business calculation happens here (ADR-0011 D-06).
+ * filter and a row limit. No business calculation happens here (ADR-0012 D-06).
  */
 function shape<T>(rows: T[], limit: number | undefined, text?: (row: T) => string, needle?: string) {
   const lowered = needle?.toLowerCase();
@@ -81,7 +81,7 @@ export function inventoryTools(services: InventoryToolServices): AiTool[] {
     }),
     readTool({
       name: 'inventory_get_stock_movements',
-      description: 'Stock ledger entries (OPENING, ADJUSTMENT, RECEIPT), newest first. Filter by item_id and/or location_id.',
+      description: 'Stock ledger entries (opening, adjustments, receipts, transfers out/in/returned), newest first. Filter by item_id and/or location_id.',
       mode: 'READ',
       input: z.object({ item_id: z.uuid().optional(), location_id: z.uuid().optional(), limit: limitSchema }).strict(),
       authorize: inventoryReader,

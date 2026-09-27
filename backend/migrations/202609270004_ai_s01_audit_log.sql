@@ -1,5 +1,5 @@
 -- Up Migration
--- AI-S01: append-only AI audit log (ADR-0011 D-07). Additive only: no existing
+-- AI-S01: append-only AI audit log (ADR-0012 D-07). Additive only: no existing
 -- table or row is changed. Stores who asked the AI, which provider/model and
 -- prompt version answered, which ERP tools were requested, the permission
 -- result, approval status and outcome. The user's message text and the model's

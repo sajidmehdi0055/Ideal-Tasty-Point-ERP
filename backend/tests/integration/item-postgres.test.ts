@@ -14,6 +14,7 @@ import { PgStockLocationRepository } from '../../src/inventory/persistence/pg-st
 import { PgStockRepository } from '../../src/inventory/persistence/pg-stock-repository.js';
 import { PgGoodsReceiptRepository } from '../../src/inventory/persistence/pg-goods-receipt-repository.js';
 import { PgPurchaseOrderRepository } from '../../src/inventory/persistence/pg-purchase-order-repository.js';
+import { PgStockTransferRepository } from '../../src/inventory/persistence/pg-stock-transfer-repository.js';
 import { applyRuntimeGrants } from './helpers/runtime-grants.js';
 import { runAuthoritativeMigrate } from './helpers/migrate-cli.js';
 
@@ -55,7 +56,7 @@ afterAll(async () => { await runtime.end(); await admin.end(); });
 function buildTestApp(auth: AuthContext) {
   return buildApp({
     repository, uomRepository, brandRepository, packVariantRepository,
-    supplierRepository, purchaseRecordRepository, stockLocationRepository, stockRepository, goodsReceiptRepository: new PgGoodsReceiptRepository(runtime), purchaseOrderRepository: new PgPurchaseOrderRepository(runtime), authProvider: async () => auth,
+    supplierRepository, purchaseRecordRepository, stockLocationRepository, stockRepository, goodsReceiptRepository: new PgGoodsReceiptRepository(runtime), purchaseOrderRepository: new PgPurchaseOrderRepository(runtime), stockTransferRepository: new PgStockTransferRepository(runtime), authProvider: async () => auth,
   });
 }
 
@@ -70,7 +71,8 @@ describe('S-01 real PostgreSQL migration and persistence', () => {
       '202609260001_inventory_s04_locations_opening_stock',
       '202609270001_inventory_s05_goods_receiving',
       '202609270002_inventory_s06_purchase_order',
-      '202609270003_ai_s01_audit_log',
+      '202609270003_inventory_s07_stock_transfer',
+      '202609270004_ai_s01_audit_log',
     ]);
     // Re-running the same authoritative command against an up-to-date schema
     // must be a genuine no-op: same migrations recorded, nothing duplicated.

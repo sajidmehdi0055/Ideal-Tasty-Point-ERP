@@ -1,4 +1,4 @@
-/** Per-user sliding one-minute window, in process memory (ADR-0011 D-09; single API process). */
+/** Per-user sliding one-minute window, in process memory (ADR-0012 D-09; single API process). */
 export class AiRateLimiter {
   private readonly hits = new Map<string, number[]>();
 

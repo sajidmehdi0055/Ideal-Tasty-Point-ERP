@@ -15,6 +15,7 @@ import type { StockLocationRepository } from '../../src/inventory/application/st
 import type { StockRepository } from '../../src/inventory/application/stock-repository.js';
 import type { GoodsReceiptRepository } from '../../src/inventory/application/goods-receipt-repository.js';
 import type { PurchaseOrderRepository } from '../../src/inventory/application/purchase-order-repository.js';
+import type { StockTransferRepository } from '../../src/inventory/application/stock-transfer-repository.js';
 import type { StockBalance } from '../../src/inventory/domain/stock.js';
 import { answer, callTool, FakeProvider, fakeFetch, MemoryAuditSink, testAiConfig } from '../helpers/ai-fakes.js';
 
@@ -47,6 +48,7 @@ function setup(options: { auth?: AuthContext | null; config?: AiConfigResult; pr
     stockRepository: stock,
     goodsReceiptRepository: { create: vi.fn(), list: vi.fn(), get: vi.fn() } satisfies GoodsReceiptRepository,
     purchaseOrderRepository: { create: vi.fn(), update: vi.fn(), cancel: vi.fn(), close: vi.fn(), list: vi.fn(), get: vi.fn() } satisfies PurchaseOrderRepository,
+    stockTransferRepository: { send: vi.fn(), receive: vi.fn(), cancel: vi.fn(), list: vi.fn(), get: vi.fn() } satisfies StockTransferRepository,
     authProvider: async () => (options.auth === undefined ? owner : options.auth),
     ...(options.config ? { ai: { config: options.config, auditSink: audit, providerFactory: options.providerFactory ?? (() => provider) } } : {}),
   });

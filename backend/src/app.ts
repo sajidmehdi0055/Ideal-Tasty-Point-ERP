@@ -32,6 +32,9 @@ import { registerGoodsReceiptRoutes } from './inventory/api/goods-receipt-routes
 import type { PurchaseOrderRepository } from './inventory/application/purchase-order-repository.js';
 import { PurchaseOrderService } from './inventory/application/purchase-order-service.js';
 import { registerPurchaseOrderRoutes } from './inventory/api/purchase-order-routes.js';
+import type { StockTransferRepository } from './inventory/application/stock-transfer-repository.js';
+import { StockTransferService } from './inventory/application/stock-transfer-service.js';
+import { registerStockTransferRoutes } from './inventory/api/stock-transfer-routes.js';
 import type { AiAppOptions } from './ai/module.js';
 import { createAiRuntime } from './ai/module.js';
 import { registerAiRoutes } from './ai/routes.js';
@@ -48,8 +51,9 @@ export interface AppOptions {
   stockRepository: StockRepository;
   goodsReceiptRepository: GoodsReceiptRepository;
   purchaseOrderRepository: PurchaseOrderRepository;
+  stockTransferRepository: StockTransferRepository;
   authProvider?: AuthContextProvider;
-  /** Optional AI layer (ADR-0011). Omitted or disabled → no effect on any ERP route. */
+  /** Optional AI layer (ADR-0012). Omitted or disabled → no effect on any ERP route. */
   ai?: AiAppOptions;
 }
 
@@ -79,6 +83,7 @@ export function buildApp(options: AppOptions) {
     stock: new StockService(options.stockRepository),
     goodsReceipts: new GoodsReceiptService(options.goodsReceiptRepository),
     purchaseOrders: new PurchaseOrderService(options.purchaseOrderRepository),
+    stockTransfers: new StockTransferService(options.stockTransferRepository),
   };
   registerItemRoutes(app, services.items, authProvider);
   registerUomRoutes(app, services.uoms, authProvider);
@@ -90,7 +95,8 @@ export function buildApp(options: AppOptions) {
   registerStockRoutes(app, services.stock, authProvider);
   registerGoodsReceiptRoutes(app, services.goodsReceipts, authProvider);
   registerPurchaseOrderRoutes(app, services.purchaseOrders, authProvider);
-  // AI tools reuse the very same service instances (ADR-0011 D-01/D-06).
+  registerStockTransferRoutes(app, services.stockTransfers, authProvider);
+  // AI tools reuse the very same service instances (ADR-0012 D-01/D-06).
   registerAiRoutes(app, createAiRuntime(options.ai, inventoryTools(services)), authProvider);
   return app;
 }

@@ -14,10 +14,11 @@ import { PgStockLocationRepository } from './inventory/persistence/pg-stock-loca
 import { PgStockRepository } from './inventory/persistence/pg-stock-repository.js';
 import { PgGoodsReceiptRepository } from './inventory/persistence/pg-goods-receipt-repository.js';
 import { PgPurchaseOrderRepository } from './inventory/persistence/pg-purchase-order-repository.js';
+import { PgStockTransferRepository } from './inventory/persistence/pg-stock-transfer-repository.js';
 
 const env = z.object({ DATABASE_URL: z.string().min(1), PORT: z.coerce.number().int().min(1).max(65535).default(3000) }).parse(process.env);
 const pool = new Pool({ connectionString: env.DATABASE_URL });
-// AI is optional (ADR-0011): disabled unless AI_ENABLED=true; a bad AI setting never stops the ERP.
+// AI is optional (ADR-0012): disabled unless AI_ENABLED=true; a bad AI setting never stops the ERP.
 const aiConfig = loadAiConfig(process.env);
 // No development header-to-role shortcut: standalone server denies writes until
 // a trusted AuthContext provider is integrated through buildApp's composition boundary.
@@ -32,6 +33,7 @@ const app = buildApp({
   stockRepository: new PgStockRepository(pool),
   goodsReceiptRepository: new PgGoodsReceiptRepository(pool),
   purchaseOrderRepository: new PgPurchaseOrderRepository(pool),
+  stockTransferRepository: new PgStockTransferRepository(pool),
   ai: { config: aiConfig, auditSink: new PgAiAuditSink(pool), logError: (details, message) => app.log.error(details, message) },
 });
 if (aiConfig.state === 'MISCONFIGURED') app.log.warn({ problems: aiConfig.problems }, 'AI is enabled but misconfigured; AI endpoints will answer 503');

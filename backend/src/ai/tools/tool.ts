@@ -4,7 +4,7 @@ import type { AiToolSpec } from '../types.js';
 
 export type AiToolMode = 'READ' | 'WRITE';
 
-/** Structured description of an action the AI proposes; never executed without explicit approval (ADR-0011 D-05). */
+/** Structured description of an action the AI proposes; never executed without explicit approval (ADR-0012 D-05). */
 export interface AiProposedAction {
   tool_name: string;
   action_type: string;
@@ -20,7 +20,7 @@ interface BaseTool<S extends z.ZodType> {
   input: S;
   /**
    * Server-side authorization. Must reuse the ERP's existing guards (no second
-   * permission system, ADR-0011 D-04). Returns false instead of throwing.
+   * permission system, ADR-0012 D-04). Returns false instead of throwing.
    */
   authorize(auth: AuthContext): boolean;
 }

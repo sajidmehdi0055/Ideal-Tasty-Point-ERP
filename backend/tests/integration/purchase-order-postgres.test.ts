@@ -13,6 +13,7 @@ import { PgStockLocationRepository } from '../../src/inventory/persistence/pg-st
 import { PgStockRepository } from '../../src/inventory/persistence/pg-stock-repository.js';
 import { PgGoodsReceiptRepository } from '../../src/inventory/persistence/pg-goods-receipt-repository.js';
 import { PgPurchaseOrderRepository } from '../../src/inventory/persistence/pg-purchase-order-repository.js';
+import { PgStockTransferRepository } from '../../src/inventory/persistence/pg-stock-transfer-repository.js';
 import type { PurchaseOrderLineInput } from '../../src/inventory/domain/purchase-order.js';
 import { applyRuntimeGrants } from './helpers/runtime-grants.js';
 import { runAuthoritativeMigrate } from './helpers/migrate-cli.js';
@@ -45,7 +46,7 @@ describe('S-06 Purchase Order (real PostgreSQL)', () => {
     return buildApp({
       repository: items, uomRepository: new PgUomRepository(runtime), brandRepository: brands, packVariantRepository: packs,
       supplierRepository: suppliers, purchaseRecordRepository: purchases, stockLocationRepository: locations,
-      stockRepository: stock, goodsReceiptRepository: receipts, purchaseOrderRepository: pos, authProvider: async () => auth,
+      stockRepository: stock, goodsReceiptRepository: receipts, purchaseOrderRepository: pos, stockTransferRepository: new PgStockTransferRepository(runtime), authProvider: async () => auth,
     });
   }
   type Product = Awaited<ReturnType<typeof product>>;

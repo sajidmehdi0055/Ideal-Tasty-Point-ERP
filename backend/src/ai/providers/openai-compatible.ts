@@ -5,7 +5,7 @@ import { AiProviderError } from '../types.js';
 import { joinUrl, parseArguments, postJson } from './http.js';
 
 /**
- * OpenAI Chat Completions compatible provider (ADR-0011 D-02). The same adapter
+ * OpenAI Chat Completions compatible provider (ADR-0012 D-02). The same adapter
  * serves a local model server (Ollama, LM Studio, llama.cpp server, vLLM...)
  * and OpenAI itself: only base URL, model and optional key differ.
  */

@@ -1,7 +1,8 @@
-# ADR-0011: AI-S01 — AI Foundation (Gateway, Providers, Read-only ERP Tools, Audit)
+# ADR-0012: AI-S01 — AI Foundation (Gateway, Providers, Read-only ERP Tools, Audit)
 
 Date: 2026-09-27
 Status: **APPROVED — owner decisions 2026-09-27** (answered in the Cowork Manager session for AI-S01; technical design by the Manager within those decisions)
+Numbering: drafted as ADR-0011 on the feature branch; renumbered to ADR-0012 when main (which meanwhile received ADR-0011 for S-07 Stock Transfer) was merged into the branch. The migration was likewise renamed `202609270004_ai_s01_audit_log` so it runs after S-07's `202609270003`.
 Scope: Cross-cutting AI layer. Makes the ERP structurally AI-ready without changing any existing business rule, API contract or table. Phase 1 only.
 
 ## Owner decisions (2026-09-27)

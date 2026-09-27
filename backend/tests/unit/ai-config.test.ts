@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { isOnPremisesUrl, loadAiConfig } from '../../src/ai/config.js';
 
-describe('AI configuration (ADR-0011)', () => {
+describe('AI configuration (ADR-0012)', () => {
   it('is DISABLED by default and ignores every other AI variable, even invalid ones', () => {
     expect(loadAiConfig({})).toEqual({ state: 'DISABLED' });
     expect(loadAiConfig({ AI_ENABLED: 'false', AI_PRIMARY_PROVIDER: 'nonsense', AI_REQUEST_TIMEOUT_MS: 'abc' })).toEqual({ state: 'DISABLED' });

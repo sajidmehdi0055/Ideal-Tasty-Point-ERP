@@ -13,6 +13,7 @@ import type { StockLocationRepository } from '../../src/inventory/application/st
 import type { StockRepository } from '../../src/inventory/application/stock-repository.js';
 import type { GoodsReceiptRepository } from '../../src/inventory/application/goods-receipt-repository.js';
 import type { PurchaseOrderRepository } from '../../src/inventory/application/purchase-order-repository.js';
+import type { StockTransferRepository } from '../../src/inventory/application/stock-transfer-repository.js';
 import type { PurchaseOrder } from '../../src/inventory/domain/purchase-order.js';
 
 const poId = 'b1b1b1b1-1111-4111-8111-111111111111';
@@ -44,6 +45,7 @@ const unused = {
   stockLocationRepository: { create: vi.fn(), update: vi.fn(), list: vi.fn() } satisfies StockLocationRepository,
   stockRepository: { createOpening: vi.fn(), createAdjustment: vi.fn(), listBalances: vi.fn(), listMovements: vi.fn() } satisfies StockRepository,
   goodsReceiptRepository: { create: vi.fn(), list: vi.fn(), get: vi.fn() } satisfies GoodsReceiptRepository,
+  stockTransferRepository: { send: vi.fn(), receive: vi.fn(), cancel: vi.fn(), list: vi.fn(), get: vi.fn() } satisfies StockTransferRepository,
 };
 
 function setup(auth: AuthContext | null = owner) {

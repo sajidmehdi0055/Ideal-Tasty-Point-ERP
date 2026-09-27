@@ -5,7 +5,7 @@ import { joinUrl, postJson } from './http.js';
 
 const ANTHROPIC_VERSION = '2023-06-01';
 
-/** Anthropic Messages API provider (ADR-0011 D-02). Cloud: usable only when AI_CLOUD_ENABLED=true. */
+/** Anthropic Messages API provider (ADR-0012 D-02). Cloud: usable only when AI_CLOUD_ENABLED=true. */
 export class AnthropicProvider implements AiProvider {
   constructor(
     public readonly name: string,

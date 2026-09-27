@@ -1,6 +1,6 @@
 # AI Architecture (AI-S01)
 
-Decision record: [ADR-0011](../decisions/ADR-0011-ai-s01-foundation.md). Code: `backend/src/ai/`.
+Decision record: [ADR-0012](../decisions/ADR-0012-ai-s01-foundation.md). Code: `backend/src/ai/`.
 
 The AI layer is optional. With `AI_ENABLED=false` (the default), or if AI is misconfigured or its model server is down, every ERP endpoint behaves exactly as before. The AI endpoints then answer `503`.
 
@@ -120,7 +120,7 @@ Errors: `400 VALIDATION_ERROR`, `401 UNAUTHENTICATED`, `403 AI_FORBIDDEN`, `429 
 
 ## 7. Audit
 
-Table `ai_audit_log` (migration `202609270003_ai_s01_audit_log.sql`): one `CHAT` row per chat request that reaches the gateway (also for requests refused with 403 `DENIED` / 429 `RATE_LIMITED`) and one `TOOL_CALL` row per acknowledged tool call (also denied, invalid, unknown and over-limit `TOOL_CALL_LIMIT` ones; more than 32 calls in one model turn are dropped and counted in `details.dropped_tool_calls`) with actor, role, branch, request/conversation id, provider, model, prompt version, tool name/mode, sanitized parameters (control characters such as NUL removed), permission result, approval status, outcome, error code, duration. Message text and model answers are not stored.
+Table `ai_audit_log` (migration `202609270004_ai_s01_audit_log.sql`): one `CHAT` row per chat request that reaches the gateway (also for requests refused with 403 `DENIED` / 429 `RATE_LIMITED`) and one `TOOL_CALL` row per acknowledged tool call (also denied, invalid, unknown and over-limit `TOOL_CALL_LIMIT` ones; more than 32 calls in one model turn are dropped and counted in `details.dropped_tool_calls`) with actor, role, branch, request/conversation id, provider, model, prompt version, tool name/mode, sanitized parameters (control characters such as NUL removed), permission result, approval status, outcome, error code, duration. Message text and model answers are not stored.
 
 Rows are append-only (triggers block UPDATE/DELETE/TRUNCATE for everyone); the runtime role has INSERT only. Review with an owner/admin connection, e.g.:
 

@@ -39,7 +39,7 @@ function setup(steps: ConstructorParameters<typeof FakeProvider>[0], config: Par
 
 const ask = (message = 'Mozzarella kitni hai?') => ({ message, history: [], conversationId: null });
 
-describe('AI gateway (ADR-0011)', () => {
+describe('AI gateway (ADR-0012)', () => {
   it('runs an authorized READ tool with the caller\'s AuthContext, feeds the result back and returns a structured answer', async () => {
     const s = setup([callTool('get_stock', { item_name_contains: 'mozz' }), answer('Mozzarella 12.5 kg hai.')]);
     const response = await s.gateway.chat(ask(), owner);

@@ -15,6 +15,7 @@ import { PgStockLocationRepository } from '../../src/inventory/persistence/pg-st
 import { PgStockRepository } from '../../src/inventory/persistence/pg-stock-repository.js';
 import { PgGoodsReceiptRepository } from '../../src/inventory/persistence/pg-goods-receipt-repository.js';
 import { PgPurchaseOrderRepository } from '../../src/inventory/persistence/pg-purchase-order-repository.js';
+import { PgStockTransferRepository } from '../../src/inventory/persistence/pg-stock-transfer-repository.js';
 import { answer, callTool, FakeProvider, testAiConfig } from '../helpers/ai-fakes.js';
 import { applyRuntimeGrants } from './helpers/runtime-grants.js';
 import { runAuthoritativeMigrate } from './helpers/migrate-cli.js';
@@ -42,6 +43,7 @@ describe('AI-S01 audit log and tools (real PostgreSQL)', () => {
       packVariantRepository: new PgPackVariantRepository(runtime), supplierRepository: new PgSupplierRepository(runtime),
       purchaseRecordRepository: new PgPurchaseRecordRepository(runtime), stockLocationRepository: locations, stockRepository: stock,
       goodsReceiptRepository: new PgGoodsReceiptRepository(runtime), purchaseOrderRepository: new PgPurchaseOrderRepository(runtime),
+      stockTransferRepository: new PgStockTransferRepository(runtime),
       authProvider: async () => auth,
       ai: { config: { state: 'READY', config: testAiConfig() }, auditSink: sink, providerFactory: () => provider },
     });

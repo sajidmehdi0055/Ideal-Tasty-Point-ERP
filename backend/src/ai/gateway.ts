@@ -21,7 +21,7 @@ export interface AiChatInput {
 
 export type AiToolCallStatus = 'SUCCESS' | 'DENIED' | 'INVALID' | 'UNKNOWN_TOOL' | 'ERROR' | 'PROPOSED';
 
-/** Structured response contract (ADR-0011 D-11). The UI never parses free text to detect approval. */
+/** Structured response contract (ADR-0012 D-11). The UI never parses free text to detect approval. */
 export interface AiChatResponse {
   message: string;
   provider: string;
@@ -81,7 +81,7 @@ export class AiGateway {
   }
 
   private assertAllowed(auth: AuthContext) {
-    // Users with no permitted ERP tool at all cannot use the assistant (ADR-0011 D-04).
+    // Users with no permitted ERP tool at all cannot use the assistant (ADR-0012 D-04).
     if (!this.isAvailableTo(auth)) throw new AppError(403, 'AI_FORBIDDEN', 'AI assistant is not available for your role');
     if (!this.limiter.allow(`${auth.branchId}\u0000${auth.userId}`)) {
       throw new AppError(429, 'AI_RATE_LIMITED', 'Too many AI requests. Please wait a minute and try again.');
@@ -216,7 +216,7 @@ export class AiGateway {
       await audit({ toolMode: null, toolParams: null, permissionResult: null, approvalStatus: null, outcome: 'UNKNOWN_TOOL', errorCode: 'UNKNOWN_TOOL' });
       return fail('UNKNOWN_TOOL', 'UNKNOWN_TOOL', 'No such tool. Use only the tools provided.', null);
     }
-    // Server-side permission check on every call, even for tools that were offered (ADR-0011 D-04).
+    // Server-side permission check on every call, even for tools that were offered (ADR-0012 D-04).
     if (!offered.has(call.name) || !safeAuthorize(known, auth)) {
       await audit({ toolMode: known.mode, toolParams: null, permissionResult: 'DENIED', approvalStatus: null, outcome: 'DENIED', errorCode: 'TOOL_NOT_PERMITTED' });
       return fail('DENIED', 'TOOL_NOT_PERMITTED', 'This tool is not available to the current user.', known.mode);
@@ -263,7 +263,7 @@ export class AiGateway {
     return JSON.stringify({ status: 'ok', note: `${TOOL_DATA_NOTE} Result too large and was cut; ask with filters or a smaller limit.`, partial_json: content.slice(0, max) });
   }
 
-  /** Audit is fail-closed (ADR-0011 D-07): no audit row, no answer. */
+  /** Audit is fail-closed (ADR-0012 D-07): no audit row, no answer. */
   private async writeAudit(entry: AiAuditEntry): Promise<void> {
     try {
       await this.deps.audit.record(entry);

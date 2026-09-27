@@ -24,7 +24,7 @@ const chatBodySchema = z.object({
 const statusQuerySchema = z.object({ check: z.enum(['true', 'false']).optional() }).strict();
 
 /**
- * AI endpoints (ADR-0011 D-11). Both require the same trusted AuthContext as
+ * AI endpoints (ADR-0012 D-11). Both require the same trusted AuthContext as
  * every other route. They exist even when AI is disabled so the UI gets a
  * clear, stable answer instead of a 404.
  */

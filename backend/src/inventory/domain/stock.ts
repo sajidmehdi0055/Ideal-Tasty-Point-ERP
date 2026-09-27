@@ -35,7 +35,7 @@ export const stockQuerySchema = z.object({
 export type OpeningStockInput = z.infer<typeof openingStockInputSchema>;
 export type StockAdjustmentInput = z.infer<typeof stockAdjustmentInputSchema>;
 export type StockQuery = z.infer<typeof stockQuerySchema>;
-export const STOCK_MOVEMENT_TYPES = ['OPENING', 'ADJUSTMENT'] as const;
+export const STOCK_MOVEMENT_TYPES = ['OPENING', 'ADJUSTMENT', 'RECEIPT', 'TRANSFER_OUT', 'TRANSFER_IN', 'TRANSFER_RETURN'] as const;
 
 export interface StockMovement {
   id: string;

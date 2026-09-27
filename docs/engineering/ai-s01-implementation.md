@@ -1,6 +1,6 @@
 # AI-S01 — AI Foundation: implementation traceability
 
-Branch: `feat/ai-s01-foundation` (from main `a6660e5`). Decision: [ADR-0011](../decisions/ADR-0011-ai-s01-foundation.md). Architecture guide: [AI_ARCHITECTURE.md](../architecture/AI_ARCHITECTURE.md).
+Branch: `feat/ai-s01-foundation` (from main `a6660e5`; main `ec7833d` with S-07 merged into the branch in AI-S01-SYNC-001: ADR renumbered 0011 → 0012, migration renamed to `202609270004_ai_s01_audit_log`, shared files `app.ts`/`server.ts`/`runtime-grants.sql`/tests/READMEs/handoff reconciled). Decision: [ADR-0012](../decisions/ADR-0012-ai-s01-foundation.md). Architecture guide: [AI_ARCHITECTURE.md](../architecture/AI_ARCHITECTURE.md).
 
 ## Owner decisions
 
@@ -10,10 +10,10 @@ Branch: `feat/ai-s01-foundation` (from main `a6660e5`). Decision: [ADR-0011](../
 ## Files
 
 - New: `backend/src/ai/` — `config.ts`, `types.ts`, `providers/{http,openai-compatible,anthropic,factory}.ts`, `tools/{tool,inventory-tools}.ts`, `gateway.ts`, `routes.ts`, `module.ts`, `audit.ts`, `rate-limit.ts`, `system-prompt.ts`, `knowledge.ts`.
-- New migration: `backend/migrations/202609270003_ai_s01_audit_log.sql` (additive; down migration refuses).
+- New migration: `backend/migrations/202609270004_ai_s01_audit_log.sql` (additive; down migration refuses).
 - Changed: `backend/src/app.ts` (services built once and shared with AI tools; optional `ai` option; AI routes), `backend/src/server.ts` (loads AI config, Pg audit sink), `backend/src/auth/context.ts` (additive `requireAuthenticated`), `backend/scripts/runtime-grants.sql` (INSERT on `ai_audit_log`), `backend/.env.example` (placeholders only).
 - Tests: `tests/helpers/ai-fakes.ts`; unit `ai-config`, `ai-providers`, `ai-gateway`, `ai-api`, `ai-inventory-tools`; integration `ai-postgres`; migration-list assertions in `item-postgres` and `uom-brand-pack-postgres` extended by the new migration.
-- Docs: ADR-0011, AI_ARCHITECTURE.md, this file, backend/README.md, root README.md, CURRENT-HANDOFF.md.
+- Docs: ADR-0012, AI_ARCHITECTURE.md, this file, backend/README.md, root README.md, CURRENT-HANDOFF.md.
 
 ## Requirement → evidence
 
@@ -56,6 +56,10 @@ Verdict FAIL (0 BLOCKER, 1 MAJOR, 6 MINOR, 4 NOTE); all test claims reproduced (
 
 AI-S01-QA-002 (focused re-review of the fixes): all findings FIXED except MINOR-4 PARTIAL → new N-1 (lone UTF-16 surrogates break jsonb audit insert); verdict PASS. N-1 fixed in FIX-002 (`cleanAuditText` replaces lone surrogates with U+FFFD after length capping; unit + PG tests); N-3 doc wording fixed; N-2 noted (migration edited while unmerged and never applied to a persistent DB — if any kept test schema applied the earlier version, recreate it).
 
+## After sync with main ec7833d (AI-S01-SYNC-001)
+
+typecheck/lint/build PASS, unit 520/520, integration 112/112.
+
 ## Deferred
 
-Write tools + approval storage (AI-S02), frontend AI Assistant screen (Figma proposal first), persisted conversations, complexity-based cloud routing, shared rate limiter for multi-process deployment, RAG tools, tools for modules that do not exist yet.
+Write tools + approval storage (AI-S02), frontend AI Assistant screen (Figma proposal first), persisted conversations, complexity-based cloud routing, shared rate limiter for multi-process deployment, RAG tools, stock-transfer AI tools (S-07 landed after AI-S01 was scoped), tools for modules that do not exist yet.

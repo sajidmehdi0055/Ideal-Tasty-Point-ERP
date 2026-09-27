@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * AI configuration (ADR-0011). Everything is OFF by default. When AI_ENABLED is
+ * AI configuration (ADR-0012). Everything is OFF by default. When AI_ENABLED is
  * not "true" nothing else is read or validated, so a missing or wrong AI setting
  * can never stop the ERP from starting.
  */

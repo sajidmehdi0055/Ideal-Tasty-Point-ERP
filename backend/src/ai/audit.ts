@@ -6,7 +6,7 @@ export type AiAuditEventType = 'CHAT' | 'TOOL_CALL';
 export type AiAuditOutcome =
   | 'SUCCESS' | 'ERROR' | 'DENIED' | 'INVALID' | 'UNKNOWN_TOOL' | 'PROPOSED' | 'PROVIDER_ERROR' | 'LIMIT_REACHED' | 'RATE_LIMITED';
 
-/** One immutable AI audit row (ADR-0011 D-07). Never contains prompt text, model answers or secrets. */
+/** One immutable AI audit row (ADR-0012 D-07). Never contains prompt text, model answers or secrets. */
 export interface AiAuditEntry {
   requestId: string;
   conversationId: string | null;
