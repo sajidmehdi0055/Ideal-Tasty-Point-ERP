@@ -1,4 +1,51 @@
-# Current Handoff — S06-VERIFY-001 (Purchase Order — Windows/Docker Verification, Branch Push)
+# Current Handoff — S06-MERGE-001 (Inventory S-06 Purchase Order Merged to Main)
+
+Date: 2026-09-27. Branch: main. Merged from: feat/inventory-s06-purchase-order (HEAD 51fbf6c = application code/tests/docs 6391f93 + S06-QA-001 record 3459b8f + S06-VERIFY-001 record 51fbf6c).
+Authority: explicit owner approval in the Cowork Manager session ("Haan, merge karo"), following S06-QA-001 (independent QA/Testing subagent PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR / 5 NOTE, focused re-review of the docs fix PASS) and S06-VERIFY-001 (Windows/Docker PostgreSQL 17: unit 401/401, integration 96/96, branch pushed). Same-provider review limitation applies (Codex/Antigravity paused).
+Roles: Cowork Manager session = implementation (S06-IMPL-001), QA coordination (S06-QA-001), this merge, post-merge verification and this record. VS Code Claude Code session = Windows/Docker verification and branch push (S06-VERIFY-001).
+
+## Pre-merge checks (executed, not assumed)
+
+- `git fetch origin`: origin/feat/inventory-s06-purchase-order == local == 51fbf6c; main == origin/main == c30e289; main is an ancestor of the branch (fast-forward possible).
+- Changes after the QA-reviewed code (6391f93..51fbf6c): documentation only (`backend/README.md` upgrade order, `CURRENT-HANDOFF.md` records) — no code, migration, grant or test change.
+- Main worktree: `main` checked out, tracked tree clean (only the long-standing untracked files: 00-PROJECT-MASTER.md, "Claude outputs/", backend/tmp/).
+- A stale 0-byte `.git/index.lock` dated 2026-09-26 20:16 UTC (older than this session) would have blocked the merge; removed after the owner granted delete permission on the repo folder (delete probe confirmed first).
+
+## Merge
+
+- Previous main HEAD: c30e289. Merge type: fast-forward (`git merge --ff-only feat/inventory-s06-purchase-order`) on the checked-out main (no branch switch). New main HEAD (merge): 51fbf6c; `git diff HEAD feat/inventory-s06-purchase-order` empty.
+- Feature branch preserved (local and origin).
+- Push of main: from the owner's Windows machine (the Cowork VM has no GitHub credentials).
+
+## Post-merge verification (fresh clone of merged main 51fbf6c, Cowork Linux VM, Node v24.21.0, embedded PostgreSQL 17.10)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS — 221 packages |
+| typecheck / lint / build | PASS / PASS / PASS |
+| test:unit | PASS — 401/401 (9 files) |
+| test:integration | PASS — 96/96 (6 files), authoritative migrate CLI + shipped runtime grants |
+| frontend/ diff vs c30e289 | none |
+
+## Correction to S06-VERIFY-001 (wording only)
+
+Its Push paragraph says local and remote "resolve to `3459b8f`" and calls the branch "4-commit-ahead". The pushed branch head is the record commit itself, **51fbf6c**, 5 commits ahead of c30e289 (verified: origin/feat/inventory-s06-purchase-order == 51fbf6c, and 3459b8f..51fbf6c changes only `CURRENT-HANDOFF.md`). The VS Code session's own report stated 51fbf6c correctly.
+
+## Status
+
+S-06 is on main: implementation + tests + independent QA (PASS) + Windows/Docker verification + owner-approved merge + post-merge verification. Root README status updated. Migrations S-04, S-05 and S-06 are NOT applied to the operational database `erp_local` (separate authorization). When they are: stop the API → `npm run migrate` → re-run `scripts/runtime-grants.sql` → start the new build (S06-QA-001 NOTE 1; `backend/README.md`).
+
+## Carried forward
+
+S06-QA-001 NOTEs 2–5 (year-0000 date → 500 in the shared date helper; optional commit-time DB hardening; A-02 effect on edits after supplier deactivation; CLOSE only after a receipt) and ADR-0010 DEFAULT / ASSUMED A-01..A-07 (owner may revise). No Purchase Order or receiving UI yet. Earlier gaps unchanged: no expiry capture (B-07); standalone S-03 purchase endpoint checks "future" in UTC.
+
+## Next recommended action
+
+Owner pushes main (`c30e289..51fbf6c` + this record). Next slice only when the owner asks, in its own chat.
+
+---
+
+## Previous handoff — S06-VERIFY-001 (Purchase Order — Windows/Docker Verification, Branch Push)
 
 Date: 2026-09-27. Branch: feat/inventory-s06-purchase-order (base: main @ c30e289; HEAD unchanged at 3459b8f — this record adds only this documentation entry on top). Status: implemented + independently QA-reviewed in the Cowork Linux VM (S06-QA-001, PASS) + now also verified on the owner's real Windows/Docker environment. Push to origin authorized and performed by this record. **NOT merged to main** — merge requires a separate, further owner approval.
 Authority: owner decisions recorded in `docs/decisions/ADR-0010-s06-purchase-order.md`. This record: owner explicitly authorized (a) verification in a new isolated worktree, (b) one docs-only record commit on this branch, (c) a plain push of this feature branch — explicitly withholding merge-to-main, force-push, rebase/reset/clean, deletion, and any operational-database or process-management authorization.
