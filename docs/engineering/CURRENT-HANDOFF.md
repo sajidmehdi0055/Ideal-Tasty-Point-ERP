@@ -1,6 +1,6 @@
 # Current Handoff — S07-IMPL-001 (Inventory S-07 Stock Transfer — Implementation)
 
-Date: 2026-09-27. Branch: feat/inventory-s07-stock-transfer (base: main @ a6660e5). Status: implemented and tested in the Cowork Linux VM; independent QA review S07-QA-001 PASS (0 BLOCKER / 0 MAJOR / 2 MINOR / 3 NOTE) — all five addressed in S07-FIX-001, focused re-review pending; **NOT pushed; NOT merged.**
+Date: 2026-09-27. Branch: feat/inventory-s07-stock-transfer (base: main @ a6660e5). Status: implemented and tested in the Cowork Linux VM; independent QA review S07-QA-001 PASS (0 BLOCKER / 0 MAJOR / 2 MINOR / 3 NOTE) — all five addressed in S07-FIX-001; focused re-review of the fix PASS (0 new BLOCKER/MAJOR/MINOR, 1 NOTE); **NOT pushed; NOT merged.**
 Authority: owner decisions 2026-09-27 recorded in `docs/decisions/ADR-0011-s07-stock-transfer.md` (slice choice; two-step send → receive; short receipt = variance with mandatory reason; Base UOM; cancel with reason only before receipt). Technical design by the Manager within those decisions; DEFAULT / ASSUMED A-01..A-08 (owner may revise).
 
 ## What changed
@@ -27,13 +27,16 @@ Authority: owner decisions 2026-09-27 recorded in `docs/decisions/ADR-0011-s07-s
 - MINOR-2: mutations M8/M12/M16 not caught → tests added; all three now caught.
 - NOTE-1 (send balance query scanned the whole location) → filtered by item; NOTE-2 (uppercase UUIDs → 404) → ids lowercased in zod + unit test; NOTE-3 (savepoint caveat of the `xmin` check) → documented in the migration.
 
+- Focused re-review (same QA subagent, own clone, fix commit): typecheck/lint/build PASS, unit 440/440, integration 107/107; half-settled probe now refused at commit; M8/M12/M16 and a new M17 caught; NOTE fixes verified. New NOTE: the fix edited the unmerged S-07 migration in place, so any database that ran the first version (304a880) would miss the new rule — Windows/Docker verification must use a fresh schema/database (the test harness creates a unique schema per run).
+- Limitation: QA is a same-provider (Claude) subagent, weaker independence than an external reviewer (Codex/Antigravity paused).
+
 ## Upgrade order (when applied to a real database)
 
 Stop the API → `npm run migrate` → re-run `scripts/runtime-grants.sql` → start the new build. Without the re-applied grants every transfer call fails with a permission error. S-04..S-07 migrations are NOT applied to `erp_local` (separate authorization).
 
 ## Next recommended action
 
-Focused re-review of S07-FIX-001, then Windows/Docker verification + push by VS Code Claude, then owner merge decision.
+Windows/Docker verification + push by VS Code Claude, then owner merge decision.
 
 ---
 
