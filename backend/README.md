@@ -1,4 +1,4 @@
-# Inventory S-01/S-02/S-03/S-04/S-05/S-06 backend
+# Inventory S-01/S-02/S-03/S-04/S-05/S-06 backend + AI-S01
 
 Item Master create/edit (S-01), UOM/Brand/Pack Variant Masters (S-02), Supplier Master + Purchase Record + Rate Comparison (S-03), Stock Locations + Opening Stock + balances (S-04, quantity-only, ADR-0008), direct Goods Receiving (S-05, ADR-0009) and Purchase Orders with optional receipt link (S-06, ADR-0010) are implemented. No login/session system, Redis, issue/transfer/counts, Supplier Ledger/Payments, or costing/valuation.
 
@@ -185,3 +185,7 @@ The ledger (`stock_movement`) is append-only: no edit/delete route, no runtime U
 - Receiving against a PO: `purchase_order_id` + per-line `purchase_order_line_id` (same item/brand/pack variant; `400 PO_LINE_MISMATCH`), same supplier (`400 PO_SUPPLIER_MISMATCH`), PO open (`409 PO_NOT_OPEN`), receipt date not before the order date (`409 RECEIPT_BEFORE_ORDER`). Partial and excess receipts are allowed; the PO becomes `PARTIALLY_RECEIVED`, or `RECEIVED` automatically once every line is fully received.
 - No delete route; lines and audit are immutable; a guard trigger enforces the lifecycle even for the schema owner. Every create/edit/receipt/cancel/close writes a `purchase_order_audit` row with before/after snapshots.
 
+
+### AI layer (AI-S01, ADR-0011)
+
+Optional and OFF by default (`AI_ENABLED=false`). `GET /api/ai/status`, `POST /api/ai/chat` (authenticated; 503 while disabled). Ten read-only Inventory/Purchasing tools over the existing services, local OpenAI-compatible model first, cloud providers only with `AI_CLOUD_ENABLED=true`, append-only `ai_audit_log` (runtime role: INSERT only). Configuration, tools, limits and how to extend: [docs/architecture/AI_ARCHITECTURE.md](../docs/architecture/AI_ARCHITECTURE.md). After applying migration `202609270003_ai_s01_audit_log`, re-run `scripts/runtime-grants.sql` as usual.
