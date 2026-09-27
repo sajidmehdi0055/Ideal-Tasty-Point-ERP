@@ -1,4 +1,4 @@
-# Current Handoff — AI-S01-FIX-002 (AI Foundation, QA corrections on feature branch)
+# Current Handoff — AI-S01-QA-003 (AI Foundation — independent QA PASS, on feature branch)
 
 Date: 2026-09-27. Branch: `feat/ai-s01-foundation` (from main `a6660e5`). NOT merged. Main is unchanged at `a6660e5` (S-06 merged and pushed; the S06-MERGE-001 record is in main's history).
 Authority: owner request in the Cowork Manager session to make the ERP AI-ready; owner decisions AI-O-01 (Phase 1 read-only + audit) and AI-O-02 (cloud providers built, OFF by default), recorded in ADR-0011.
@@ -12,14 +12,14 @@ Optional AI layer, OFF by default: provider abstraction (OpenAI-compatible adapt
 - AI-S01-QA-001 (independent QA/Testing subagent, no implementation involvement): reproduced 458/458 unit, 100/100 integration; verdict FAIL — 0 BLOCKER, 1 MAJOR (this file's history had been removed), 6 MINOR, 4 NOTE. Same-provider review limitation applies (Codex/Antigravity paused).
 - AI-S01-FIX-001: all findings addressed (table in `docs/engineering/ai-s01-implementation.md`). Implementer run after fixes (Cowork VM, Node 24.21.0, embedded PostgreSQL 17.10): typecheck/lint/build PASS; unit 481/481; integration 101/101.
 - AI-S01-QA-002 (focused independent re-review of FIX-001): reproduced 481/101; verdict PASS — one remaining MINOR (N-1 lone-surrogate audit insert) and 2 NOTEs.
-- AI-S01-FIX-002: N-1 and the doc NOTE fixed; unit 481/481, integration 101/101. Confirmation of FIX-002 by the QA agent: see next commit/record.
+- AI-S01-FIX-002: N-1 and the doc NOTE fixed; unit 481/481, integration 101/101.
+- AI-S01-QA-003 (focused check of FIX-002 `d1762a0`): typecheck/lint PASS, unit 481/481, integration 101/101; N-1 FIXED, N-3 FIXED, no new issue; verdict **PASS — ready for controlled merge**. Open: N-2 NOTE only.
 
 ## Next steps
 
-1. QA confirmation of AI-S01-FIX-002 (one-line fix + tests).
-2. Owner: push the branch; Windows/Docker PostgreSQL 17 verification.
-3. Owner-approved merge; post-merge verification.
-4. Migration `202609270003_ai_s01_audit_log` is not applied to `erp_local`; when authorized: stop API → `npm run migrate` → re-run `scripts/runtime-grants.sql` → start.
+1. Owner: push the branch; Windows/Docker PostgreSQL 17 verification (AI-S01-VERIFY-001).
+2. Owner-approved merge; post-merge verification.
+3. Migration `202609270003_ai_s01_audit_log` is not applied to `erp_local`; when authorized: stop API → `npm run migrate` → re-run `scripts/runtime-grants.sql` → start.
 
 ## Carried forward (unchanged)
 
