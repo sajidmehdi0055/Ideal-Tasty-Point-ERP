@@ -40,6 +40,8 @@ New tests cover: hover open delay / close grace / pass-over, pin + collapse pers
 Reviewer: fresh in-house QA/Code-review subagent with no part in the implementation, own clone, own runs (Codex/Antigravity paused — same-provider substitute, not equivalent to an external reviewer; recorded per AGENTS.md so the owner can weigh it).
 Result on 7cfd43c: **PASS — 0 BLOCKER, 0 MAJOR, 4 MINOR, 6 NOTE.** npm ci, typecheck, lint, 83/83 tests, build, dev-identity-stripped check all reproduced; token parity Light/Dark (42 vars each), no legacy token removed; mutation checks confirmed tests are meaningful.
 
+Re-verification of the fix commit 4cba3b7 by the same reviewer (own clone, own runs): tsc/eslint/build PASS, **88/88** tests, dev identity stripped; all 4 MINOR probes now behave correctly; mutation checks confirm the new tests catch each regression. **Verdict on the final commit: PASS — ready for controlled merge**, 0 new MINOR/MAJOR. New NOTEs (informational): (A) a touch modal peek dropped by a touch→mouse device change leaves focus on <body>; (B) a theoretical sub-frame window between the layout-change render and the timer-clearing effect.
+
 MINORs (all fixed on this branch, each with a regression test that fails on the pre-fix code):
 1. Stale hover flag after pin-from-peek → collapse kept a keyboard-opened peek open on focus-out. Fixed: hover flag reset on pin/collapse.
 2. A pending hover-open timer could fire after a breakpoint change and re-open the peek later. Fixed: timer cleared and peek dropped on any breakpoint change.
