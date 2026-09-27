@@ -80,7 +80,7 @@ describe('AI-S01 audit log and tools (real PostgreSQL)', () => {
 
   it('model text with NUL characters never breaks the audit insert', async () => {
     const provider = new FakeProvider([{ text: '', toolCalls: [
-      { id: 'a', name: 'inventory_list_suppliers', arguments: { name_contains: 'al\u0000i' } },
+      { id: 'a', name: 'inventory_list_suppliers', arguments: { name_contains: 'al\u0000i\ud800' } },
       { id: 'b', name: 'drop\u0000tables', arguments: {} },
     ] }, answer('ok')]);
     const app = buildAiApp(ownerA, provider);
@@ -89,7 +89,7 @@ describe('AI-S01 audit log and tools (real PostgreSQL)', () => {
       expect(res.statusCode).toBe(200);
       const rows = (await admin.query(`SELECT tool_name, tool_params, outcome FROM ai_audit_log WHERE request_id = $1 AND event_type = 'TOOL_CALL' ORDER BY occurred_at`, [res.json().metadata.request_id])).rows;
       expect(rows).toEqual([
-        { tool_name: 'inventory_list_suppliers', tool_params: { name_contains: 'al i' }, outcome: 'SUCCESS' },
+        { tool_name: 'inventory_list_suppliers', tool_params: { name_contains: 'al i\ufffd' }, outcome: 'SUCCESS' },
         { tool_name: 'drop tables', tool_params: null, outcome: 'UNKNOWN_TOOL' },
       ]);
     } finally {

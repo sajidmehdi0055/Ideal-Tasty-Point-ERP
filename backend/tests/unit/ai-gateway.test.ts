@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { AuthContext } from '../../src/auth/context.js';
 import { AppError } from '../../src/errors.js';
 import type { AiConfig } from '../../src/ai/config.js';
+import { sanitizeParams } from '../../src/ai/audit.js';
 import { AiGateway } from '../../src/ai/gateway.js';
 import type { AiTool } from '../../src/ai/tools/tool.js';
 import { AiToolRegistry, readTool, writeTool } from '../../src/ai/tools/tool.js';
@@ -190,6 +191,11 @@ describe('AI gateway (ADR-0011)', () => {
     expect(JSON.stringify(s.audit.entries)).not.toContain('\\u0000');
     expect(s.audit.entries[0]!.toolParams).toEqual({ item_name_contains: 'mo zz' });
     expect(s.audit.entries[1]!.toolName).toBe('bad tool');
+    const surrogate = setup([callTool('get_stock', { item_name_contains: 'a\ud800b' }), answer('ok')]);
+    await surrogate.gateway.chat(ask(), owner);
+    expect(surrogate.audit.entries[0]!.toolParams).toEqual({ item_name_contains: 'a\ufffdb' });
+    // Cutting a surrogate pair at the 200-character cap must not leave a lone surrogate either.
+    expect(sanitizeParams({ q: `${'x'.repeat(199)}\u{1F355}` })).toEqual({ q: `${'x'.repeat(199)}\ufffd…` });
   });
 
   it('is fail-closed on the provider-error path too', async () => {

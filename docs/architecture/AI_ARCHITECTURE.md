@@ -120,7 +120,7 @@ Errors: `400 VALIDATION_ERROR`, `401 UNAUTHENTICATED`, `403 AI_FORBIDDEN`, `429 
 
 ## 7. Audit
 
-Table `ai_audit_log` (migration `202609270003_ai_s01_audit_log.sql`): one `CHAT` row per request (also for requests refused with 403 `DENIED` / 429 `RATE_LIMITED`) and one `TOOL_CALL` row per acknowledged tool call (also denied, invalid, unknown and over-limit `TOOL_CALL_LIMIT` ones; more than 32 calls in one model turn are dropped and counted in `details.dropped_tool_calls`) with actor, role, branch, request/conversation id, provider, model, prompt version, tool name/mode, sanitized parameters (control characters such as NUL removed), permission result, approval status, outcome, error code, duration. Message text and model answers are not stored.
+Table `ai_audit_log` (migration `202609270003_ai_s01_audit_log.sql`): one `CHAT` row per chat request that reaches the gateway (also for requests refused with 403 `DENIED` / 429 `RATE_LIMITED`) and one `TOOL_CALL` row per acknowledged tool call (also denied, invalid, unknown and over-limit `TOOL_CALL_LIMIT` ones; more than 32 calls in one model turn are dropped and counted in `details.dropped_tool_calls`) with actor, role, branch, request/conversation id, provider, model, prompt version, tool name/mode, sanitized parameters (control characters such as NUL removed), permission result, approval status, outcome, error code, duration. Message text and model answers are not stored.
 
 Rows are append-only (triggers block UPDATE/DELETE/TRUNCATE for everyone); the runtime role has INSERT only. Review with an owner/admin connection, e.g.:
 
@@ -129,7 +129,7 @@ SELECT occurred_at, actor_id, event_type, tool_name, outcome, provider, model
 FROM ai_audit_log WHERE branch_id = 'main' ORDER BY occurred_at DESC LIMIT 100;
 ```
 
-If an audit row cannot be written the AI request fails (`AI_AUDIT_FAILED`).
+If an audit row cannot be written the AI request fails (`AI_AUDIT_FAILED`). Not audited: requests rejected before the gateway (400 validation, 401, 503 disabled/misconfigured) and `status` calls.
 
 ## 8. Safety limits
 

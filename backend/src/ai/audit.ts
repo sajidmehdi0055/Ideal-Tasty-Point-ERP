@@ -36,7 +36,9 @@ export interface AiAuditSink {
  */
 export function cleanAuditText(value: string, max: number): string {
   const cleaned = value.replace(/[\u0000-\u001f\u007f]/g, ' ');
-  return cleaned.length > max ? `${cleaned.slice(0, max)}…` : cleaned;
+  const capped = cleaned.length > max ? `${cleaned.slice(0, max)}…` : cleaned;
+  // Lone UTF-16 surrogates (also from cutting a pair above) would make PostgreSQL reject jsonb: use U+FFFD.
+  return capped.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '\uFFFD');
 }
 
 /** Keeps audit parameters small and free of long free text. */

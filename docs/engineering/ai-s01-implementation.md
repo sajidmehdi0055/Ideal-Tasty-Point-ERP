@@ -54,6 +54,8 @@ Verdict FAIL (0 BLOCKER, 1 MAJOR, 6 MINOR, 4 NOTE); all test claims reproduced (
 | NOTE-10 | tests added for fallback-failure audit, fail-closed on provider-error path, status gating, refused-request audit |
 | NOTE-11 | forged assistant turns in client history documented as own-session only |
 
+AI-S01-QA-002 (focused re-review of the fixes): all findings FIXED except MINOR-4 PARTIAL → new N-1 (lone UTF-16 surrogates break jsonb audit insert); verdict PASS. N-1 fixed in FIX-002 (`cleanAuditText` replaces lone surrogates with U+FFFD after length capping; unit + PG tests); N-3 doc wording fixed; N-2 noted (migration edited while unmerged and never applied to a persistent DB — if any kept test schema applied the earlier version, recreate it).
+
 ## Deferred
 
 Write tools + approval storage (AI-S02), frontend AI Assistant screen (Figma proposal first), persisted conversations, complexity-based cloud routing, shared rate limiter for multi-process deployment, RAG tools, tools for modules that do not exist yet.
