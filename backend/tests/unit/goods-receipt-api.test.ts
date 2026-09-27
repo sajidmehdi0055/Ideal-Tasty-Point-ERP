@@ -12,6 +12,8 @@ import type { PurchaseRecordRepository } from '../../src/inventory/application/p
 import type { StockLocationRepository } from '../../src/inventory/application/stock-location-repository.js';
 import type { StockRepository } from '../../src/inventory/application/stock-repository.js';
 import type { GoodsReceiptRepository } from '../../src/inventory/application/goods-receipt-repository.js';
+import type { PurchaseOrderRepository } from '../../src/inventory/application/purchase-order-repository.js';
+import type { StockTransferRepository } from '../../src/inventory/application/stock-transfer-repository.js';
 import type { GoodsReceipt } from '../../src/inventory/domain/goods-receipt.js';
 
 const receiptId = 'f1f1f1f1-1111-4111-8111-111111111111';
@@ -25,9 +27,9 @@ const manager: AuthContext = { userId: 'manager-1', role: 'MANAGER', branchId: '
 const line = { item_id: itemId, brand_id: brandId, pack_variant_id: packId, pack_quantity: '2.5', rate: '1500' };
 const input = { supplier_id: supplierId, location_id: locationId, receipt_date: '2026-09-20', supplier_bill_no: 'INV-778', lines: [line] };
 const saved: GoodsReceipt = {
-  id: receiptId, supplier_id: supplierId, location_id: locationId, receipt_date: '2026-09-20', supplier_bill_no: 'INV-778',
+  id: receiptId, supplier_id: supplierId, location_id: locationId, receipt_date: '2026-09-20', supplier_bill_no: 'INV-778', purchase_order_id: null,
   created_at: '2026-09-20T00:00:00Z',
-  lines: [{ id: 'l1', line_no: 1, ...line, pack_quantity: '2.500000', rate: '1500.000000', conversion_factor: '16.000000', base_quantity: '40.000000', purchase_record_id: 'p1', stock_movement_id: 'm1' }],
+  lines: [{ id: 'l1', line_no: 1, ...line, pack_quantity: '2.500000', rate: '1500.000000', conversion_factor: '16.000000', base_quantity: '40.000000', purchase_record_id: 'p1', stock_movement_id: 'm1', purchase_order_line_id: null }],
 };
 
 const apps: FastifyInstance[] = [];
@@ -40,6 +42,8 @@ const unused = {
   purchaseRecordRepository: { create: vi.fn(), list: vi.fn(), getRateComparison: vi.fn() } satisfies PurchaseRecordRepository,
   stockLocationRepository: { create: vi.fn(), update: vi.fn(), list: vi.fn() } satisfies StockLocationRepository,
   stockRepository: { createOpening: vi.fn(), createAdjustment: vi.fn(), listBalances: vi.fn(), listMovements: vi.fn() } satisfies StockRepository,
+  purchaseOrderRepository: { create: vi.fn(), update: vi.fn(), cancel: vi.fn(), close: vi.fn(), list: vi.fn(), get: vi.fn() } satisfies PurchaseOrderRepository,
+  stockTransferRepository: { send: vi.fn(), receive: vi.fn(), cancel: vi.fn(), list: vi.fn(), get: vi.fn() } satisfies StockTransferRepository,
 };
 
 function setup(auth: AuthContext | null = owner) {
@@ -148,5 +152,38 @@ describe('S-05 Goods Receipt authorization', () => {
     }
     expect((await post(setup(null).app, input)).statusCode).toBe(401);
     expect((await post(setup({ ...owner, userId: ' ' }).app, input)).statusCode).toBe(401);
+  });
+});
+
+describe('S-06 Goods Receipt against a Purchase Order (optional link, ADR-0010 O-02/A-03)', () => {
+  const poId = 'b1b1b1b1-1111-4111-8111-111111111111';
+  const poLine1 = 'c1c1c1c1-1111-4111-8111-111111111111';
+  const poLine2 = 'c1c1c1c1-1111-4111-8111-111111111112';
+  it('passes purchase_order_id and per-line purchase_order_line_id through', async () => {
+    const { app, receipts } = setup();
+    const payload = { ...input, purchase_order_id: poId, lines: [{ ...line, purchase_order_line_id: poLine1 }] };
+    expect((await post(app, payload)).statusCode).toBe(201);
+    expect(receipts.create).toHaveBeenCalledWith(payload, owner);
+  });
+  it('requires a PO line on every line of a PO receipt, forbids it on a direct receipt, and forbids repeats', async () => {
+    const { app, receipts } = setup();
+    expect((await post(app, { ...input, purchase_order_id: poId })).statusCode).toBe(400);
+    expect((await post(app, { ...input, purchase_order_id: poId, lines: [{ ...line, purchase_order_line_id: poLine1 }, line] })).statusCode).toBe(400);
+    expect((await post(app, { ...input, lines: [{ ...line, purchase_order_line_id: poLine1 }] })).statusCode).toBe(400);
+    expect((await post(app, { ...input, purchase_order_id: poId,
+      lines: [{ ...line, purchase_order_line_id: poLine1 }, { ...line, purchase_order_line_id: poLine1 }] })).statusCode).toBe(400);
+    expect((await post(app, { ...input, purchase_order_id: 'nope', lines: [{ ...line, purchase_order_line_id: poLine1 }] })).statusCode).toBe(400);
+    expect((await post(app, { ...input, purchase_order_id: null })).statusCode).toBe(400);
+    expect(receipts.create).not.toHaveBeenCalled();
+    expect((await post(app, { ...input, purchase_order_id: poId,
+      lines: [{ ...line, purchase_order_line_id: poLine1 }, { ...line, purchase_order_line_id: poLine2 }] })).statusCode).toBe(201);
+  });
+  it.each([
+    [404, 'PURCHASE_ORDER_NOT_FOUND'], [409, 'PO_NOT_OPEN'], [400, 'PO_SUPPLIER_MISMATCH'], [400, 'PO_LINE_MISMATCH'], [409, 'RECEIPT_BEFORE_ORDER'],
+  ])('passes %i %s through', async (status, code) => {
+    const { app, receipts } = setup();
+    receipts.create.mockRejectedValueOnce(new AppError(status, code, 'x'));
+    const res = await post(app, { ...input, purchase_order_id: poId, lines: [{ ...line, purchase_order_line_id: poLine1 }] });
+    expect(res.statusCode).toBe(status); expect(res.json()).toMatchObject({ error: code });
   });
 });

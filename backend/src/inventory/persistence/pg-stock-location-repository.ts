@@ -70,6 +70,14 @@ export class PgStockLocationRepository implements StockLocationRepository {
         if (patch.active === false && before.active) {
           // The row lock above conflicts with the FOR SHARE taken by opening/
           // adjustment writes and child creation, so these checks cannot race.
+          // ADR-0011 D-07: in-transit stock must stay receivable/returnable.
+          const pending = await client.query(
+            `SELECT 1 FROM stock_transfer WHERE status = 'SENT' AND (from_location_id = $1 OR to_location_id = $1) LIMIT 1`,
+            [id],
+          );
+          if (pending.rowCount) {
+            throw new AppError(409, 'LOCATION_HAS_PENDING_TRANSFERS', 'Receive or cancel the pending stock transfers of this location first');
+          }
           const stock = await client.query(
             `SELECT 1 FROM stock_movement WHERE location_id = $1
              GROUP BY item_id HAVING sum(quantity_delta) <> 0 LIMIT 1`,

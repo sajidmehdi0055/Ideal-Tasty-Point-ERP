@@ -12,6 +12,8 @@ import { PgPurchaseRecordRepository } from '../../src/inventory/persistence/pg-p
 import { PgStockLocationRepository } from '../../src/inventory/persistence/pg-stock-location-repository.js';
 import { PgStockRepository } from '../../src/inventory/persistence/pg-stock-repository.js';
 import { PgGoodsReceiptRepository } from '../../src/inventory/persistence/pg-goods-receipt-repository.js';
+import { PgPurchaseOrderRepository } from '../../src/inventory/persistence/pg-purchase-order-repository.js';
+import { PgStockTransferRepository } from '../../src/inventory/persistence/pg-stock-transfer-repository.js';
 import type { ItemInput } from '../../src/inventory/domain/item.js';
 import { applyRuntimeGrants } from './helpers/runtime-grants.js';
 import { runAuthoritativeMigrate } from './helpers/migrate-cli.js';
@@ -37,7 +39,7 @@ describe('S-04 Stock Locations & Opening Stock (real PostgreSQL)', () => {
       repository: itemRepository, uomRepository: new PgUomRepository(runtime), brandRepository: new PgBrandRepository(runtime),
       packVariantRepository: new PgPackVariantRepository(runtime), supplierRepository: new PgSupplierRepository(runtime),
       purchaseRecordRepository: new PgPurchaseRecordRepository(runtime), stockLocationRepository: locationRepository,
-      stockRepository, goodsReceiptRepository: new PgGoodsReceiptRepository(runtime), authProvider: async () => auth,
+      stockRepository, goodsReceiptRepository: new PgGoodsReceiptRepository(runtime), purchaseOrderRepository: new PgPurchaseOrderRepository(runtime), stockTransferRepository: new PgStockTransferRepository(runtime), authProvider: async () => auth,
     });
   }
   const itemInput = (name: string): ItemInput => ({ item_name: name, primary_item_type: 'RAW_MATERIAL', base_uom: 'kg', brand: 'Generic / No Brand' });

@@ -12,6 +12,9 @@ export interface GoodsReceiptRepository {
    * 400 INVALID_QUANTITY (base quantity rounds to zero or is too large),
    * 409 SUPPLIER_INACTIVE / LOCATION_INACTIVE / ITEM_INACTIVE /
    * PACK_VARIANT_INACTIVE, 409 RECEIPT_BEFORE_OPENING.
+   * With purchase_order_id (S-06, ADR-0010): 404 PURCHASE_ORDER_NOT_FOUND,
+   * 409 PO_NOT_OPEN, 400 PO_SUPPLIER_MISMATCH, 400 PO_LINE_MISMATCH,
+   * 409 RECEIPT_BEFORE_ORDER; the PO status is updated in the same transaction.
    */
   create(input: GoodsReceiptInput, auth: AuthContext): Promise<GoodsReceipt | null>;
   /** Branch-scoped (via location), newest receipt date first. */

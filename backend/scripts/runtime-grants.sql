@@ -11,7 +11,7 @@
 -- This script grants no role membership, ownership, DDL, DELETE or TRUNCATE.
 GRANT USAGE ON SCHEMA :"schema_name" TO :"runtime_role";
 
-GRANT SELECT ON item_master, uom_master, brand_master, pack_variant, supplier_master, purchase_record, stock_location, stock_movement, goods_receipt, goods_receipt_line TO :"runtime_role";
+GRANT SELECT ON item_master, uom_master, brand_master, pack_variant, supplier_master, purchase_record, stock_location, stock_movement, goods_receipt, goods_receipt_line, purchase_order, purchase_order_line TO :"runtime_role";
 
 GRANT INSERT (id, branch_id, item_name, primary_item_type, base_uom_id, brand)
   ON item_master TO :"runtime_role";
@@ -52,6 +52,32 @@ GRANT INSERT ON stock_movement_audit TO :"runtime_role";
 
 -- Goods receipts are create-only: no UPDATE grant. Each line also inserts a
 -- purchase_record and a stock_movement through the grants above.
-GRANT INSERT (id, supplier_id, location_id, receipt_date, supplier_bill_no) ON goods_receipt TO :"runtime_role";
-GRANT INSERT (id, goods_receipt_id, line_no, item_id, brand_id, pack_variant_id, pack_quantity, conversion_factor, base_quantity, rate, purchase_record_id, stock_movement_id) ON goods_receipt_line TO :"runtime_role";
+GRANT INSERT (id, supplier_id, location_id, receipt_date, supplier_bill_no, purchase_order_id) ON goods_receipt TO :"runtime_role";
+GRANT INSERT (id, goods_receipt_id, line_no, item_id, brand_id, pack_variant_id, pack_quantity, conversion_factor, base_quantity, rate, purchase_record_id, stock_movement_id, purchase_order_line_id) ON goods_receipt_line TO :"runtime_role";
 GRANT INSERT ON goods_receipt_audit TO :"runtime_role";
+
+-- Purchase orders (ADR-0010): header columns editable only as the guard
+-- trigger allows (edit before any receipt, status changes, cancel/close
+-- reason). Lines are insert-only (an edit adds a new revision); no UPDATE or
+-- DELETE grant on lines. po_number comes from the sequence via trigger.
+GRANT INSERT (id, branch_id, supplier_id, order_date) ON purchase_order TO :"runtime_role";
+GRANT UPDATE (supplier_id, order_date, status, status_reason, revision, updated_at) ON purchase_order TO :"runtime_role";
+GRANT USAGE ON SEQUENCE purchase_order_no_seq TO :"runtime_role";
+GRANT INSERT (id, purchase_order_id, revision, line_no, item_id, brand_id, pack_variant_id, ordered_quantity, rate) ON purchase_order_line TO :"runtime_role";
+GRANT INSERT ON purchase_order_audit TO :"runtime_role";
+
+-- Stock transfers (ADR-0011): header status changes only as the guard trigger
+-- allows (SENT -> RECEIVED / CANCELLED); lines and settlements are
+-- insert-only; transfer_number comes from the sequence via trigger. Each
+-- send/receive/cancel also inserts stock_movement rows through the grants above.
+GRANT SELECT ON stock_transfer, stock_transfer_line, stock_transfer_settlement TO :"runtime_role";
+GRANT INSERT (id, from_location_id, to_location_id) ON stock_transfer TO :"runtime_role";
+GRANT UPDATE (status, status_reason, updated_at) ON stock_transfer TO :"runtime_role";
+GRANT USAGE ON SEQUENCE stock_transfer_no_seq TO :"runtime_role";
+GRANT INSERT (id, stock_transfer_id, line_no, item_id, sent_quantity, out_movement_id) ON stock_transfer_line TO :"runtime_role";
+GRANT INSERT (id, stock_transfer_line_id, kind, received_quantity, variance_quantity, variance_reason, movement_id) ON stock_transfer_settlement TO :"runtime_role";
+GRANT INSERT ON stock_transfer_audit TO :"runtime_role";
+
+-- AI audit log (ADR-0012 D-07): insert-only for the runtime role. No SELECT,
+-- UPDATE or DELETE: audit review uses an owner/admin connection.
+GRANT INSERT ON ai_audit_log TO :"runtime_role";

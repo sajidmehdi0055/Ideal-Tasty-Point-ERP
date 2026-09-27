@@ -29,6 +29,16 @@ import { registerStockRoutes } from './inventory/api/stock-routes.js';
 import type { GoodsReceiptRepository } from './inventory/application/goods-receipt-repository.js';
 import { GoodsReceiptService } from './inventory/application/goods-receipt-service.js';
 import { registerGoodsReceiptRoutes } from './inventory/api/goods-receipt-routes.js';
+import type { PurchaseOrderRepository } from './inventory/application/purchase-order-repository.js';
+import { PurchaseOrderService } from './inventory/application/purchase-order-service.js';
+import { registerPurchaseOrderRoutes } from './inventory/api/purchase-order-routes.js';
+import type { StockTransferRepository } from './inventory/application/stock-transfer-repository.js';
+import { StockTransferService } from './inventory/application/stock-transfer-service.js';
+import { registerStockTransferRoutes } from './inventory/api/stock-transfer-routes.js';
+import type { AiAppOptions } from './ai/module.js';
+import { createAiRuntime } from './ai/module.js';
+import { registerAiRoutes } from './ai/routes.js';
+import { inventoryTools } from './ai/tools/inventory-tools.js';
 
 export interface AppOptions {
   repository: ItemRepository;
@@ -40,7 +50,11 @@ export interface AppOptions {
   stockLocationRepository: StockLocationRepository;
   stockRepository: StockRepository;
   goodsReceiptRepository: GoodsReceiptRepository;
+  purchaseOrderRepository: PurchaseOrderRepository;
+  stockTransferRepository: StockTransferRepository;
   authProvider?: AuthContextProvider;
+  /** Optional AI layer (ADR-0012). Omitted or disabled → no effect on any ERP route. */
+  ai?: AiAppOptions;
 }
 
 export function buildApp(options: AppOptions) {
@@ -58,14 +72,31 @@ export function buildApp(options: AppOptions) {
     return reply.code(500).send({ error: 'INTERNAL_ERROR', message: 'Operation failed' });
   });
   const authProvider = options.authProvider ?? (async () => null);
-  registerItemRoutes(app, new ItemService(options.repository), authProvider);
-  registerUomRoutes(app, new UomService(options.uomRepository), authProvider);
-  registerBrandRoutes(app, new BrandService(options.brandRepository), authProvider);
-  registerPackVariantRoutes(app, new PackVariantService(options.packVariantRepository), authProvider);
-  registerSupplierRoutes(app, new SupplierService(options.supplierRepository), authProvider);
-  registerPurchaseRecordRoutes(app, new PurchaseRecordService(options.purchaseRecordRepository), authProvider);
-  registerStockLocationRoutes(app, new StockLocationService(options.stockLocationRepository), authProvider);
-  registerStockRoutes(app, new StockService(options.stockRepository), authProvider);
-  registerGoodsReceiptRoutes(app, new GoodsReceiptService(options.goodsReceiptRepository), authProvider);
+  const services = {
+    items: new ItemService(options.repository),
+    uoms: new UomService(options.uomRepository),
+    brands: new BrandService(options.brandRepository),
+    packVariants: new PackVariantService(options.packVariantRepository),
+    suppliers: new SupplierService(options.supplierRepository),
+    purchaseRecords: new PurchaseRecordService(options.purchaseRecordRepository),
+    stockLocations: new StockLocationService(options.stockLocationRepository),
+    stock: new StockService(options.stockRepository),
+    goodsReceipts: new GoodsReceiptService(options.goodsReceiptRepository),
+    purchaseOrders: new PurchaseOrderService(options.purchaseOrderRepository),
+    stockTransfers: new StockTransferService(options.stockTransferRepository),
+  };
+  registerItemRoutes(app, services.items, authProvider);
+  registerUomRoutes(app, services.uoms, authProvider);
+  registerBrandRoutes(app, services.brands, authProvider);
+  registerPackVariantRoutes(app, services.packVariants, authProvider);
+  registerSupplierRoutes(app, services.suppliers, authProvider);
+  registerPurchaseRecordRoutes(app, services.purchaseRecords, authProvider);
+  registerStockLocationRoutes(app, services.stockLocations, authProvider);
+  registerStockRoutes(app, services.stock, authProvider);
+  registerGoodsReceiptRoutes(app, services.goodsReceipts, authProvider);
+  registerPurchaseOrderRoutes(app, services.purchaseOrders, authProvider);
+  registerStockTransferRoutes(app, services.stockTransfers, authProvider);
+  // AI tools reuse the very same service instances (ADR-0012 D-01/D-06).
+  registerAiRoutes(app, createAiRuntime(options.ai, inventoryTools(services)), authProvider);
   return app;
 }

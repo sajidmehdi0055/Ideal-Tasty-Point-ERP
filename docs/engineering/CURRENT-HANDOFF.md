@@ -1,6 +1,6 @@
 # Current Handoff — UI-SHELL-V2-001 (ERP Shell v2: collapsible sidebar, header, Light/Dark theme)
 
-Date: 2026-09-27. Branch: `feat/ui-shell-v2` (base: main @ c30e289). Track: PARALLEL TRACK (frontend only — no backend, migration, API or auth change).
+Date: 2026-09-27. Branch: `feat/ui-shell-v2` (base: main @ c30e289; main @ 5b39a3c merged in — S-06, S-07, AI-S01). Track: PARALLEL TRACK (frontend only — no backend, migration, API or auth change).
 Status: implemented + tests pass locally. **Not independently reviewed, not pushed to origin, not merged.**
 Authority: owner approved the Figma design ("acha ha ok kr do", 2026-09-27) and then authorized both the documentation update and the implementation ("dono").
 Design source: Figma file `N9KkqXIQuvCUj9NVAj6Cx4` — section `89:2` "APPROVED 2026-09-27 — ERP Shell v2" (12 frames: desktop collapsed / hover peek / pinned, tablet tap-open, mobile closed / drawer; each in Light and Dark), components section `86:2` (`Shell/Sidebar` Peek·Pinned·Drawer, `Shell/Rail`, `Shell/Tooltip`, `Shell/Header` Desktop·Mobile), variable collection `ITP / Theme` (Light + Dark modes).
@@ -49,6 +49,326 @@ New tests cover: hover open delay / close grace / pass-over, pin + collapse pers
 ## Next recommended action
 
 Independent review of `feat/ui-shell-v2` (Codex, or a fresh QA/Testing subagent while Codex is paused), then owner decision on push and merge. Push needs the owner's Windows machine (Cowork VM has no GitHub credentials).
+
+---
+
+## Previous handoff — AI-S01-MERGE-001 (AI Foundation Merged to Main)
+
+Date: 2026-09-27. Branch: main. Merged from: feat/ai-s01-foundation (HEAD c0c576e = AI-S01 implementation/tests/docs + FIX-001/FIX-002 + sync merge 02689c6 with main ec7833d + QA-004 record e175502 + AI-S01-VERIFY-001 record c0c576e).
+Authority: explicit owner approval in the Cowork Manager session ("Haan, merge karo"), following AI-S01-QA-001..004 (independent QA/Testing subagent; final verdict PASS — ready for controlled merge, 0 BLOCKER/MAJOR/MINOR open) and AI-S01-VERIFY-001 (Windows 11, Node v24.18.1, Docker 29.8.0, PostgreSQL 17.11, `erp_test`: typecheck/lint/build PASS, unit 520/520, integration 112/112; branch pushed, origin == c0c576e). Same-provider review limitation applies (Codex/Antigravity paused).
+
+## Pre-merge checks (executed)
+
+- main == origin/main == ec7833d (unchanged since the sync); main is an ancestor of feat/ai-s01-foundation (fast-forward possible); local branch == pushed c0c576e.
+- Changes after QA-004 (e175502..c0c576e): `CURRENT-HANDOFF.md` only (verification record).
+- Main worktree: `main` checked out, tracked tree clean (only the long-standing untracked 00-PROJECT-MASTER.md, "Claude outputs/", backend/tmp/); no stale `.git/index.lock`. Delete permission granted by the owner and confirmed with a probe file.
+
+## Merge
+
+`git merge --ff-only feat/ai-s01-foundation` on the checked-out main: ec7833d → c0c576e. `git diff HEAD feat/ai-s01-foundation` empty. Feature branch preserved (local and origin). Push of main: from the owner's Windows machine.
+
+## Post-merge verification (fresh clone of merged main c0c576e, Cowork Linux VM, Node v24.21.0, embedded PostgreSQL 17.10)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS |
+| typecheck / lint / build | PASS / PASS / PASS |
+| test:unit | PASS — 520/520 (15 files) |
+| test:integration | PASS — 112/112 (8 files), authoritative migrate CLI + shipped runtime grants |
+| frontend/ diff vs ec7833d | none |
+
+## Status
+
+AI-S01 is on main: implementation + tests + independent QA (PASS) + Windows/Docker verification + owner-approved merge + post-merge verification. AI stays OFF by default (`AI_ENABLED=false`); cloud providers OFF (`AI_CLOUD_ENABLED=false`). Migration `202609270004_ai_s01_audit_log` (and S-04..S-07 migrations) NOT applied to `erp_local` (separate authorization); when authorized: stop API → `npm run migrate` → re-run `scripts/runtime-grants.sql` → start.
+
+## Next recommended action
+
+Owner pushes main. Candidates (owner decides, own chat): AI-S02 (first WRITE tool: AI-proposed PO draft → preview → approve), AI Assistant screen (Figma proposal first), stock-transfer AI tools, local model setup on the restaurant PC.
+
+## Previous handoff — AI-S01-QA-004 (AI Foundation — synced with main ec7833d, independent QA PASS, on feature branch)
+
+Date: 2026-09-27. Branch: `feat/ai-s01-foundation` (from main `a6660e5`; current main `ec7833d` — S-07 Stock Transfer, merged in a parallel session — was merged into the branch in AI-S01-SYNC-001). NOT merged to main.
+Authority: owner request in the Cowork Manager session to make the ERP AI-ready; owner decisions AI-O-01 (Phase 1 read-only + audit) and AI-O-02 (cloud providers built, OFF by default), recorded in ADR-0012.
+
+## What was built
+
+Optional AI layer, OFF by default: provider abstraction (OpenAI-compatible adapter for local model servers and OpenAI; Anthropic adapter; built-in fetch, no new dependency), AI gateway (tool loop, limits, per-user rate limit, versioned central system prompt), ten READ-only Inventory/Purchasing tools reusing existing services with the caller's AuthContext, WRITE-proposal contract (no write tool registered), append-only `ai_audit_log` (runtime INSERT only, immutability triggers, fail-closed), `GET /api/ai/status`, `POST /api/ai/chat`. Details: `docs/engineering/ai-s01-implementation.md`, `docs/architecture/AI_ARCHITECTURE.md`.
+
+## Review status
+
+- AI-S01-QA-001 (independent QA/Testing subagent, no implementation involvement): reproduced 458/458 unit, 100/100 integration; verdict FAIL — 0 BLOCKER, 1 MAJOR (this file's history had been removed), 6 MINOR, 4 NOTE. Same-provider review limitation applies (Codex/Antigravity paused).
+- AI-S01-FIX-001: all findings addressed (table in `docs/engineering/ai-s01-implementation.md`). Implementer run after fixes (Cowork VM, Node 24.21.0, embedded PostgreSQL 17.10): typecheck/lint/build PASS; unit 481/481; integration 101/101.
+- AI-S01-QA-002 (focused independent re-review of FIX-001): reproduced 481/101; verdict PASS — one remaining MINOR (N-1 lone-surrogate audit insert) and 2 NOTEs.
+- AI-S01-FIX-002: N-1 and the doc NOTE fixed; unit 481/481, integration 101/101.
+- AI-S01-QA-003 (focused check of FIX-002 `d1762a0`): typecheck/lint PASS, unit 481/481, integration 101/101; N-1 FIXED, N-3 FIXED, no new issue; verdict **PASS — ready for controlled merge**. Open: N-2 NOTE only.
+- AI-S01-SYNC-001: merged current main `ec7833d` (S-07) into the branch; conflicts in `app.ts`, `server.ts`, `runtime-grants.sql`, migration-list tests, READMEs and this file resolved keeping both sides; ADR renumbered 0011 → 0012 and AI migration renamed to `202609270004_ai_s01_audit_log` (S-07 owns `202609270003` and ADR-0011); AI tests given the new `stockTransferRepository` option; stock-movements tool description lists transfer movement types. Implementer run: typecheck/lint/build PASS, unit 520/520 (main 440 + AI 80), integration 112/112 (main 107 + AI 5). 
+- AI-S01-QA-004 (focused independent re-review of the sync merge `02689c6`): typecheck/lint/build PASS, unit 520/520, integration 112/112; conflict resolution, ADR renumbering, migration order and handoff history all correct; S-07 code untouched; 0 BLOCKER/MAJOR/MINOR, 2 NOTE (cosmetic title — fixed here; migration renamed while unmerged — recreate any kept test schema that recorded the old name). Verdict **PASS — ready for controlled merge**.
+- AI-S01-VERIFY-001 (VS Code Claude Code session, owner's Windows machine; isolated worktree `Ideal-Tasty-Point-ERP-ai-verify` at `e175502`): after `git fetch`, main == origin/main == `ec7833d`, an ancestor of the branch. Windows 11, Node v24.18.1, npm 11.16.0, Docker 29.8.0, PostgreSQL 17.11 in the existing `ideal-tasty-point-s01-dev-postgres-1` container (already running/healthy; nothing recreated), dedicated `erp_test` database (`erp_local` untouched). npm ci PASS (221 packages, 0 vulnerabilities; npm's allow-scripts left the esbuild postinstall unrun, not needed); typecheck/lint/build PASS (exit 0); unit **520/520** (15 files); integration **112/112** (8 files). Each integration file creates a fresh random schema, so no kept schema carrying the old migration name `202609270003_ai_s01_audit_log` was used (QA-004 NOTE satisfied). Branch pushed with a plain `git push -u origin feat/ai-s01-foundation` (new remote branch); after `git fetch`, origin == local == `e175502`, then this record commit was pushed as well. Not merged.
+
+## Next steps
+
+1. Done: branch pushed and Windows/Docker PostgreSQL 17 verification passed (AI-S01-VERIFY-001).
+2. Owner-approved merge; post-merge verification.
+3. Migration `202609270004_ai_s01_audit_log` is not applied to `erp_local`; when authorized: stop API → `npm run migrate` → re-run `scripts/runtime-grants.sql` → start.
+
+## Carried forward (unchanged)
+
+S-04/S-05/S-06/S-07 migrations not applied to `erp_local`; S06-QA-001 NOTEs 2–5; S-07 carried-forward items (see S07-MERGE-001 below); ADR-0010 A-01..A-07; no receiving/PO UI; no real login/session.
+
+## Previous handoff — S07-MERGE-001 (Inventory S-07 Stock Transfer Merged to Main)
+
+Date: 2026-09-27. Branch: main. Merged from: feat/inventory-s07-stock-transfer (HEAD 620d044 = implementation 304a880 + S07-FIX-001 6414828 + QA record 6e5dead + S07-VERIFY-001 record 620d044).
+Authority: explicit owner approval in the Cowork Manager session ("Haan, merge karo"), following S07-QA-001 (independent QA/Testing subagent PASS — 0 BLOCKER / 0 MAJOR / 2 MINOR / 3 NOTE, all addressed in S07-FIX-001; focused re-review PASS) and S07-VERIFY-001 (Windows/Docker PostgreSQL 17.11: unit 440/440, integration 107/107, branch pushed, origin == 620d044). Same-provider review limitation applies (Codex/Antigravity paused).
+
+## Pre-merge checks (executed)
+
+- main == origin/main == a6660e5; local and origin `feat/inventory-s07-stock-transfer` == 620d044; main is an ancestor (fast-forward possible).
+- Change after the Cowork-verified 6e5dead: `CURRENT-HANDOFF.md` only (S07-VERIFY-001 record), no secrets.
+- Main worktree: `main` checked out, tracked tree clean (only 00-PROJECT-MASTER.md, "Claude outputs/", backend/tmp/ untracked); no `.git/index.lock`. Owner granted delete permission on the repo folder; probe file confirmed before the merge.
+
+## Merge
+
+`git merge --ff-only feat/inventory-s07-stock-transfer` on the checked-out main: a6660e5 → 620d044; `git diff HEAD feat/inventory-s07-stock-transfer` empty. Feature branch preserved (local and origin). Push of main: from the owner's Windows machine.
+
+## Post-merge verification (fresh clone of merged main 620d044, Cowork Linux VM, Node v24.21.0, embedded PostgreSQL 17.10)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS — 221 packages |
+| typecheck / lint / build | PASS / PASS / PASS |
+| test:unit | PASS — 440/440 (10 files) |
+| test:integration | PASS — 107/107 (7 files), authoritative migrate CLI + shipped runtime grants |
+| frontend/ diff vs a6660e5 | none |
+
+## Status
+
+S-07 is on main: implementation + tests + independent QA (PASS) + fixes with focused re-review (PASS) + Windows/Docker verification + owner-approved merge + post-merge verification. Migrations S-04..S-07 are NOT applied to `erp_local` (separate authorization). When they are: stop the API → `npm run migrate` → re-run `scripts/runtime-grants.sql` → start the new build.
+
+## Carried forward
+
+ADR-0011 DEFAULT / ASSUMED A-01..A-08 (owner may revise); open B-04 parts (kitchen demand/requisition INV-24, production consumption, partial receipt over days, excess on arrival via adjustment); B-09 roles. No transfer UI yet. Earlier S-06 NOTEs and gaps unchanged.
+
+## Next recommended action
+
+Owner pushes main (`a6660e5..` merge record). Next slice only when the owner asks, in its own chat.
+
+---
+
+## Previous handoff — S07-VERIFY-001 (Stock Transfer — Windows/Docker Verification, Branch Push)
+
+Date: 2026-09-27. Branch: feat/inventory-s07-stock-transfer (base: main @ a6660e5; verified HEAD 6e5dead — this record adds only this documentation entry on top). Status: implemented + independently QA-reviewed in the Cowork Linux VM (S07-QA-001/S07-FIX-001, PASS) + now also verified on the owner's Windows/Docker environment. Push to origin authorized and performed by this record. **NOT merged to main** — merge requires a separate owner approval.
+Authority: owner explicitly authorized (a) verification in a new isolated worktree (`Ideal-Tasty-Point-ERP-s07-verify`), (b) one docs-only record commit on this branch, (c) a plain push of this branch — withholding merge-to-main, force-push, rebase/reset/clean, deletion, `erp_local` access and process management.
+
+## Pre-checks
+
+After `git fetch origin`: main == origin/main == a6660e5; local `feat/inventory-s07-stock-transfer` == 6e5dead (no remote ref yet).
+
+## Real-environment verification (Windows 11, Node v24.18.1, npm 11.16.0, Docker 29.8.0, PostgreSQL 17.11 in the existing `ideal-tasty-point-s01-dev-postgres-1` container, dedicated `erp_test` database — `erp_local` never touched)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS — 221 packages, 0 vulnerabilities |
+| typecheck | PASS (exit 0) |
+| lint | PASS (exit 0) |
+| build | PASS (exit 0) |
+| test:unit | PASS — 440/440 (10 files) |
+| test:integration | PASS — 107/107 (7 files), real authoritative migrate CLI + shipped runtime grants |
+
+Pass counts match the Cowork VM results. The integration harness creates a fresh unique schema per run, so the S-07 migration ran in its final (post-S07-FIX-001) form — this satisfies the S07-QA-001 re-review NOTE about the in-place migration edit.
+
+**Environment note:** the container was already running and `healthy` (no `docker start` needed; nothing recreated). The pre-existing `backend/tmp/demo-server.ts` process (port 3000) was not touched. No EPERM/locking issue occurred.
+
+## Push
+
+Plain (non-force) `git push -u origin feat/inventory-s07-stock-transfer` (new remote branch). The pushed head is this record commit; see the VS Code session report for the post-push `git fetch` confirmation that origin == local.
+
+## Next recommended action
+
+Owner merge decision (separate approval). Re-verify with a fresh `git fetch`/`git status` immediately before merging.
+
+---
+
+## Previous handoff — S07-IMPL-001 (Inventory S-07 Stock Transfer — Implementation)
+
+Date: 2026-09-27. Branch: feat/inventory-s07-stock-transfer (base: main @ a6660e5). Status: implemented and tested in the Cowork Linux VM; independent QA review S07-QA-001 PASS (0 BLOCKER / 0 MAJOR / 2 MINOR / 3 NOTE) — all five addressed in S07-FIX-001; focused re-review of the fix PASS (0 new BLOCKER/MAJOR/MINOR, 1 NOTE); **NOT pushed; NOT merged.**
+Authority: owner decisions 2026-09-27 recorded in `docs/decisions/ADR-0011-s07-stock-transfer.md` (slice choice; two-step send → receive; short receipt = variance with mandatory reason; Base UOM; cancel with reason only before receipt). Technical design by the Manager within those decisions; DEFAULT / ASSUMED A-01..A-08 (owner may revise).
+
+## What changed
+
+- Migration `202609270003_inventory_s07_stock_transfer.sql` (additive): transfer ledger types, `stock_transfer`, `stock_transfer_line`, `stock_transfer_settlement`, `stock_transfer_audit`, `stock_transfer_no_seq`, guard/validation/deferred triggers, deactivation block for locations with pending transfers.
+- `scripts/runtime-grants.sql`: grants for the new tables and sequence (no DELETE/TRUNCATE; header UPDATE limited to status/reason/updated_at).
+- APIs: `POST/GET /api/inventory/transfers`, `GET /api/inventory/transfers/:id`, `POST .../:id/receive`, `POST .../:id/cancel`; location deactivation gains `409 LOCATION_HAS_PENDING_TRANSFERS`.
+- Docs: ADR-0011, `inventory-s07-implementation.md`, open-decisions update (B-04 partial), backend README (API + upgrade order).
+
+## Verification (Cowork VM, Node v24.21.0, embedded PostgreSQL 17.10)
+
+| Check | Result |
+|---|---|
+| npm ci | PASS — 221 packages |
+| typecheck / lint / build | PASS / PASS / PASS |
+| test:unit | PASS — 440/440 (10 files; 401 + 39 new) |
+| test:integration | PASS — 107/107 (7 files; 96 + 11 new), authoritative migrate CLI + shipped runtime grants |
+| Mutation checks | implementer 8/8 caught (M1–M4 + M-new, M8, M12, M16 after QA); QA's own M5/M7/M9/M10/M13/M15 caught — see implementation doc |
+
+## S07-QA-001 (independent QA/Testing subagent, own clone, same-provider) and S07-FIX-001
+
+- QA ran npm ci/typecheck/lint/build (PASS) and unit 439/439, integration 106/106; verdict PASS.
+- MINOR-1: a settlement could be committed while the header stayed SENT (DB backstop gap) → fixed with a deferred `stock_transfer_settlement_finalised` constraint trigger + test.
+- MINOR-2: mutations M8/M12/M16 not caught → tests added; all three now caught.
+- NOTE-1 (send balance query scanned the whole location) → filtered by item; NOTE-2 (uppercase UUIDs → 404) → ids lowercased in zod + unit test; NOTE-3 (savepoint caveat of the `xmin` check) → documented in the migration.
+
+- Focused re-review (same QA subagent, own clone, fix commit): typecheck/lint/build PASS, unit 440/440, integration 107/107; half-settled probe now refused at commit; M8/M12/M16 and a new M17 caught; NOTE fixes verified. New NOTE: the fix edited the unmerged S-07 migration in place, so any database that ran the first version (304a880) would miss the new rule — Windows/Docker verification must use a fresh schema/database (the test harness creates a unique schema per run).
+- Limitation: QA is a same-provider (Claude) subagent, weaker independence than an external reviewer (Codex/Antigravity paused).
+
+## Upgrade order (when applied to a real database)
+
+Stop the API → `npm run migrate` → re-run `scripts/runtime-grants.sql` → start the new build. Without the re-applied grants every transfer call fails with a permission error. S-04..S-07 migrations are NOT applied to `erp_local` (separate authorization).
+
+## Next recommended action
+
+Windows/Docker verification + push by VS Code Claude, then owner merge decision.
+
+---
+
+## Previous handoff — S06-MERGE-001 (Inventory S-06 Purchase Order Merged to Main)
+
+Date: 2026-09-27. Branch: main. Merged from: feat/inventory-s06-purchase-order (HEAD 51fbf6c = application code/tests/docs 6391f93 + S06-QA-001 record 3459b8f + S06-VERIFY-001 record 51fbf6c).
+Authority: explicit owner approval in the Cowork Manager session ("Haan, merge karo"), following S06-QA-001 (independent QA/Testing subagent PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR / 5 NOTE, focused re-review of the docs fix PASS) and S06-VERIFY-001 (Windows/Docker PostgreSQL 17: unit 401/401, integration 96/96, branch pushed). Same-provider review limitation applies (Codex/Antigravity paused).
+Roles: Cowork Manager session = implementation (S06-IMPL-001), QA coordination (S06-QA-001), this merge, post-merge verification and this record. VS Code Claude Code session = Windows/Docker verification and branch push (S06-VERIFY-001).
+
+## Pre-merge checks (executed, not assumed)
+
+- `git fetch origin`: origin/feat/inventory-s06-purchase-order == local == 51fbf6c; main == origin/main == c30e289; main is an ancestor of the branch (fast-forward possible).
+- Changes after the QA-reviewed code (6391f93..51fbf6c): documentation only (`backend/README.md` upgrade order, `CURRENT-HANDOFF.md` records) — no code, migration, grant or test change.
+- Main worktree: `main` checked out, tracked tree clean (only the long-standing untracked files: 00-PROJECT-MASTER.md, "Claude outputs/", backend/tmp/).
+- A stale 0-byte `.git/index.lock` dated 2026-09-26 20:16 UTC (older than this session) would have blocked the merge; removed after the owner granted delete permission on the repo folder (delete probe confirmed first).
+
+## Merge
+
+- Previous main HEAD: c30e289. Merge type: fast-forward (`git merge --ff-only feat/inventory-s06-purchase-order`) on the checked-out main (no branch switch). New main HEAD (merge): 51fbf6c; `git diff HEAD feat/inventory-s06-purchase-order` empty.
+- Feature branch preserved (local and origin).
+- Push of main: from the owner's Windows machine (the Cowork VM has no GitHub credentials).
+
+## Post-merge verification (fresh clone of merged main 51fbf6c, Cowork Linux VM, Node v24.21.0, embedded PostgreSQL 17.10)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS — 221 packages |
+| typecheck / lint / build | PASS / PASS / PASS |
+| test:unit | PASS — 401/401 (9 files) |
+| test:integration | PASS — 96/96 (6 files), authoritative migrate CLI + shipped runtime grants |
+| frontend/ diff vs c30e289 | none |
+
+## Correction to S06-VERIFY-001 (wording only)
+
+Its Push paragraph says local and remote "resolve to `3459b8f`" and calls the branch "4-commit-ahead". The pushed branch head is the record commit itself, **51fbf6c**, 5 commits ahead of c30e289 (verified: origin/feat/inventory-s06-purchase-order == 51fbf6c, and 3459b8f..51fbf6c changes only `CURRENT-HANDOFF.md`). The VS Code session's own report stated 51fbf6c correctly.
+
+## Status
+
+S-06 is on main: implementation + tests + independent QA (PASS) + Windows/Docker verification + owner-approved merge + post-merge verification. Root README status updated. Migrations S-04, S-05 and S-06 are NOT applied to the operational database `erp_local` (separate authorization). When they are: stop the API → `npm run migrate` → re-run `scripts/runtime-grants.sql` → start the new build (S06-QA-001 NOTE 1; `backend/README.md`).
+
+## Carried forward
+
+S06-QA-001 NOTEs 2–5 (year-0000 date → 500 in the shared date helper; optional commit-time DB hardening; A-02 effect on edits after supplier deactivation; CLOSE only after a receipt) and ADR-0010 DEFAULT / ASSUMED A-01..A-07 (owner may revise). No Purchase Order or receiving UI yet. Earlier gaps unchanged: no expiry capture (B-07); standalone S-03 purchase endpoint checks "future" in UTC.
+
+## Next recommended action
+
+Owner pushes main (`c30e289..51fbf6c` + this record). Next slice only when the owner asks, in its own chat.
+
+---
+
+## Previous handoff — S06-VERIFY-001 (Purchase Order — Windows/Docker Verification, Branch Push)
+
+Date: 2026-09-27. Branch: feat/inventory-s06-purchase-order (base: main @ c30e289; HEAD unchanged at 3459b8f — this record adds only this documentation entry on top). Status: implemented + independently QA-reviewed in the Cowork Linux VM (S06-QA-001, PASS) + now also verified on the owner's real Windows/Docker environment. Push to origin authorized and performed by this record. **NOT merged to main** — merge requires a separate, further owner approval.
+Authority: owner decisions recorded in `docs/decisions/ADR-0010-s06-purchase-order.md`. This record: owner explicitly authorized (a) verification in a new isolated worktree, (b) one docs-only record commit on this branch, (c) a plain push of this feature branch — explicitly withholding merge-to-main, force-push, rebase/reset/clean, deletion, and any operational-database or process-management authorization.
+
+## Real-environment verification (Windows 11, Node v24.18.1, Docker Desktop PostgreSQL 17, dedicated `erp_test` database, unique schema per run — `erp_local` never touched)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS — 221 packages, 0 vulnerabilities |
+| typecheck | PASS |
+| lint | PASS |
+| build | PASS |
+| test:unit | PASS — 401/401 (9 files) |
+| test:integration | PASS — 96/96 (6 files), real authoritative migrate CLI + shipped runtime grants |
+
+This closes the Windows/Docker verification gap noted in the prior Cowork VM records (S06-IMPL-001/S06-QA-001), with identical pass counts.
+
+**Environment note:** at the start of this verification, Docker Desktop was not running and the `ideal-tasty-point-s01-dev-postgres-1` container (the same one used in S04-VERIFY-001/S05-VERIFY-001) was stopped (`Exited`, from an earlier machine restart). Docker Desktop was started and the existing container was started (`docker start`, not recreated — no data loss, same container/volume as before) and reached `healthy` before integration tests ran. The pre-existing `backend/tmp/demo-server.ts` process (port 3000) was not touched.
+
+## Push
+
+`feat/inventory-s06-purchase-order` pushed to origin as a plain (non-force) `git push -u origin feat/inventory-s06-purchase-order` (new branch, no prior remote ref existed), owner-authorized in this record. Confirmed after a fresh `git fetch origin`: local and remote both resolve to `3459b8f` — the reviewed commit is unchanged and matches the pushed remote exactly. `main` and other branches/worktrees were not touched by this record.
+
+## Next recommended action
+
+Owner reviews this record; when ready, separately authorize a controlled merge to main (the branch remains a clean, non-diverged 4-commit-ahead descendant of main @ c30e289 — re-verify with a fresh `git status`/`git log` immediately before merging, as always).
+
+---
+
+## Previous handoff — S06-QA-001 (Inventory S-06 Purchase Order — Independent QA PASS in the Cowork VM)
+
+Date: 2026-09-27. Branch: feat/inventory-s06-purchase-order (implementation 6391f93 + this record). Status: implemented + independent QA PASS in the Cowork VM. NOT pushed, NOT merged; Windows/Docker PostgreSQL 17 re-run pending (owner machine).
+Roles: Cowork Manager session = implementation (S06-IMPL-001, below) and this record. Independent reviewer: a fresh in-house QA/Testing subagent with no part in the implementation, working in its own clone. Codex and Google Antigravity remain paused (GOV-MANAGER-SUBAGENT-001): this is a same-provider review, not an external one — the owner should weigh that.
+
+## Independent review — PASS (0 BLOCKER, 0 MAJOR, 0 MINOR, 5 NOTE)
+
+Reproduced by the reviewer in its own clone: npm ci (221 packages), typecheck/lint/build PASS, unit 401/401, integration 96/96, NUL scan and `git diff --check` clean, tests use the shipped `runtime-grants.sql`. Extra evidence gathered by the reviewer:
+- Mutation checks (each reverted): no PO row lock in the receipt path, no status refresh, RECEIPT audit before = after, no branch filter on PO lookup or list, `>=` → `>` in the completion check — each makes existing S-06 tests fail.
+- Migration over a database already holding S-05 receipts (main code + grants, then HEAD migrate): applied cleanly, S-05 audit rows byte-identical, old receipts read back with null PO fields, re-run is a no-op, down is refused.
+- 8 probe tests (single-receipt RECEIVED, final-state 409s, reason/filter/PATCH-field validation, maximum NUMERIC quantities, masters deactivated after PO creation, cross-branch 404 parity, trigger rejections) — all as designed.
+- Mixed parallel stress, 20 rounds × ~36 operations (PO receipts, direct receipts, adjustments, edits, cancels, closes, creates, master updates): 0 deadlocks, 0 raw database errors, PO status always consistent with receipts and RECEIPT audits.
+- O-01..O-07 each traced to code and a meaningful test; every non-S-06 change in the diff is mechanical wiring or the intended optional PO link.
+
+NOTEs (non-blocking):
+1. **Upgrade order** — after `npm run migrate`, `scripts/runtime-grants.sql` must be re-applied before the new build starts; otherwise even S-05 direct receiving returns 500 (the receipt insert now names the PO columns). Addressed in this record: explicit upgrade steps added to `backend/README.md` (focused re-review below). Relevant before applying S-04..S-06 to `erp_local`.
+2. Year `0000` dates pass the shared `isValidCalendarDate` helper and PostgreSQL rejects them → generic 500 (no leak). Verified for S-06 `order_date` and inherited S-05 `receipt_date`; S-03 `purchase_date` uses the same helper (not separately tested). Left for a later shared cleanup.
+3. Database backstops do not cover every raw-SQL misuse by the runtime role (e.g. a revision bump with no lines, a direct status UPDATE without an audit row, a forged audit row — the same INSERT pattern as earlier slices). Not reachable through the application; optional future hardening: a deferred commit-time check.
+4. ADR-0010 A-02 effect: if the PO supplier is deactivated later, any edit returns 409 SUPPLIER_INACTIVE unless the supplier is changed in the same edit (or the PO is cancelled). Owner may revise A-02.
+5. D-01 reading: CLOSE only after a receipt (a PO without receipts is CANCELLED). Consistent with O-06/O-07 as answered; owner may confirm.
+
+## Focused re-review of the post-review change
+
+The only change after the review is documentation (this record + the `backend/README.md` upgrade steps); no code, migration, grant or test changed. Focused re-review by the same QA subagent: **PASS** — documentation only (no code/migration/grant/test change); README upgrade order accurate (its migration-over-S-05 probe had shown `permission denied for table goods_receipt` with new code + old grants); this record faithful to its report (one wording precision on NOTE 2 applied).
+
+## Next recommended action
+
+Owner: push `feat/inventory-s06-purchase-order`; Windows/Docker PostgreSQL 17 re-run (unit 401, integration 96 expected); then a separately approved controlled merge. Migrations S-04..S-06 are still not applied to `erp_local` (separate authorization; follow the upgrade order in NOTE 1). Do not start the next slice automatically.
+
+---
+
+## Previous handoff — S06-IMPL-001 (Inventory S-06 Purchase Order)
+
+Date: 2026-09-27. Branch: feat/inventory-s06-purchase-order (base: main @ c30e289). Status: implemented + self-verified in the Cowork VM; independent QA review in progress (result recorded in the next entry); NOT pushed, NOT merged — push, Windows/Docker verification and merge need the owner.
+Authority: owner decisions 2026-09-27 answered in the Cowork Manager session for S-06 and recorded in `docs/decisions/ADR-0010-s06-purchase-order.md`: O-01 no approval step (saved PO is ISSUED); O-02 receipt link optional, direct receiving stays; O-03 many receipts per PO, excess allowed and shown; O-04 PO rate optional, receipt rate mandatory (bill rate); O-05 edit only before the first receipt, audited; O-06 auto RECEIVED when every line is fully received, manual CLOSE otherwise; O-07 Owner and Manager may cancel (no receipt yet) or close, with reason.
+
+## What was built
+
+Backend only: `POST/GET /api/inventory/purchase-orders`, `GET/PATCH /api/inventory/purchase-orders/:id`, `POST .../:id/cancel`, `POST .../:id/close`; optional `purchase_order_id` / `purchase_order_line_id` on `POST /api/inventory/receipts`. Tables `purchase_order`, `purchase_order_line` (insert-only; edits add a revision), `purchase_order_audit`. Received / pending / excess quantities are derived from receipt lines (never stored). Details, API table and requirement-to-test traceability: `docs/engineering/inventory-s06-implementation.md`.
+
+Migration: `backend/migrations/202609270002_inventory_s06_purchase_order.sql` (additive: new sequence/tables/triggers; two nullable columns + unique constraint on the S-05 receipt tables; no existing row changed). Grants: `backend/scripts/runtime-grants.sql` extended (no DELETE/TRUNCATE; PO UPDATE limited to lifecycle columns).
+
+## Verification (Cowork Linux VM, clean clone, Node v24.21.0, PostgreSQL 17.10 embedded)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS — 221 packages |
+| Baseline on untouched main c30e289 | unit 355/355, integration 87/87 |
+| typecheck / lint / build | PASS / PASS / PASS |
+| test:unit | PASS — 401/401 (9 files; 355 + 46 new) |
+| test:integration | PASS — 96/96 (6 files; 87 + 9 new), authoritative migrate CLI + shipped runtime grants |
+| Mutation check | removing the PO row lock (`FOR UPDATE`) in the receipt path makes the concurrency test fail |
+
+Existing code/tests touched: goods receipt domain/repository (optional PO link; direct path unchanged), `app.ts`/`server.ts` wiring, buildApp wiring in 13 test files, migration-list assertions (2 files), S-05 unit fixture (+2 null fields).
+
+## Open / defaults to confirm
+
+DEFAULT / ASSUMED (ADR-0010 A-01..A-07, owner may revise): order date not future and receipt not before order date (Asia/Karachi); inactive masters blocked; PO receipt lines must match a PO line exactly (other items/brands via direct receipt); receipt supplier = PO supplier; no delivery location, expected date or notes on the PO; RECEIVED PO takes no further receipts; one global PO number sequence. Still open: rejected quantities, invoice-pending receipts, returns, Store Keeper role (B-09), expiry (B-07).
+
+## Next recommended action
+
+Independent QA/Testing subagent review (no part in this implementation) and focused re-review of any fixes; then owner: push the branch, Windows/Docker PostgreSQL 17 re-run, then a separately approved controlled merge. Migration not applied to `erp_local`. Do not start the next slice automatically.
 
 ---
 

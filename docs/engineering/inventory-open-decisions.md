@@ -2,6 +2,20 @@
 
 Date: 2026-09-17 (updated). Status: decision register, not answers. Sources: inventory-module.md v0.2, ADR-0001/0002/0003, readiness request. BLOCKING means before coding the affected slice, not that every future decision blocks Item Master. B-01 and B-02 are now CLOSED (ADR-0002, ADR-0003). Approved technical architecture remains a universal implementation gate. No coding currently authorized.
 
+## Update 2026-09-27 (ADR-0011, owner decisions for S-07 Stock Transfer)
+
+- B-04: **partially closed** for location-to-location transfers — two-step (send takes stock out of the source, in transit until the destination receives); the receiver enters the actual quantity and a shortage is a variance with a mandatory reason (not returned anywhere); quantities in Base UOM; cancel with reason only before receipt (full quantity back to source), after receipt final. Still OPEN: kitchen demand/requisition (INV-24), production consumption, partial receipt over several days, excess on arrival (use an adjustment), who carries/confirms by role.
+- DEFAULT / ASSUMED in ADR-0011 A-01..A-08 (owner may revise): any active location → any other of the same branch; inactive item/location blocked on send (in-transit item can still be received/cancelled); received ≤ sent; one receive action for all lines; server time only (no backdating); Owner/Manager do everything, same person may send and receive; global `TRF-000001` sequence; no notes/requisition link.
+- ADR-0008 D-05 extended: a location with a pending transfer in or out cannot be deactivated.
+- B-09 unchanged: Store Keeper / kitchen roles and the permission matrix remain OPEN.
+
+## Update 2026-09-27 (ADR-0010, owner decisions for S-06 Purchase Order)
+
+- INV-17 (partial): ordered vs received per PO line, partial receipts and excess receipts implemented (excess allowed and shown). Rejected quantities, invoice-pending receipt and returns remain OPEN.
+- Purchase Order workflow (roadmap §5.6, partial): no approval step (saved PO is ISSUED); link from receipt to PO is optional (direct receiving stays); PO rate optional, receipt rate mandatory; edit only before the first receipt; auto RECEIVED, manual CLOSE; Owner/Manager cancel (no receipt) or close with reason.
+- DEFAULT / ASSUMED in ADR-0010 A-01..A-07 (owner may revise): order date not future (Asia/Karachi), receipt not before order date; inactive masters blocked; PO receipt lines must match a PO line exactly (other items via direct receipt); receipt supplier = PO supplier; no delivery location on PO; RECEIVED PO takes no more receipts; global PO number sequence; no expected date/notes/payment terms yet.
+- B-09 unchanged: only Owner/Manager exist; a Store Keeper role and any approval matrix remain OPEN.
+
 ## Update 2026-09-27 (ADR-0009, owner decisions for S-05 Goods Receiving)
 
 - B-05 (partial): receipt finality/correction settled — receipts are create-only; corrections via reasoned ADJUSTMENT. Receipt date may be backdated but not future and not before opening stock. General negative stock, cancellation, returns (unused-material and supplier) remain OPEN.

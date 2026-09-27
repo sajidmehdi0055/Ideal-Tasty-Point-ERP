@@ -1,6 +1,6 @@
-# Inventory S-01/S-02/S-03/S-04/S-05 backend
+# Inventory S-01/S-02/S-03/S-04/S-05/S-06/S-07 backend + AI-S01
 
-Item Master create/edit (S-01), UOM/Brand/Pack Variant Masters (S-02), Supplier Master + Purchase Record + Rate Comparison (S-03), Stock Locations + Opening Stock + balances (S-04, quantity-only, ADR-0008), and direct Goods Receiving (S-05, ADR-0009) are implemented. No login/session system, Redis, Purchase Orders, issue/transfer/counts, Purchase Orders/GRN/Supplier Ledger/Payments, or costing/valuation.
+Item Master create/edit (S-01), UOM/Brand/Pack Variant Masters (S-02), Supplier Master + Purchase Record + Rate Comparison (S-03), Stock Locations + Opening Stock + balances (S-04, quantity-only, ADR-0008), direct Goods Receiving (S-05, ADR-0009) Purchase Orders with optional receipt link (S-06, ADR-0010) and two-step Stock Transfers between locations (S-07, ADR-0011) are implemented. No login/session system, Redis, kitchen demand/consumption, counts, Supplier Ledger/Payments, or costing/valuation.
 
 ## Foundation
 
@@ -17,6 +17,8 @@ Run commands from backend/. Use Node 24 and `npm ci --ignore-scripts`.
 3. Set `DATABASE_URL` to the migration-owner connection for `npm run migrate:check`, then `npm run migrate`. These commands default to up migrations only. Never apply to a production or existing business database without a separate migration approval.
 4. As owner, grant the dedicated runtime login privileges with `psql ... -v runtime_role=YOUR_RUNTIME_ROLE -v schema_name=public -f scripts/runtime-grants.sql`. The login must not inherit elevated memberships, own schema/tables, or have sequence UPDATE privilege. The grant file does not create accounts or passwords. This is the single authoritative grant source: integration tests execute this same file (substituting their own per-run isolated schema for `schema_name`) instead of duplicating grant statements — see `tests/integration/helpers/runtime-grants.ts`.
 5. Set API `DATABASE_URL` to the runtime login (see .env.example), then `npm run dev` or `npm run build` and `npm start`.
+
+**Upgrading an existing database** (e.g. applying a new slice): stop the API, run step 3 (`npm run migrate`), re-run step 4 (`runtime-grants.sql`) — every time, because new code may insert into columns the older grants do not cover — and only then start the new build. For S-06 this is required: the S-05 receipt insert now names `purchase_order_id`/`purchase_order_line_id`, so without the re-applied grants even direct receiving fails with a permission error. For S-07 (`202609270003_inventory_s07_stock_transfer`) the same order is required: migrate → re-run `runtime-grants.sql` → start the new build; without the new grants on `stock_transfer*` every transfer call fails with a permission error (existing insert column lists are unchanged).
 
 The standalone server binds to 127.0.0.1 and intentionally denies mutations with 401 until a trusted AuthContext provider is composed into `buildApp`. This is a backend slice, not a deployable public authentication system. Tests inject trusted contexts directly. There is no X-Auth-Context/header-to-role shortcut. A future trusted authentication adapter can provide current user/role/authorized branch without coupling domain logic to JWT or sessions.
 
@@ -157,7 +159,7 @@ Integration tests require TEST_DATABASE_URL for an isolated test PostgreSQL data
 ### Stock Locations and Opening Stock (S-04, ADR-0008)
 
 - `POST /api/inventory/locations` `{ "name": "Main Store", "location_type": "STORE" }` or `{ "name": "Freezer 3", "location_type": "FREEZER", "parent_id": "<store/kitchen id>" }` -> 201. Types: `STORE`, `KITCHEN` (top-level), `FREEZER` (must have an active STORE/KITCHEN parent in the same branch). Name unique per branch (case-insensitive, trimmed).
-- `PATCH /api/inventory/locations/:id` `{ "name"?, "active"? }` -- type and parent are fixed; only Owner may change `active`. Deactivation is refused while the location holds stock (`409 LOCATION_HAS_STOCK`) or has active freezers (`409 LOCATION_HAS_ACTIVE_CHILDREN`).
+- `PATCH /api/inventory/locations/:id` `{ "name"?, "active"? }` -- type and parent are fixed; only Owner may change `active`. Deactivation is refused while the location holds stock (`409 LOCATION_HAS_STOCK`), has active freezers (`409 LOCATION_HAS_ACTIVE_CHILDREN`) or, since S-07, is the source or destination of a pending transfer (`409 LOCATION_HAS_PENDING_TRANSFERS`).
 - `GET /api/inventory/locations` -- branch-scoped, includes inactive.
 - `POST /api/inventory/stock/opening` `{ "item_id", "location_id", "quantity": "12.5" }` -> 201. Quantity in the item's Base UOM, decimal string, > 0. One opening per item + location (`409 OPENING_ALREADY_EXISTS`).
 - `POST /api/inventory/stock/adjustments` `{ "item_id", "location_id", "quantity_delta": "-2.5", "reason": "..." }` -> 201. Corrects opening stock or a receipt without editing it; requires an earlier opening or receipt (`409 OPENING_REQUIRED`); the balance can never go below zero (`409 NEGATIVE_BALANCE`). Since S-05, opening must be the first entry for an item+location (`409 STOCK_HISTORY_EXISTS` if receipts already exist).
@@ -171,5 +173,26 @@ The ledger (`stock_movement`) is append-only: no edit/delete route, no runtime U
 - `GET /api/inventory/receipts` (summaries) and `GET /api/inventory/receipts/:id` (with lines) -- branch-scoped via the location.
 - `receipt_date`: today or earlier on the Asia/Karachi business date (`400 INVALID_RECEIPT_DATE` for future), and not before the item's opening stock date at that location (`409 RECEIPT_BEFORE_OPENING`). A receipt may be the first stock entry.
 - Inactive supplier/location/item/pack variant -> 409; pack variant not matching item+brand or unknown supplier -> `400 INVALID_REFERENCE`; other-branch location or item -> 404 with nothing written.
-- Create-only: no edit/delete route, INSERT-only grants, triggers reject changes. Correct a wrong quantity with a stock adjustment. No PO, expiry, rejected quantities, invoices or payments in this slice.
+- Create-only: no edit/delete route, INSERT-only grants, triggers reject changes. Correct a wrong quantity with a stock adjustment. No expiry, rejected quantities, invoices or payments in this slice.
+- Since S-06: optional `purchase_order_id` on the receipt; then every line carries `purchase_order_line_id` (see below). Without it the receipt is a direct receipt exactly as before.
 
+### Purchase Orders (S-06, ADR-0010)
+
+- `POST /api/inventory/purchase-orders` `{ "supplier_id", "order_date": "2026-09-27", "lines": [{ "item_id", "brand_id", "pack_variant_id", "ordered_quantity": "10", "rate"?: "1500" }] }` -> 201 with a system `po_number` (`PO-000001`) and status `ISSUED` (no approval step). 1–100 lines, one pack variant at most once; `ordered_quantity` in packs; `rate` optional (estimate). `order_date` today or earlier (Asia/Karachi), backdating allowed.
+- `GET /api/inventory/purchase-orders[?status=ISSUED|PARTIALLY_RECEIVED|RECEIVED|CLOSED|CANCELLED]` and `GET /api/inventory/purchase-orders/:id` (current lines with `received_quantity`, `pending_quantity`, `excess_quantity`, plus linked receipts) -- branch-scoped.
+- `PATCH /api/inventory/purchase-orders/:id` -- nonempty subset of `supplier_id`/`order_date`/`lines`, only while the PO has no receipt (`409 PO_NOT_EDITABLE`). `lines` replaces the whole set as a new revision; earlier revisions are kept, never deleted.
+- `POST .../:id/cancel` `{ "reason" }` (only without receipts) and `POST .../:id/close` `{ "reason" }` (only after a partial receipt) -- Owner or Manager; otherwise `409 PO_STATUS_CONFLICT`.
+- Receiving against a PO: `purchase_order_id` + per-line `purchase_order_line_id` (same item/brand/pack variant; `400 PO_LINE_MISMATCH`), same supplier (`400 PO_SUPPLIER_MISMATCH`), PO open (`409 PO_NOT_OPEN`), receipt date not before the order date (`409 RECEIPT_BEFORE_ORDER`). Partial and excess receipts are allowed; the PO becomes `PARTIALLY_RECEIVED`, or `RECEIVED` automatically once every line is fully received.
+- No delete route; lines and audit are immutable; a guard trigger enforces the lifecycle even for the schema owner. Every create/edit/receipt/cancel/close writes a `purchase_order_audit` row with before/after snapshots.
+
+### Stock Transfers (S-07, ADR-0011)
+
+- `POST /api/inventory/transfers` `{ "from_location_id", "to_location_id", "lines": [{ "item_id", "quantity": "10" }] }` -> 201 with a system `transfer_number` (`TRF-000001`) and status `SENT`. Quantities in the item's Base UOM; 1–100 lines, each item once; source ≠ destination, both active and in the caller's branch. The stock leaves the source at once (`TRANSFER_OUT`, `409 INSUFFICIENT_STOCK` if the source balance is too low) and is *in transit* until received. Inactive item/location -> 409; other-branch location or item -> 404 with nothing written.
+- `POST /api/inventory/transfers/:id/receive` `{ "lines": [{ "line_id", "received_quantity": "9.5", "variance_reason"?: "Bag torn" }] }` -- every line exactly once (`400 RECEIVE_LINES_MISMATCH`); `0 ≤ received ≤ sent` (`400 RECEIVED_EXCEEDS_SENT`); a shortage is stored as `variance_quantity` and needs `variance_reason` (`400 VARIANCE_REASON_REQUIRED`, and `400 VARIANCE_REASON_NOT_ALLOWED` without a shortage). The destination gets a `TRANSFER_IN` of the received quantity; the variance does not return anywhere.
+- `POST /api/inventory/transfers/:id/cancel` `{ "reason" }` -- only while `SENT`; the full sent quantity returns to the source (`TRANSFER_RETURN`). `RECEIVED` and `CANCELLED` are final (`409 TRANSFER_STATUS_CONFLICT`).
+- `GET /api/inventory/transfers[?status=SENT|RECEIVED|CANCELLED]` (`SENT` = in transit) and `GET /api/inventory/transfers/:id` (lines with sent/received/variance and movement links) -- branch-scoped via the source location.
+- Owner or Manager for every action. No edit/delete route; lines, settlements and audit are immutable; guard and commit-time triggers enforce the lifecycle and the movement links even for the schema owner. Every send/receive/cancel writes a `stock_transfer_audit` row with before/after snapshots, and every movement its own `stock_movement_audit` row.
+
+### AI layer (AI-S01, ADR-0012)
+
+Optional and OFF by default (`AI_ENABLED=false`). `GET /api/ai/status`, `POST /api/ai/chat` (authenticated; 503 while disabled). Ten read-only Inventory/Purchasing tools over the existing services, local OpenAI-compatible model first, cloud providers only with `AI_CLOUD_ENABLED=true`, append-only `ai_audit_log` (runtime role: INSERT only). Configuration, tools, limits and how to extend: [docs/architecture/AI_ARCHITECTURE.md](../docs/architecture/AI_ARCHITECTURE.md). After applying migration `202609270004_ai_s01_audit_log`, re-run `scripts/runtime-grants.sql` as usual.
