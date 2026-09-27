@@ -1,4 +1,43 @@
-# Current Handoff — S07-VERIFY-001 (Stock Transfer — Windows/Docker Verification, Branch Push)
+# Current Handoff — S07-MERGE-001 (Inventory S-07 Stock Transfer Merged to Main)
+
+Date: 2026-09-27. Branch: main. Merged from: feat/inventory-s07-stock-transfer (HEAD 620d044 = implementation 304a880 + S07-FIX-001 6414828 + QA record 6e5dead + S07-VERIFY-001 record 620d044).
+Authority: explicit owner approval in the Cowork Manager session ("Haan, merge karo"), following S07-QA-001 (independent QA/Testing subagent PASS — 0 BLOCKER / 0 MAJOR / 2 MINOR / 3 NOTE, all addressed in S07-FIX-001; focused re-review PASS) and S07-VERIFY-001 (Windows/Docker PostgreSQL 17.11: unit 440/440, integration 107/107, branch pushed, origin == 620d044). Same-provider review limitation applies (Codex/Antigravity paused).
+
+## Pre-merge checks (executed)
+
+- main == origin/main == a6660e5; local and origin `feat/inventory-s07-stock-transfer` == 620d044; main is an ancestor (fast-forward possible).
+- Change after the Cowork-verified 6e5dead: `CURRENT-HANDOFF.md` only (S07-VERIFY-001 record), no secrets.
+- Main worktree: `main` checked out, tracked tree clean (only 00-PROJECT-MASTER.md, "Claude outputs/", backend/tmp/ untracked); no `.git/index.lock`. Owner granted delete permission on the repo folder; probe file confirmed before the merge.
+
+## Merge
+
+`git merge --ff-only feat/inventory-s07-stock-transfer` on the checked-out main: a6660e5 → 620d044; `git diff HEAD feat/inventory-s07-stock-transfer` empty. Feature branch preserved (local and origin). Push of main: from the owner's Windows machine.
+
+## Post-merge verification (fresh clone of merged main 620d044, Cowork Linux VM, Node v24.21.0, embedded PostgreSQL 17.10)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS — 221 packages |
+| typecheck / lint / build | PASS / PASS / PASS |
+| test:unit | PASS — 440/440 (10 files) |
+| test:integration | PASS — 107/107 (7 files), authoritative migrate CLI + shipped runtime grants |
+| frontend/ diff vs a6660e5 | none |
+
+## Status
+
+S-07 is on main: implementation + tests + independent QA (PASS) + fixes with focused re-review (PASS) + Windows/Docker verification + owner-approved merge + post-merge verification. Migrations S-04..S-07 are NOT applied to `erp_local` (separate authorization). When they are: stop the API → `npm run migrate` → re-run `scripts/runtime-grants.sql` → start the new build.
+
+## Carried forward
+
+ADR-0011 DEFAULT / ASSUMED A-01..A-08 (owner may revise); open B-04 parts (kitchen demand/requisition INV-24, production consumption, partial receipt over days, excess on arrival via adjustment); B-09 roles. No transfer UI yet. Earlier S-06 NOTEs and gaps unchanged.
+
+## Next recommended action
+
+Owner pushes main (`a6660e5..` merge record). Next slice only when the owner asks, in its own chat.
+
+---
+
+## Previous handoff — S07-VERIFY-001 (Stock Transfer — Windows/Docker Verification, Branch Push)
 
 Date: 2026-09-27. Branch: feat/inventory-s07-stock-transfer (base: main @ a6660e5; verified HEAD 6e5dead — this record adds only this documentation entry on top). Status: implemented + independently QA-reviewed in the Cowork Linux VM (S07-QA-001/S07-FIX-001, PASS) + now also verified on the owner's Windows/Docker environment. Push to origin authorized and performed by this record. **NOT merged to main** — merge requires a separate owner approval.
 Authority: owner explicitly authorized (a) verification in a new isolated worktree (`Ideal-Tasty-Point-ERP-s07-verify`), (b) one docs-only record commit on this branch, (c) a plain push of this branch — withholding merge-to-main, force-push, rebase/reset/clean, deletion, `erp_local` access and process management.
