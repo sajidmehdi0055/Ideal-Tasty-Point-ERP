@@ -94,7 +94,10 @@ CREATE TRIGGER stock_transfer_no_truncate BEFORE TRUNCATE ON stock_transfer
 FOR EACH STATEMENT EXECUTE FUNCTION inventory_reject_history_mutation();
 
 -- 3. Lines: insert-only, written only in the transaction that created the
--- transfer. sent_quantity is in the item's Base UOM; each line owns exactly
+-- transfer (xmin of the header = current top-level transaction; the
+-- application never uses savepoints here -- inserting the header inside a
+-- savepoint would give it a subtransaction xid and this check would refuse
+-- the lines). sent_quantity is in the item's Base UOM; each line owns exactly
 -- one TRANSFER_OUT movement at the source for -sent_quantity.
 CREATE TABLE stock_transfer_line (
   id uuid PRIMARY KEY,
@@ -236,6 +239,23 @@ BEGIN
 END $$;
 CREATE CONSTRAINT TRIGGER stock_transfer_has_lines AFTER INSERT ON stock_transfer
 DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION inventory_check_transfer_has_lines();
+
+-- A settlement only exists together with the matching final header status
+-- (RECEIVE -> RECEIVED, CANCEL -> CANCELLED), so a transfer can never be
+-- half-settled while still SENT (in transit counted twice).
+CREATE FUNCTION inventory_check_settlement_finalised() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE transfer_status text; expected_status text;
+BEGIN
+  expected_status := CASE NEW.kind WHEN 'RECEIVE' THEN 'RECEIVED' ELSE 'CANCELLED' END;
+  SELECT t.status INTO transfer_status FROM stock_transfer t
+    JOIN stock_transfer_line l ON l.stock_transfer_id = t.id WHERE l.id = NEW.stock_transfer_line_id;
+  IF transfer_status IS DISTINCT FROM expected_status THEN
+    RAISE EXCEPTION 'A % settlement requires the transfer to be % in the same transaction', NEW.kind, expected_status;
+  END IF;
+  RETURN NULL;
+END $$;
+CREATE CONSTRAINT TRIGGER stock_transfer_settlement_finalised AFTER INSERT ON stock_transfer_settlement
+DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION inventory_check_settlement_finalised();
 
 -- 6. Audit: full before/after snapshots including lines and settlements.
 CREATE TABLE stock_transfer_audit (

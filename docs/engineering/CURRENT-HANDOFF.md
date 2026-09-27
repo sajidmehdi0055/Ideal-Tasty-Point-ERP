@@ -1,6 +1,6 @@
 # Current Handoff — S07-IMPL-001 (Inventory S-07 Stock Transfer — Implementation)
 
-Date: 2026-09-27. Branch: feat/inventory-s07-stock-transfer (base: main @ a6660e5). Status: implemented and tested in the Cowork Linux VM; **independent QA review pending; NOT pushed; NOT merged.**
+Date: 2026-09-27. Branch: feat/inventory-s07-stock-transfer (base: main @ a6660e5). Status: implemented and tested in the Cowork Linux VM; independent QA review S07-QA-001 PASS (0 BLOCKER / 0 MAJOR / 2 MINOR / 3 NOTE) — all five addressed in S07-FIX-001, focused re-review pending; **NOT pushed; NOT merged.**
 Authority: owner decisions 2026-09-27 recorded in `docs/decisions/ADR-0011-s07-stock-transfer.md` (slice choice; two-step send → receive; short receipt = variance with mandatory reason; Base UOM; cancel with reason only before receipt). Technical design by the Manager within those decisions; DEFAULT / ASSUMED A-01..A-08 (owner may revise).
 
 ## What changed
@@ -16,9 +16,16 @@ Authority: owner decisions 2026-09-27 recorded in `docs/decisions/ADR-0011-s07-s
 |---|---|
 | npm ci | PASS — 221 packages |
 | typecheck / lint / build | PASS / PASS / PASS |
-| test:unit | PASS — 439/439 (10 files; 401 + 38 new) |
-| test:integration | PASS — 106/106 (7 files; 96 + 10 new), authoritative migrate CLI + shipped runtime grants |
-| Mutation checks | 4/4 caught (row lock, balance check, list branch filter, destination branch check) — see implementation doc |
+| test:unit | PASS — 440/440 (10 files; 401 + 39 new) |
+| test:integration | PASS — 107/107 (7 files; 96 + 11 new), authoritative migrate CLI + shipped runtime grants |
+| Mutation checks | implementer 8/8 caught (M1–M4 + M-new, M8, M12, M16 after QA); QA's own M5/M7/M9/M10/M13/M15 caught — see implementation doc |
+
+## S07-QA-001 (independent QA/Testing subagent, own clone, same-provider) and S07-FIX-001
+
+- QA ran npm ci/typecheck/lint/build (PASS) and unit 439/439, integration 106/106; verdict PASS.
+- MINOR-1: a settlement could be committed while the header stayed SENT (DB backstop gap) → fixed with a deferred `stock_transfer_settlement_finalised` constraint trigger + test.
+- MINOR-2: mutations M8/M12/M16 not caught → tests added; all three now caught.
+- NOTE-1 (send balance query scanned the whole location) → filtered by item; NOTE-2 (uppercase UUIDs → 404) → ids lowercased in zod + unit test; NOTE-3 (savepoint caveat of the `xmin` check) → documented in the migration.
 
 ## Upgrade order (when applied to a real database)
 
@@ -26,7 +33,7 @@ Stop the API → `npm run migrate` → re-run `scripts/runtime-grants.sql` → s
 
 ## Next recommended action
 
-Independent QA/Testing subagent review (separate clone), focused re-review of any fixes, then Windows/Docker verification + push by VS Code Claude, then owner merge decision.
+Focused re-review of S07-FIX-001, then Windows/Docker verification + push by VS Code Claude, then owner merge decision.
 
 ---
 

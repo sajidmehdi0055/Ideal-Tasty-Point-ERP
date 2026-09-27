@@ -13,6 +13,10 @@ const sentQuantitySchema = z.string()
 const receivedQuantitySchema = z.string()
   .regex(DECIMAL, 'received_quantity must be a plain decimal string, e.g. "10" or "0"');
 
+// Ids are compared with the lowercase text PostgreSQL returns, so uppercase
+// (still valid) UUIDs are normalised here instead of silently not matching.
+const idSchema = z.uuid().transform(value => value.toLowerCase());
+
 const reasonSchema = z.string().trim().min(1, 'reason is required').max(500)
   .refine(value => !value.includes('\u0000'), 'NUL characters are invalid');
 
@@ -21,13 +25,13 @@ export const STOCK_TRANSFER_STATUSES = ['SENT', 'RECEIVED', 'CANCELLED'] as cons
 export type StockTransferStatus = typeof STOCK_TRANSFER_STATUSES[number];
 
 export const stockTransferLineInputSchema = z.object({
-  item_id: z.uuid(),
+  item_id: idSchema,
   quantity: sentQuantitySchema,
 }).strict();
 
 export const stockTransferInputSchema = z.object({
-  from_location_id: z.uuid(),
-  to_location_id: z.uuid(),
+  from_location_id: idSchema,
+  to_location_id: idSchema,
   lines: z.array(stockTransferLineInputSchema)
     .min(1, 'A transfer needs at least one line')
     .max(MAX_TRANSFER_LINES)
@@ -45,7 +49,7 @@ export const stockTransferInputSchema = z.object({
 });
 
 export const stockTransferReceiveLineSchema = z.object({
-  line_id: z.uuid(),
+  line_id: idSchema,
   received_quantity: receivedQuantitySchema,
   variance_reason: reasonSchema.optional(),
 }).strict();
@@ -68,7 +72,7 @@ export const stockTransferListQuerySchema = z.object({
   status: z.enum(STOCK_TRANSFER_STATUSES).optional(),
 }).strict();
 
-export const stockTransferIdSchema = z.uuid();
+export const stockTransferIdSchema = idSchema;
 
 export type StockTransferInput = z.infer<typeof stockTransferInputSchema>;
 export type StockTransferReceiveInput = z.infer<typeof stockTransferReceiveSchema>;

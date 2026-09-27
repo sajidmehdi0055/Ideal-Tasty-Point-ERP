@@ -129,7 +129,7 @@ export class PgStockTransferRepository implements StockTransferRepository {
         `SELECT COALESCE(b.balance, 0) >= t.q::numeric AS ok, COALESCE(b.balance, 0)::text AS available
          FROM unnest($2::uuid[], $3::text[]) WITH ORDINALITY AS t(item_id, q, n)
          LEFT JOIN (SELECT item_id, sum(quantity_delta) AS balance FROM stock_movement
-                    WHERE location_id = $1 GROUP BY item_id) b ON b.item_id = t.item_id
+                    WHERE location_id = $1 AND item_id = ANY($2::uuid[]) GROUP BY item_id) b ON b.item_id = t.item_id
          ORDER BY t.n`,
         [input.from_location_id, input.lines.map(l => l.item_id), input.lines.map(l => l.quantity)],
       );

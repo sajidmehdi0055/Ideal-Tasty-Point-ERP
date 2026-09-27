@@ -239,3 +239,14 @@ describe('S-07 Stock Transfer reads and authorization', () => {
     expect((await app.inject({ method: 'DELETE', url: `${URL}/${transferId}` })).statusCode).toBe(404);
   });
 });
+
+describe('S-07 Stock Transfer id normalisation (QA NOTE-2)', () => {
+  it('lowercases uppercase UUIDs before they reach the repository', async () => {
+    const { app, transfers } = setup();
+    const res = await post(app, { from_location_id: fromId.toUpperCase(), to_location_id: toId.toUpperCase(), lines: [{ item_id: itemId.toUpperCase(), quantity: '1' }] });
+    expect(res.statusCode).toBe(201);
+    expect(transfers.send).toHaveBeenCalledWith({ from_location_id: fromId, to_location_id: toId, lines: [{ item_id: itemId, quantity: '1' }] }, owner);
+    await act(app, 'receive', receiveBody([{ line_id: lineId.toUpperCase(), received_quantity: '1', variance_reason: 'x' }]), transferId.toUpperCase());
+    expect(transfers.receive).toHaveBeenCalledWith(transferId, { lines: [{ line_id: lineId, received_quantity: '1', variance_reason: 'x' }] }, owner);
+  });
+});

@@ -409,4 +409,44 @@ describe('S-07 Stock Transfer (real PostgreSQL)', () => {
     await expect(admin.query(`INSERT INTO stock_movement (id, item_id, location_id, movement_type, quantity_delta) VALUES ($1, $2, $3, 'TRANSFER_OUT', 1)`, [randomUUID(), i.id, from.id])).rejects.toThrow(/check constraint/);
     expect(await status(t2.id)).toBe('SENT');
   });
+
+  it('QA follow-up backstops: no half-settled transfer, variance must add up, settlement kind must match status, return quantity exact', async () => {
+    const { i, from, to, t } = await sentTransfer('10', '2');
+    const lineId = t.lines[0]!.id;
+    const inTx = async (pool: Pool, work: (c: PoolClient) => Promise<void>) => {
+      const c = await pool.connect();
+      try { await c.query('BEGIN'); await work(c); await c.query('COMMIT'); } catch (e) { await c.query('ROLLBACK').catch(() => undefined); throw e; } finally { c.release(); }
+    };
+    const insertIn = (c: PoolClient, qty: string) => {
+      const id = randomUUID();
+      return c.query(`INSERT INTO stock_movement (id, item_id, location_id, movement_type, quantity_delta) VALUES ($1, $2, $3, 'TRANSFER_IN', $4)`, [id, i.id, to.id, qty]).then(() => id);
+    };
+    // MINOR-1: runtime role (shipped grants) settles a line but leaves the header SENT -> refused at commit.
+    await expect(inTx(runtime, async c => {
+      const mv = await insertIn(c, '2');
+      await c.query(`INSERT INTO stock_transfer_settlement (id, stock_transfer_line_id, kind, received_quantity, variance_quantity, movement_id) VALUES ($1, $2, 'RECEIVE', 2, 0, $3)`, [randomUUID(), lineId, mv]);
+    })).rejects.toThrow(/requires the transfer to be RECEIVED/);
+    // M8: received + variance must equal sent.
+    await expect(inTx(admin, async c => {
+      const mv = await insertIn(c, '1');
+      await c.query(`INSERT INTO stock_transfer_settlement (id, stock_transfer_line_id, kind, received_quantity, variance_quantity, movement_id) VALUES ($1, $2, 'RECEIVE', 1, 0, $3)`, [randomUUID(), lineId, mv]);
+    })).rejects.toThrow(/variance = sent - received/);
+    // M16: a TRANSFER_RETURN of the wrong quantity cannot be linked.
+    await expect(inTx(admin, async c => {
+      const mv = randomUUID();
+      await c.query(`INSERT INTO stock_movement (id, item_id, location_id, movement_type, quantity_delta) VALUES ($1, $2, $3, 'TRANSFER_RETURN', 1)`, [mv, i.id, from.id]);
+      await c.query(`INSERT INTO stock_transfer_settlement (id, stock_transfer_line_id, kind, movement_id) VALUES ($1, $2, 'CANCEL', $3)`, [randomUUID(), lineId, mv]);
+    })).rejects.toThrow(/own TRANSFER_RETURN movement/);
+    // M12: CANCEL settlements cannot finalise the transfer as RECEIVED.
+    await expect(inTx(admin, async c => {
+      const mv = randomUUID();
+      await c.query(`INSERT INTO stock_movement (id, item_id, location_id, movement_type, quantity_delta) VALUES ($1, $2, $3, 'TRANSFER_RETURN', 2)`, [mv, i.id, from.id]);
+      await c.query(`INSERT INTO stock_transfer_settlement (id, stock_transfer_line_id, kind, movement_id) VALUES ($1, $2, 'CANCEL', $3)`, [randomUUID(), lineId, mv]);
+      await c.query(`UPDATE stock_transfer SET status='RECEIVED' WHERE id=$1`, [t.id]);
+    })).rejects.toThrow(/RECEIVE settlement/);
+    // Nothing stuck: still SENT, no settlement, and the normal cancel works.
+    expect(await status(t.id)).toBe('SENT');
+    await expect(transfers.cancel(t.id, 'cleanup', owner)).resolves.toMatchObject({ status: 'CANCELLED' });
+    expect(await balance(i.id, from.id)).toBe('10.000000');
+  });
 });
