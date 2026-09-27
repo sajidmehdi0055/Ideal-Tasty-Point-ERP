@@ -12,6 +12,7 @@ import { PgPurchaseRecordRepository } from '../../src/inventory/persistence/pg-p
 import { PgStockLocationRepository } from '../../src/inventory/persistence/pg-stock-location-repository.js';
 import { PgStockRepository } from '../../src/inventory/persistence/pg-stock-repository.js';
 import { PgGoodsReceiptRepository } from '../../src/inventory/persistence/pg-goods-receipt-repository.js';
+import { PgPurchaseOrderRepository } from '../../src/inventory/persistence/pg-purchase-order-repository.js';
 import { applyRuntimeGrants } from './helpers/runtime-grants.js';
 import { runAuthoritativeMigrate } from './helpers/migrate-cli.js';
 
@@ -42,7 +43,7 @@ describe('S-05 Goods Receiving (real PostgreSQL)', () => {
     return buildApp({
       repository: items, uomRepository: new PgUomRepository(runtime), brandRepository: brands, packVariantRepository: packs,
       supplierRepository: suppliers, purchaseRecordRepository: purchases, stockLocationRepository: locations,
-      stockRepository: stock, goodsReceiptRepository: receipts, authProvider: async () => auth,
+      stockRepository: stock, goodsReceiptRepository: receipts, purchaseOrderRepository: new PgPurchaseOrderRepository(runtime), authProvider: async () => auth,
     });
   }
   /** Item (base KG) + brand + pack variant with the given factor, in auth's branch. */

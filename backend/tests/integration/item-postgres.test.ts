@@ -13,6 +13,7 @@ import { PgPurchaseRecordRepository } from '../../src/inventory/persistence/pg-p
 import { PgStockLocationRepository } from '../../src/inventory/persistence/pg-stock-location-repository.js';
 import { PgStockRepository } from '../../src/inventory/persistence/pg-stock-repository.js';
 import { PgGoodsReceiptRepository } from '../../src/inventory/persistence/pg-goods-receipt-repository.js';
+import { PgPurchaseOrderRepository } from '../../src/inventory/persistence/pg-purchase-order-repository.js';
 import { applyRuntimeGrants } from './helpers/runtime-grants.js';
 import { runAuthoritativeMigrate } from './helpers/migrate-cli.js';
 
@@ -54,7 +55,7 @@ afterAll(async () => { await runtime.end(); await admin.end(); });
 function buildTestApp(auth: AuthContext) {
   return buildApp({
     repository, uomRepository, brandRepository, packVariantRepository,
-    supplierRepository, purchaseRecordRepository, stockLocationRepository, stockRepository, goodsReceiptRepository: new PgGoodsReceiptRepository(runtime), authProvider: async () => auth,
+    supplierRepository, purchaseRecordRepository, stockLocationRepository, stockRepository, goodsReceiptRepository: new PgGoodsReceiptRepository(runtime), purchaseOrderRepository: new PgPurchaseOrderRepository(runtime), authProvider: async () => auth,
   });
 }
 
@@ -68,6 +69,7 @@ describe('S-01 real PostgreSQL migration and persistence', () => {
       '202609250001_inventory_s03_purchasing_supplier',
       '202609260001_inventory_s04_locations_opening_stock',
       '202609270001_inventory_s05_goods_receiving',
+      '202609270002_inventory_s06_purchase_order',
     ]);
     // Re-running the same authoritative command against an up-to-date schema
     // must be a genuine no-op: same migrations recorded, nothing duplicated.

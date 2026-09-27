@@ -12,6 +12,7 @@ import { PgPurchaseRecordRepository } from '../../src/inventory/persistence/pg-p
 import { PgStockLocationRepository } from '../../src/inventory/persistence/pg-stock-location-repository.js';
 import { PgStockRepository } from '../../src/inventory/persistence/pg-stock-repository.js';
 import { PgGoodsReceiptRepository } from '../../src/inventory/persistence/pg-goods-receipt-repository.js';
+import { PgPurchaseOrderRepository } from '../../src/inventory/persistence/pg-purchase-order-repository.js';
 import type { ItemInput } from '../../src/inventory/domain/item.js';
 import { applyRuntimeGrants } from './helpers/runtime-grants.js';
 import { runAuthoritativeMigrate } from './helpers/migrate-cli.js';
@@ -88,7 +89,7 @@ describe('S-02 UOM/Brand/Pack Variant Masters (real PostgreSQL)', () => {
     it('creates and edits a custom UOM through HTTP with atomic immutable audit snapshots', async () => {
       const app = buildApp({
         repository: itemRepository, uomRepository, brandRepository, packVariantRepository,
-        supplierRepository, purchaseRecordRepository, stockLocationRepository, stockRepository, goodsReceiptRepository: new PgGoodsReceiptRepository(runtime), authProvider: async () => owner,
+        supplierRepository, purchaseRecordRepository, stockLocationRepository, stockRepository, goodsReceiptRepository: new PgGoodsReceiptRepository(runtime), purchaseOrderRepository: new PgPurchaseOrderRepository(runtime), authProvider: async () => owner,
       });
       try {
         const created = await app.inject({ method: 'POST', url: '/api/inventory/uoms', payload: { name: 'Sack', unit_type: 'PACKAGING' } });
@@ -139,7 +140,7 @@ describe('S-02 UOM/Brand/Pack Variant Masters (real PostgreSQL)', () => {
     it('creates and edits a brand through HTTP with atomic immutable audit snapshots', async () => {
       const app = buildApp({
         repository: itemRepository, uomRepository, brandRepository, packVariantRepository,
-        supplierRepository, purchaseRecordRepository, stockLocationRepository, stockRepository, goodsReceiptRepository: new PgGoodsReceiptRepository(runtime), authProvider: async () => owner,
+        supplierRepository, purchaseRecordRepository, stockLocationRepository, stockRepository, goodsReceiptRepository: new PgGoodsReceiptRepository(runtime), purchaseOrderRepository: new PgPurchaseOrderRepository(runtime), authProvider: async () => owner,
       });
       try {
         const created = await app.inject({ method: 'POST', url: '/api/inventory/brands', payload: { name: 'Brand Z' } });
@@ -173,7 +174,7 @@ describe('S-02 UOM/Brand/Pack Variant Masters (real PostgreSQL)', () => {
     it('creates and edits through HTTP, scoped to the authorized branch item, with atomic audit', async () => {
       const app = buildApp({
         repository: itemRepository, uomRepository, brandRepository, packVariantRepository,
-        supplierRepository, purchaseRecordRepository, stockLocationRepository, stockRepository, goodsReceiptRepository: new PgGoodsReceiptRepository(runtime), authProvider: async () => owner,
+        supplierRepository, purchaseRecordRepository, stockLocationRepository, stockRepository, goodsReceiptRepository: new PgGoodsReceiptRepository(runtime), purchaseOrderRepository: new PgPurchaseOrderRepository(runtime), authProvider: async () => owner,
       });
       try {
         const item = await itemRepository.create(itemInput, owner);
@@ -283,7 +284,7 @@ describe('S-02 UOM/Brand/Pack Variant Masters (real PostgreSQL)', () => {
     it('GET/list only ever returns the caller branch\'s pack variants, never another branch\'s', async () => {
       const app = buildApp({
         repository: itemRepository, uomRepository, brandRepository, packVariantRepository,
-        supplierRepository, purchaseRecordRepository, stockLocationRepository, stockRepository, goodsReceiptRepository: new PgGoodsReceiptRepository(runtime), authProvider: async () => owner,
+        supplierRepository, purchaseRecordRepository, stockLocationRepository, stockRepository, goodsReceiptRepository: new PgGoodsReceiptRepository(runtime), purchaseOrderRepository: new PgPurchaseOrderRepository(runtime), authProvider: async () => owner,
       });
       try {
         const tin = (await admin.query(`SELECT id FROM uom_master WHERE name='TIN'`)).rows[0];
@@ -511,6 +512,7 @@ describe('S-02 base_uom migration safety refinement (real authoritative CLI comm
         '202609250001_inventory_s03_purchasing_supplier',
         '202609260001_inventory_s04_locations_opening_stock',
         '202609270001_inventory_s05_goods_receiving',
+        '202609270002_inventory_s06_purchase_order',
       ]);
 
       // Step i: confirm successful backfill, FK, preserved legacy text, Pack Variant structures, and valid Item behavior.
