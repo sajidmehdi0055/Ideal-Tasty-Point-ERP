@@ -1,4 +1,24 @@
-# Current Handoff — AI-S01-MERGE-001 (AI Foundation Merged to Main)
+# Current Handoff — UI-AI-001 (AI Assistant screen — Figma design approved)
+
+Date: 2026-09-30. Branch: `docs/ui-ai-001-figma-approval` (from main 5b39a3c; docs only). Track: PARALLEL TRACK — design only; no frontend code, backend, API, migration or auth change.
+Authority: owner approved the Figma proposal "with the 2 small corrections" (2026-09-30) and approved recording it.
+
+## What was done
+
+- Figma file `N9KkqXIQuvCUj9NVAj6Cx4`, section `104:3226` "APPROVED 2026-09-30 — AI Assistant (UI-AI-001)": placement recommendation board, contract-gaps board, 12 states (desktop + one tablet frame), each in Light and Dark, inside the approved ERP Shell v2 components and `ITP / Theme` variables.
+- Decision: slide-over panel from a header "Ask AI" button, usable from any screen (not a full-page sidebar entry). Approval card for `proposed_action` is marked FUTURE (AI-S02).
+- Owner corrections applied: stronger panel separation (border/strong + deeper shadow, mainly for Dark); generic suggestion text instead of a sample supplier name.
+- Design record with states, behaviour, contract gaps and open items: [ui-ai-001-ai-assistant-design.md](ui-ai-001-ai-assistant-design.md).
+
+## Status
+
+main unchanged (5b39a3c == origin/main). This docs branch: committed locally, not pushed, not merged. `feat/ui-shell-v2` (ERP Shell v2): implemented + reviewed + re-verified (d1445db), not pushed, not merged — UI-AI-002 depends on it (header + theme tokens).
+
+## Next recommended action
+
+Owner decides: (1) push this docs branch and/or merge it (separate approval), (2) push/merge ERP Shell v2 (separate approval), (3) only then, when asked, UI-AI-002 — frontend implementation of the AI Assistant panel in its own branch/worktree.
+
+## Previous handoff — AI-S01-MERGE-001 (AI Foundation Merged to Main)
 
 Date: 2026-09-27. Branch: main. Merged from: feat/ai-s01-foundation (HEAD c0c576e = AI-S01 implementation/tests/docs + FIX-001/FIX-002 + sync merge 02689c6 with main ec7833d + QA-004 record e175502 + AI-S01-VERIFY-001 record c0c576e).
 Authority: explicit owner approval in the Cowork Manager session ("Haan, merge karo"), following AI-S01-QA-001..004 (independent QA/Testing subagent; final verdict PASS — ready for controlled merge, 0 BLOCKER/MAJOR/MINOR open) and AI-S01-VERIFY-001 (Windows 11, Node v24.18.1, Docker 29.8.0, PostgreSQL 17.11, `erp_test`: typecheck/lint/build PASS, unit 520/520, integration 112/112; branch pushed, origin == c0c576e). Same-provider review limitation applies (Codex/Antigravity paused).
