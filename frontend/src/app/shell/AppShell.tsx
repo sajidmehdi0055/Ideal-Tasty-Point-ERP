@@ -3,6 +3,7 @@ import { SidebarPanel, SidebarRail } from './Sidebar';
 import { Header } from './Header';
 import { useCollapsedGroups, useSidebarPinned } from './sidebar-prefs';
 import { useMediaQuery } from '../../lib/use-media-query';
+import { AiAssistantPanel, useAiPanelIsModal } from '../../features/ai-assistant';
 
 /** Hover must rest this long on the rail before the peek opens (avoids accidental opens). */
 export const PEEK_OPEN_DELAY_MS = 150;
@@ -30,6 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [peekOpen, setPeekOpen] = useState(false);
   const [peekFocusIndex, setPeekFocusIndex] = useState<number | undefined>(undefined);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const aiModal = useAiPanelIsModal();
 
   const navTriggerRef = useRef<HTMLButtonElement>(null);
   const railExpandRef = useRef<HTMLButtonElement>(null);
@@ -190,102 +192,107 @@ export function AppShell({ children }: { children: ReactNode }) {
   const contentInert = drawerIsOpen || peekIsModal;
 
   return (
-    <div className="flex min-h-screen bg-canvas-muted">
-      {isWide && pinned ? (
-        <aside className="sticky top-0 h-screen shrink-0">
-          <SidebarPanel
-            variant="pinned"
-            navLabel="Primary"
-            collapsedGroups={collapsedGroups}
-            onToggleGroup={toggleGroup}
-            onCollapse={collapse}
-          />
-        </aside>
-      ) : null}
-
-      {isWide && !pinned ? (
-        <aside
-          className="sticky top-0 z-40 h-screen shrink-0"
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          onPointerDown={() => {
-            pointerDownRef.current = true;
-            window.setTimeout(() => {
-              pointerDownRef.current = false;
-            }, 0);
-          }}
-          onBlur={handleRegionBlur}
-        >
-          <div className="h-full" inert={showPeek}>
-            <SidebarRail
-              onExpand={handleRailExpand}
-              expandLabel={canHover ? 'Pin sidebar' : 'Expand navigation'}
-              expandRef={railExpandRef}
-              onLinkFocus={handleRailLinkFocus}
+    <>
+      {/* UI-AI-002: while the AI Assistant is open as a modal sheet (tablet /
+          mobile) the whole shell behind it is inert; the desktop panel is not. */}
+      <div className="flex min-h-screen bg-canvas-muted" inert={aiModal} data-testid="shell-root">
+        {isWide && pinned ? (
+          <aside className="sticky top-0 h-screen shrink-0">
+            <SidebarPanel
+              variant="pinned"
+              navLabel="Primary"
+              collapsedGroups={collapsedGroups}
+              onToggleGroup={toggleGroup}
+              onCollapse={collapse}
             />
-          </div>
-          {showPeek ? (
-            <div
-              ref={peekRef}
-              className="fixed inset-y-0 left-0 z-40 shadow-peek"
-              role={peekIsModal ? 'dialog' : undefined}
-              aria-modal={peekIsModal ? true : undefined}
-              aria-label={peekIsModal ? 'Primary navigation' : undefined}
-              data-testid="sidebar-peek"
-            >
-              <SidebarPanel
-                variant="peek"
-                navLabel="Primary (expanded)"
-                collapsedGroups={collapsedGroups}
-                onToggleGroup={toggleGroup}
-                onNavigate={peekIsModal ? closePeek : undefined}
-                onPin={pin}
-                autoFocusIndex={peekIsModal ? 0 : peekFocusIndex}
+          </aside>
+        ) : null}
+
+        {isWide && !pinned ? (
+          <aside
+            className="sticky top-0 z-40 h-screen shrink-0"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onPointerDown={() => {
+              pointerDownRef.current = true;
+              window.setTimeout(() => {
+                pointerDownRef.current = false;
+              }, 0);
+            }}
+            onBlur={handleRegionBlur}
+          >
+            <div className="h-full" inert={showPeek}>
+              <SidebarRail
+                onExpand={handleRailExpand}
+                expandLabel={canHover ? 'Pin sidebar' : 'Expand navigation'}
+                expandRef={railExpandRef}
+                onLinkFocus={handleRailLinkFocus}
               />
             </div>
-          ) : null}
-        </aside>
-      ) : null}
+            {showPeek ? (
+              <div
+                ref={peekRef}
+                className="fixed inset-y-0 left-0 z-40 shadow-peek"
+                role={peekIsModal ? 'dialog' : undefined}
+                aria-modal={peekIsModal ? true : undefined}
+                aria-label={peekIsModal ? 'Primary navigation' : undefined}
+                data-testid="sidebar-peek"
+              >
+                <SidebarPanel
+                  variant="peek"
+                  navLabel="Primary (expanded)"
+                  collapsedGroups={collapsedGroups}
+                  onToggleGroup={toggleGroup}
+                  onNavigate={peekIsModal ? closePeek : undefined}
+                  onPin={pin}
+                  autoFocusIndex={peekIsModal ? 0 : peekFocusIndex}
+                />
+              </div>
+            ) : null}
+          </aside>
+        ) : null}
 
-      {!isWide ? (
-        <aside
-          inert={!drawerOpen}
-          role="dialog"
-          aria-modal={drawerOpen}
-          aria-label="Primary navigation"
-          className={`fixed inset-y-0 left-0 z-40 transition-transform duration-200 ${
-            drawerOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
-        >
-          <SidebarPanel
-            variant="drawer"
-            navLabel="Primary"
-            collapsedGroups={collapsedGroups}
-            onToggleGroup={toggleGroup}
-            onNavigate={() => setDrawerOpen(false)}
-            onClose={() => setDrawerOpen(false)}
-            firstLinkRef={drawerFirstLinkRef}
+        {!isWide ? (
+          <aside
+            inert={!drawerOpen}
+            role="dialog"
+            aria-modal={drawerOpen}
+            aria-label="Primary navigation"
+            className={`fixed inset-y-0 left-0 z-40 transition-transform duration-200 ${
+              drawerOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
+          >
+            <SidebarPanel
+              variant="drawer"
+              navLabel="Primary"
+              collapsedGroups={collapsedGroups}
+              onToggleGroup={toggleGroup}
+              onNavigate={() => setDrawerOpen(false)}
+              onClose={() => setDrawerOpen(false)}
+              firstLinkRef={drawerFirstLinkRef}
+            />
+          </aside>
+        ) : null}
+
+        {drawerIsOpen || peekIsModal ? (
+          // Pointer-only dismiss target; keyboard users close with Esc or the close/link controls.
+          <div
+            aria-hidden="true"
+            data-testid="sidebar-scrim"
+            className="fixed inset-0 z-30 bg-overlay"
+            onClick={() => (drawerIsOpen ? setDrawerOpen(false) : closeModalPeekFromScrim())}
           />
-        </aside>
-      ) : null}
+        ) : null}
 
-      {drawerIsOpen || peekIsModal ? (
-        // Pointer-only dismiss target; keyboard users close with Esc or the close/link controls.
-        <div
-          aria-hidden="true"
-          data-testid="sidebar-scrim"
-          className="fixed inset-0 z-30 bg-overlay"
-          onClick={() => (drawerIsOpen ? setDrawerOpen(false) : closeModalPeekFromScrim())}
-        />
-      ) : null}
-
-      {/* Inert while a modal overlay is open, so Tab/Shift+Tab can't reach it. */}
-      <div className="flex min-h-screen min-w-0 flex-1 flex-col" inert={contentInert} data-testid="shell-content">
-        <Header showMenuButton={!isWide} onOpenNav={() => setDrawerOpen(true)} triggerRef={navTriggerRef} />
-        <main className="flex-1 p-4 md:p-6">
-          <div className="mx-auto w-full max-w-[1600px]">{children}</div>
-        </main>
+        {/* Inert while a modal overlay is open, so Tab/Shift+Tab can't reach it. */}
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col" inert={contentInert} data-testid="shell-content">
+          <Header showMenuButton={!isWide} onOpenNav={() => setDrawerOpen(true)} triggerRef={navTriggerRef} />
+          <main className="flex-1 p-4 md:p-6">
+            <div className="mx-auto w-full max-w-[1600px]">{children}</div>
+          </main>
+        </div>
       </div>
-    </div>
+      <AiAssistantPanel />
+    </>
   );
 }

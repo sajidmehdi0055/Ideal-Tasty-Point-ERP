@@ -7,6 +7,7 @@ import { DEV_ROLES } from '../../lib/dev-session';
 import { ChevronRightIcon, MenuIcon } from '../../design-system/icons';
 import { getBreadcrumb } from './breadcrumbs';
 import { ThemeToggle } from './ThemeToggle';
+import { AskAiButton } from '../../features/ai-assistant';
 
 interface HeaderProps {
   /** Mobile layout only: the button that opens the navigation drawer. */
@@ -20,6 +21,9 @@ interface HeaderProps {
  * user menu; both are intentionally NOT rendered yet because the backend has
  * no real session/auth or branch-name endpoint (see lib/session.tsx) — the UI
  * must not invent them. Until then the DEV-only identity switch stays here.
+ * UI-AI-002: the "Ask AI" button sits where the design puts it (left of the
+ * branch switcher), i.e. first in the right-hand group; it renders nothing
+ * unless GET /api/ai/status allows it.
  */
 export function Header({ showMenuButton, onOpenNav, triggerRef }: HeaderProps) {
   const location = useLocation();
@@ -58,6 +62,7 @@ export function Header({ showMenuButton, onOpenNav, triggerRef }: HeaderProps) {
         <h1 className="truncate text-base font-semibold text-ink md:text-lg">{title}</h1>
       </div>
       <div className="flex shrink-0 items-center gap-2 md:gap-3">
+        <AskAiButton />
         <ThemeToggle />
         {/* Dev-only: there is no login/session system yet (see lib/session.tsx).
             Stripped from production builds — import.meta.env.DEV is inlined at
