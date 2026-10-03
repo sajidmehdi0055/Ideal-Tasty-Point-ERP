@@ -1,6 +1,6 @@
 # AI-S03 — Read-only AI tools for S-07 Stock Transfers: implementation traceability
 
-Branch: `feat/ai-s03-transfer-tools` (from verified main `5b39a3c`, main == origin/main). Decision: [ADR-0012 addendum A-1](../decisions/ADR-0012-ai-s01-foundation.md#addendum-a-1--ai-s03-stock-transfer-read-tools-2026-10-03). Business rules: [ADR-0011](../decisions/ADR-0011-s07-stock-transfer.md). Architecture guide: [AI_ARCHITECTURE.md](../architecture/AI_ARCHITECTURE.md) §3.
+Branch: `feat/ai-s03-transfer-tools` (from verified main `5b39a3c`, then == origin/main; local main `889a5e2` — UI-SHELL-V2-MERGE-001, frontend/docs only — merged in as AI-S03-SYNC-001). Decision: [ADR-0012 addendum A-1](../decisions/ADR-0012-ai-s01-foundation.md#addendum-a-1--ai-s03-stock-transfer-read-tools-2026-10-03). Business rules: [ADR-0011](../decisions/ADR-0011-s07-stock-transfer.md). Architecture guide: [AI_ARCHITECTURE.md](../architecture/AI_ARCHITECTURE.md) §3.
 
 ## Scope (owner task AI-S03, 2026-10-03)
 

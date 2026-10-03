@@ -1,6 +1,6 @@
 # Current Handoff — AI-S03-IMPL-001 (Read-only AI tools for S-07 Stock Transfers — on feature branch)
 
-Date: 2026-10-03. Branch: `feat/ai-s03-transfer-tools` (from verified main `5b39a3c`; main == origin/main). NOT merged, NOT pushed.
+Date: 2026-10-03. Branch: `feat/ai-s03-transfer-tools` (from verified main `5b39a3c` == origin/main at start; local main `889a5e2` — UI-SHELL-V2-MERGE-001, merged in a parallel session during this task, frontend + docs only — merged into the branch in AI-S03-SYNC-001). NOT merged, NOT pushed.
 Authority: owner task AI-S03 in the Cowork Manager session (small slice: READ-only Stock Transfer AI tools; no migration, dependency, write tool or frontend). Governance form: [ADR-0012 addendum A-1](../decisions/ADR-0012-ai-s01-foundation.md#addendum-a-1--ai-s03-stock-transfer-read-tools-2026-10-03) (adds tools within the approved decisions; nothing superseded).
 
 ## What changed
@@ -20,6 +20,10 @@ Authority: owner task AI-S03 in the Cowork Manager session (small slice: READ-on
 | test:integration | PASS — 113/113 (8 files; main 112 + 1) |
 | migrations / dependencies / frontend | none changed |
 
+## AI-S03-SYNC-001 (merge of main `889a5e2` into the branch)
+
+Main moved 5b39a3c → 889a5e2 (UI-SHELL-V2-MERGE-001: frontend shell v2 + UI-AI-001 design record; `backend/` unchanged). Only overlapping file: this one (both sides prepended a section). Resolved by keeping both: AI-S03 on top, UI-SHELL-V2-MERGE-001 title demoted to "Previous handoff", everything below kept unchanged. Note: main `889a5e2` was not yet pushed when the sync was made — push main before this branch.
+
 ## Review status
 
 Pending: independent QA/Testing subagent (AI-S03-QA-001). Same-provider review limitation applies (Codex/Antigravity paused).
@@ -32,7 +36,141 @@ Pending: independent QA/Testing subagent (AI-S03-QA-001). Same-provider review l
 
 ## Carried forward (unchanged)
 
-S-04..S-07 and AI-S01 migrations not applied to `erp_local`; S06-QA-001 NOTEs 2–5; S-07 carried-forward items; ADR-0010 A-01..A-07; no receiving/PO UI; no real login/session. A local branch `feat/ai-s01b-tool-usability` (worktree `Ideal-Tasty-Point-ERP-ai-s01b`) exists at `5b39a3c` with no commits of its own; if it later changes `inventory-tools.ts`, expect a small merge overlap with AI-S03.
+S-04..S-07 and AI-S01 migrations not applied to `erp_local`; S06-QA-001 NOTEs 2–5; S-07 carried-forward items; ADR-0010 A-01..A-07; no receiving/PO UI; no real login/session. `feat/ai-s01b-tool-usability` (DEV TRACK, other chat; worktree `Ideal-Tasty-Point-ERP-ai-s01b`) is at `5b39a3c` with no commits of its own; if it later changes `inventory-tools.ts`, expect a small merge overlap with AI-S03.
+
+## Previous handoff — UI-SHELL-V2-MERGE-001 (ERP Shell v2 + UI-AI-001 design record merged to main)
+
+Date: 2026-10-03. Branch: main. Track: PARALLEL TRACK (frontend + docs only — no backend, migration, API or auth change).
+Authority: explicit owner approval in the Cowork Manager session ("han kr do"), after UI-SHELL-V2-REVIEW-001 (independent QA/Testing subagent, PASS; 4 MINOR fixed in 4cba3b7), re-verification d1445db (PASS) and owner push of `feat/ui-shell-v2` (origin == d1445db, confirmed with `git ls-remote`). Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
+
+## Merges
+
+| # | Source | Type | Result |
+|---|---|---|---|
+| 1 | `feat/ui-shell-v2` @ d1445db | fast-forward (`git merge --ff-only feat/ui-shell-v2`) | main 5b39a3c → d1445db; 17 files, +1624/−426 (15 `frontend/src`, `frontend/index.html`, this file) |
+| 2 | `docs/ui-ai-001-figma-approval` @ e8ed9c7 | merge commit (`git merge --no-ff`; fast-forward no longer possible) | dd7c9a5; adds `docs/engineering/ui-ai-001-ai-assistant-design.md` |
+
+Conflict (merge 2): `docs/engineering/CURRENT-HANDOFF.md` only — both branches prepended a top section. Resolved by keeping both: UI-AI-001 above UI-SHELL-V2-001 (newest first), the older title demoted to "Previous handoff". Verified: vs `docs/ui-ai-001-figma-approval` the resolved file has only additions (+70/−0); vs d1445db the only removed line is the demoted title.
+
+Pre-merge checks: main == origin/main == 5b39a3c; main an ancestor of both branches; `backend/` and `package.json`/lockfiles unchanged on both branches; no `.git/*.lock` left (one stale `index.lock` created by a VM `git status` was removed with owner-granted delete permission — only git lock files are deleted).
+
+## Verification
+
+Pre-merge (fresh clone of `feat/ui-shell-v2` @ d1445db, Cowork VM, Node v22.23.2 / npm 10.9.8): frontend `npm ci`, typecheck, lint, build PASS; vitest 13 files, 88/88 PASS; backend diff vs main empty.
+
+Post-merge (fresh clone of main @ dd7c9a5, same VM):
+
+| Check | Frontend | Backend |
+|---|---|---|
+| `npm ci` | OK | OK |
+| typecheck | PASS | PASS |
+| lint | PASS | PASS |
+| build | PASS | PASS |
+| vitest | 13 files, 88/88 PASS | unit: 15 files, 520/520 PASS (same as AI-S01 baseline) |
+
+`git diff 5b39a3c dd7c9a5 -- backend` is empty. Backend integration tests (real PostgreSQL) were not run: the backend is byte-identical to 5b39a3c, already verified in AI-S01-VERIFY-001 (integration 112/112).
+Note: VM Node is v22; `engines` requires `>=24 <25` (npm EBADENGINE warning only). The Windows/Node 24 run remains the authoritative environment.
+
+## Untouched
+
+`feat/ai-s01b-tool-usability` (DEV TRACK, other chat) and all other branches/worktrees. No force push, rebase, reset, clean, squash or branch deletion. Feature branches `feat/ui-shell-v2` and `docs/ui-ai-001-figma-approval` are kept.
+
+## Next recommended action
+
+1. Owner pushes main (`git push origin main`) and confirms `git ls-remote origin main` == local main.
+2. Then, in its own chat and branch/worktree from the pushed main: UI-AI-002 (AI Assistant panel frontend). Not started here.
+
+---
+
+## Previous handoff — UI-AI-001 (AI Assistant screen — Figma design approved)
+
+Date: 2026-09-30. Branch: `docs/ui-ai-001-figma-approval` (from main 5b39a3c; docs only). Track: PARALLEL TRACK — design only; no frontend code, backend, API, migration or auth change.
+Authority: owner approved the Figma proposal "with the 2 small corrections" (2026-09-30) and approved recording it.
+
+## What was done
+
+- Figma file `N9KkqXIQuvCUj9NVAj6Cx4`, section `104:3226` "APPROVED 2026-09-30 — AI Assistant (UI-AI-001)": placement recommendation board, contract-gaps board, 12 states (desktop + one tablet frame), each in Light and Dark, inside the approved ERP Shell v2 components and `ITP / Theme` variables.
+- Decision: slide-over panel from a header "Ask AI" button, usable from any screen (not a full-page sidebar entry). Approval card for `proposed_action` is marked FUTURE (AI-S02).
+- Owner corrections applied: stronger panel separation (border/strong + deeper shadow, mainly for Dark); generic suggestion text instead of a sample supplier name.
+- Design record with states, behaviour, contract gaps and open items: [ui-ai-001-ai-assistant-design.md](ui-ai-001-ai-assistant-design.md).
+
+## Status
+
+main unchanged (5b39a3c == origin/main). This docs branch: committed locally, not pushed, not merged. `feat/ui-shell-v2` (ERP Shell v2): implemented + reviewed + re-verified (d1445db), not pushed, not merged — UI-AI-002 depends on it (header + theme tokens).
+
+## Next recommended action
+
+Owner decides: (1) push this docs branch and/or merge it (separate approval), (2) push/merge ERP Shell v2 (separate approval), (3) only then, when asked, UI-AI-002 — frontend implementation of the AI Assistant panel in its own branch/worktree.
+
+---
+
+## Previous handoff — UI-SHELL-V2-001 (ERP Shell v2: collapsible sidebar, header, Light/Dark theme)
+
+Date: 2026-09-27. Branch: `feat/ui-shell-v2` (base: main @ c30e289; main @ 5b39a3c merged in — S-06, S-07, AI-S01). Track: PARALLEL TRACK (frontend only — no backend, migration, API or auth change).
+Status: implemented + independently reviewed (PASS, 4 MINOR fixed on-branch — see "Independent review") + main merged in. **Not pushed to origin, not merged to main.**
+Authority: owner approved the Figma design ("acha ha ok kr do", 2026-09-27) and then authorized both the documentation update and the implementation ("dono").
+Design source: Figma file `N9KkqXIQuvCUj9NVAj6Cx4` — section `89:2` "APPROVED 2026-09-27 — ERP Shell v2" (12 frames: desktop collapsed / hover peek / pinned, tablet tap-open, mobile closed / drawer; each in Light and Dark), components section `86:2` (`Shell/Sidebar` Peek·Pinned·Drawer, `Shell/Rail`, `Shell/Tooltip`, `Shell/Header` Desktop·Mobile), variable collection `ITP / Theme` (Light + Dark modes).
+
+## Owner-approved behaviour (implemented)
+
+- Behaviour follows input type, not only width. `< 768px`: no rail; header menu button opens a modal drawer (scrim, ✕, Esc, focus management as before).
+- `≥ 768px`, mouse/trackpad (`(hover: hover) and (pointer: fine)`): 64px icons-only rail by default with name tooltips; resting 150 ms opens a non-modal "peek" (264px) over the content with no layout shift; leaving closes it after 300 ms. Keyboard focus on a rail link opens the peek and moves focus to the same item; Esc closes and returns focus to the rail.
+- `≥ 768px`, touch (tablet): no hover behaviour; the rail's bottom button opens the peek as a modal overlay with scrim; scrim, link or Esc closes it.
+- "Pin sidebar" keeps the full sidebar in the page flow; "Collapse sidebar" returns to the rail. Pin state and collapsed groups (Inventory / Purchasing / Stock) are remembered per device (localStorage, UI convenience only).
+- Pending modules keep an amber "Pending" badge (expanded) / amber dot (rail).
+- Light/Dark theme: defaults to the device setting; the header toggle overrides it and is remembered (`itp-erp:theme`). An inline script in `index.html` applies it before first paint (no light flash).
+
+## Implementation
+
+- `frontend/src/styles/index.css`: two-layer tokens — `--itp-*` values for Light (`:root`) and Dark (`[data-theme="dark"]`), mapped via `@theme inline` to Tailwind names. Legacy names (`canvas`, `line`, `ink`, `primary-*`, status colours) kept and remapped, so existing screens theme automatically; `primary-*` now resolves to the approved Charcoal/Slate action colour instead of the old blue. New names: `action`, `on-action`, `focus`, `canvas-sunken`, `canvas-hover`, `line-strong`, `ink-secondary`, `overlay`, `sidebar-*`, `danger-solid`. Radii aligned to Figma (control 6px, card 8px). Font stack starts with Inter (not bundled — see gaps).
+- `lib/theme.tsx` (ThemeProvider/useTheme), `app/shell/ThemeToggle.tsx`, `app/shell/sidebar-prefs.ts`.
+- `app/shell/Sidebar.tsx` → `SidebarPanel` (pinned / peek / drawer) + `SidebarRail`; `AppShell.tsx` owns open/close logic; `Header.tsx` restyled (breadcrumb, Lucide menu icon, theme toggle).
+- Hard-coded colours removed from the shell (`#1e293b`, `bg-slate-900/40`, …). `Button` primary/dark now use `action` tokens; danger uses `danger-solid`; `Modal` backdrop uses `overlay`.
+- Lucide icons vendored as before (lucide-static 1.48.0, ISC): Menu, Pin, PanelLeftClose, PanelLeftOpen, ChevronRight, Sun, Moon. No new npm dependency.
+- Main content width: `max-w-5xl` → `max-w-[1600px]` (data-dense screens).
+
+## Verification (clean local clone of main c30e289 + this branch, Cowork Linux VM, Node v24)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS |
+| typecheck / lint / build | PASS / PASS / PASS |
+| vitest | PASS — 88/88 (13 files; was 65/65 on main) |
+| Production build excludes dev identity (`itp-erp:dev-identity` not in dist) | PASS |
+| Visual check (Playwright/Chromium on the built app: desktop collapsed, tooltip, hover peek, pinned, dark, tablet touch, mobile, mobile drawer) | matches approved Figma |
+
+New tests cover: hover open delay / close grace / pass-over, pin + collapse persistence, keyboard open + Esc focus return, focus-leave close, touch modal peek (scrim, inert content, focus), mobile drawer (open/close paths, focus return ordering, breakpoint reset), group collapse persistence, corrupt stored prefs, breadcrumb, theme default/override/persistence/invalid value.
+
+## Independent review (UI-SHELL-V2-REVIEW-001)
+
+Reviewer: fresh in-house QA/Code-review subagent with no part in the implementation, own clone, own runs (Codex/Antigravity paused — same-provider substitute, not equivalent to an external reviewer; recorded per AGENTS.md so the owner can weigh it).
+Result on 7cfd43c: **PASS — 0 BLOCKER, 0 MAJOR, 4 MINOR, 6 NOTE.** npm ci, typecheck, lint, 83/83 tests, build, dev-identity-stripped check all reproduced; token parity Light/Dark (42 vars each), no legacy token removed; mutation checks confirmed tests are meaningful.
+
+Re-verification of the fix commit 4cba3b7 by the same reviewer (own clone, own runs): tsc/eslint/build PASS, **88/88** tests, dev identity stripped; all 4 MINOR probes now behave correctly; mutation checks confirm the new tests catch each regression. **Verdict on the final commit: PASS — ready for controlled merge**, 0 new MINOR/MAJOR. New NOTEs (informational): (A) a touch modal peek dropped by a touch→mouse device change leaves focus on <body>; (B) a theoretical sub-frame window between the layout-change render and the timer-clearing effect.
+
+MINORs (all fixed on this branch, each with a regression test that fails on the pre-fix code):
+1. Stale hover flag after pin-from-peek → collapse kept a keyboard-opened peek open on focus-out. Fixed: hover flag reset on pin/collapse.
+2. A pending hover-open timer could fire after a breakpoint change and re-open the peek later. Fixed: timer cleared and peek dropped on any breakpoint change.
+3. Switching mouse ↔ touch did not reset an open peek (could turn into a modal without focus inside). Fixed: peek dropped on input-type change.
+4. Esc with a hover peek open stole focus from the content. Fixed: Esc only handled when the peek is modal or holds focus.
+NOTEs addressed: focus now returns to the rail button after the touch peek is closed by the scrim; dead `suppressFocusOpenRef` removed. NOTEs left: two harmless un-cleared 0 ms timeouts; inline theme script falls back to light if storage access throws, and needs a CSP hash if a CSP is added later; `bg-white` toggle knob in UomFormDialog (pre-existing).
+
+## Deliberate deviations from the Figma (Frontend Contract Discipline)
+
+- **Branch switcher and user menu are not rendered.** The backend has no real session/auth and no branch-name endpoint; showing "Main branch"/"Owner" would invent capabilities. The DEV-only identity switch remains in the header (stripped from production builds). Backend contract gap recorded here.
+- Logo is still a placeholder square until the official logo file is supplied (to be used unchanged).
+
+## Known gaps / notes
+
+- Inter is not bundled (no new dependency added); the system font is used where Inter isn't installed. Bundling needs an approved dependency or a self-hosted font file.
+- Colour sources outside this branch are now stale: Figma collection "Ideal Tasty Point / Colors — Midnight Teal" and the Cowork Design System artifact (navy `#1e3a5c`, Source Serif/Sans). Figma "ITP / Theme" + this token file are the approved values; reconcile the other two in a separate step.
+- Rail links do not scroll: fine for the current 6 modules; move tooltips to a portal before adding overflow when modules grow.
+
+## Next recommended action
+
+Independent review of `feat/ui-shell-v2` (Codex, or a fresh QA/Testing subagent while Codex is paused), then owner decision on push and merge. Push needs the owner's Windows machine (Cowork VM has no GitHub credentials).
+
+---
 
 ## Previous handoff — AI-S01-MERGE-001 (AI Foundation Merged to Main)
 

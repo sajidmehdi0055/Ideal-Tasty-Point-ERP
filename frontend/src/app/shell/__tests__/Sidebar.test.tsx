@@ -1,17 +1,24 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { Sidebar } from '../Sidebar';
+import { SidebarPanel, SidebarRail, type SidebarPanelVariant } from '../Sidebar';
 
-describe('Sidebar', () => {
+function renderPanel(variant: SidebarPanelVariant, collapsed: string[] = []) {
+  return render(
+    <MemoryRouter initialEntries={['/items']}>
+      <SidebarPanel
+        variant={variant}
+        navLabel="Primary"
+        collapsedGroups={new Set(collapsed)}
+        onToggleGroup={vi.fn()}
+      />
+    </MemoryRouter>,
+  );
+}
+
+describe('SidebarPanel', () => {
   it('lists Item Master and Catalog Settings as live, and the rest as pending', () => {
-    render(
-      <MemoryRouter initialEntries={['/items']}>
-        <Sidebar open onClose={vi.fn()} isDesktop={false} />
-      </MemoryRouter>,
-    );
-
+    renderPanel('pinned');
     for (const label of [/item master/i, /catalog settings/i]) {
       expect(screen.getByRole('link', { name: label })).not.toHaveTextContent('Pending');
     }
@@ -20,59 +27,44 @@ describe('Sidebar', () => {
     }
   });
 
-  it('groups nav items under Inventory, Purchasing and Stock section labels', () => {
-    render(
-      <MemoryRouter initialEntries={['/items']}>
-        <Sidebar open onClose={vi.fn()} isDesktop={false} />
-      </MemoryRouter>,
-    );
-
+  it('groups nav items under Inventory, Purchasing and Stock', () => {
+    renderPanel('pinned');
     for (const section of ['Inventory', 'Purchasing', 'Stock']) {
-      expect(screen.getByText(section)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: section })).toHaveAttribute('aria-expanded', 'true');
     }
   });
 
-  it('is inert (unreachable by keyboard/AT) when closed on a mobile viewport', () => {
-    render(
-      <MemoryRouter initialEntries={['/items']}>
-        <Sidebar open={false} onClose={vi.fn()} isDesktop={false} />
-      </MemoryRouter>,
-    );
-    expect(screen.getByRole('navigation', { name: 'Primary', hidden: true }).closest('aside')).toHaveAttribute(
-      'inert',
-    );
+  it('hides the links of a collapsed group', () => {
+    renderPanel('pinned', ['Purchasing']);
+    expect(screen.getByRole('button', { name: 'Purchasing' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', { name: /suppliers/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /item master/i })).toBeInTheDocument();
   });
 
-  it('is not inert, and is a modal dialog, when open on a mobile viewport', () => {
-    render(
-      <MemoryRouter initialEntries={['/items']}>
-        <Sidebar open onClose={vi.fn()} isDesktop={false} />
-      </MemoryRouter>,
-    );
-    const aside = screen.getByRole('dialog', { name: 'Primary navigation' });
-    expect(aside).not.toHaveAttribute('inert');
-    expect(aside).toHaveAttribute('aria-modal', 'true');
+  it('marks the current route as active', () => {
+    renderPanel('pinned');
+    expect(screen.getByRole('link', { name: /item master/i })).toHaveAttribute('aria-current', 'page');
   });
 
-  it('calls onClose on Escape when open on a mobile viewport', async () => {
-    const onClose = vi.fn();
-    render(
-      <MemoryRouter initialEntries={['/items']}>
-        <Sidebar open onClose={onClose} isDesktop={false} />
-      </MemoryRouter>,
-    );
-    await userEvent.keyboard('{Escape}');
-    expect(onClose).toHaveBeenCalledTimes(1);
+  it.each([
+    ['pinned', 'Collapse sidebar'],
+    ['peek', 'Pin sidebar'],
+    ['drawer', 'Close navigation'],
+  ] as const)('%s variant shows its own control (%s)', (variant, control) => {
+    renderPanel(variant);
+    expect(screen.getByRole('button', { name: control })).toBeInTheDocument();
   });
+});
 
-  it('is never inert or a dialog on a desktop viewport, regardless of open state', () => {
+describe('SidebarRail', () => {
+  it('labels every icon link and its expand button', () => {
     render(
-      <MemoryRouter initialEntries={['/items']}>
-        <Sidebar open={false} onClose={vi.fn()} isDesktop />
+      <MemoryRouter initialEntries={['/catalog-settings']}>
+        <SidebarRail onExpand={vi.fn()} expandLabel="Pin sidebar" />
       </MemoryRouter>,
     );
-    const aside = screen.getByRole('navigation', { name: 'Primary' }).closest('aside');
-    expect(aside).not.toHaveAttribute('inert');
-    expect(aside).not.toHaveAttribute('role', 'dialog');
+    expect(screen.getByRole('link', { name: 'Catalog Settings' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Stock Ledger (pending)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pin sidebar' })).toBeInTheDocument();
   });
 });

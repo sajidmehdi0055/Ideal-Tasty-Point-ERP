@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ideal Tasty Point ERP</title>
+    <!-- Apply the saved/system theme before first paint to avoid a light flash in Dark mode. Mirrors lib/theme.tsx. -->
+    <script>
+      try {
+        var t = localStorage.getItem('itp-erp:theme');
+        if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = t;
+        document.documentElement.style.colorScheme = t;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

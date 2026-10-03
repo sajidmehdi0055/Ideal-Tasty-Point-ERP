@@ -4,57 +4,82 @@ import { useDevSession, type DevRole } from '../../lib/session';
 // DEV-only import, used exclusively inside the `import.meta.env.DEV` branch
 // below — keep it that way so this stays tree-shaken out of production.
 import { DEV_ROLES } from '../../lib/dev-session';
+import { ChevronRightIcon, MenuIcon } from '../../design-system/icons';
 import { getBreadcrumb } from './breadcrumbs';
+import { ThemeToggle } from './ThemeToggle';
 
 interface HeaderProps {
+  /** Mobile layout only: the button that opens the navigation drawer. */
+  showMenuButton: boolean;
   onOpenNav: () => void;
   triggerRef?: RefObject<HTMLButtonElement | null>;
 }
 
-export function Header({ onOpenNav, triggerRef }: HeaderProps) {
+/**
+ * ERP Shell v2 header. The approved Figma also shows a branch switcher and a
+ * user menu; both are intentionally NOT rendered yet because the backend has
+ * no real session/auth or branch-name endpoint (see lib/session.tsx) — the UI
+ * must not invent them. Until then the DEV-only identity switch stays here.
+ */
+export function Header({ showMenuButton, onOpenNav, triggerRef }: HeaderProps) {
   const location = useLocation();
   const { title, crumbs } = getBreadcrumb(location.pathname);
   const { identity, setRole } = useDevSession();
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-line bg-canvas px-4 md:px-6">
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-2 border-b border-line bg-canvas px-2 md:gap-4 md:px-6">
+      {showMenuButton ? (
         <button
           ref={triggerRef}
           type="button"
           onClick={onOpenNav}
           aria-label="Open navigation"
-          className="rounded-control p-2 text-ink hover:bg-canvas-muted md:hidden"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control text-ink hover:bg-canvas-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus"
         >
-          ☰
+          <MenuIcon className="h-5 w-5" />
         </button>
-        <div>
-          {crumbs.length > 1 ? (
-            <p className="text-xs text-ink-muted">{crumbs.slice(0, -1).join(' / ')}</p>
-          ) : null}
-          <h1 className="text-lg font-semibold text-ink">{title}</h1>
-        </div>
-      </div>
-      {/* Dev-only: there is no login/session system yet (see lib/session.tsx).
-          Stripped from production builds — import.meta.env.DEV is inlined at
-          build time, so this whole branch is dead code outside dev/test. */}
-      {import.meta.env.DEV ? (
-        <label className="flex items-center gap-2 text-xs text-ink-muted">
-          <span className="hidden sm:inline">Dev identity (placeholder, not real auth)</span>
-          <select
-            value={identity.role}
-            onChange={event => setRole(event.target.value as DevRole)}
-            aria-label="Dev identity role — placeholder, not real auth"
-            className="rounded-control border border-line bg-canvas px-2 py-1 text-xs text-ink"
-          >
-            {DEV_ROLES.map(role => (
-              <option key={role} value={role}>
-                {role}
-              </option>
-            ))}
-          </select>
-        </label>
       ) : null}
+      <div className="min-w-0 flex-1">
+        {crumbs.length > 1 ? (
+          <nav aria-label="Breadcrumb" className="hidden md:block">
+            <ol className="flex items-center gap-1 text-xs font-medium text-ink-muted">
+              {crumbs.slice(0, -1).map(crumb => (
+                <li key={crumb} className="flex items-center gap-1">
+                  {crumb}
+                  <ChevronRightIcon className="h-3 w-3" />
+                </li>
+              ))}
+              <li aria-current="page" className="text-ink-secondary">
+                {crumbs[crumbs.length - 1]}
+              </li>
+            </ol>
+          </nav>
+        ) : null}
+        <h1 className="truncate text-base font-semibold text-ink md:text-lg">{title}</h1>
+      </div>
+      <div className="flex shrink-0 items-center gap-2 md:gap-3">
+        <ThemeToggle />
+        {/* Dev-only: there is no login/session system yet (see lib/session.tsx).
+            Stripped from production builds — import.meta.env.DEV is inlined at
+            build time, so this whole branch is dead code outside dev/test. */}
+        {import.meta.env.DEV ? (
+          <label className="flex items-center gap-2 text-xs text-ink-muted">
+            <span className="hidden lg:inline">Dev identity (placeholder, not real auth)</span>
+            <select
+              value={identity.role}
+              onChange={event => setRole(event.target.value as DevRole)}
+              aria-label="Dev identity role — placeholder, not real auth"
+              className="h-8 rounded-control border border-line bg-canvas px-2 text-xs text-ink"
+            >
+              {DEV_ROLES.map(role => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
     </header>
   );
 }
