@@ -1,4 +1,48 @@
-# Current Handoff — UI-AI-001 (AI Assistant screen — Figma design approved)
+# Current Handoff — UI-SHELL-V2-MERGE-001 (ERP Shell v2 + UI-AI-001 design record merged to main)
+
+Date: 2026-10-03. Branch: main. Track: PARALLEL TRACK (frontend + docs only — no backend, migration, API or auth change).
+Authority: explicit owner approval in the Cowork Manager session ("han kr do"), after UI-SHELL-V2-REVIEW-001 (independent QA/Testing subagent, PASS; 4 MINOR fixed in 4cba3b7), re-verification d1445db (PASS) and owner push of `feat/ui-shell-v2` (origin == d1445db, confirmed with `git ls-remote`). Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
+
+## Merges
+
+| # | Source | Type | Result |
+|---|---|---|---|
+| 1 | `feat/ui-shell-v2` @ d1445db | fast-forward (`git merge --ff-only feat/ui-shell-v2`) | main 5b39a3c → d1445db; 17 files, +1624/−426 (15 `frontend/src`, `frontend/index.html`, this file) |
+| 2 | `docs/ui-ai-001-figma-approval` @ e8ed9c7 | merge commit (`git merge --no-ff`; fast-forward no longer possible) | dd7c9a5; adds `docs/engineering/ui-ai-001-ai-assistant-design.md` |
+
+Conflict (merge 2): `docs/engineering/CURRENT-HANDOFF.md` only — both branches prepended a top section. Resolved by keeping both: UI-AI-001 above UI-SHELL-V2-001 (newest first), the older title demoted to "Previous handoff". Verified: vs `docs/ui-ai-001-figma-approval` the resolved file has only additions (+70/−0); vs d1445db the only removed line is the demoted title.
+
+Pre-merge checks: main == origin/main == 5b39a3c; main an ancestor of both branches; `backend/` and `package.json`/lockfiles unchanged on both branches; no `.git/*.lock` left (one stale `index.lock` created by a VM `git status` was removed with owner-granted delete permission — only git lock files are deleted).
+
+## Verification
+
+Pre-merge (fresh clone of `feat/ui-shell-v2` @ d1445db, Cowork VM, Node v22.23.2 / npm 10.9.8): frontend `npm ci`, typecheck, lint, build PASS; vitest 13 files, 88/88 PASS; backend diff vs main empty.
+
+Post-merge (fresh clone of main @ dd7c9a5, same VM):
+
+| Check | Frontend | Backend |
+|---|---|---|
+| `npm ci` | OK | OK |
+| typecheck | PASS | PASS |
+| lint | PASS | PASS |
+| build | PASS | PASS |
+| vitest | 13 files, 88/88 PASS | unit: 15 files, 520/520 PASS (same as AI-S01 baseline) |
+
+`git diff 5b39a3c dd7c9a5 -- backend` is empty. Backend integration tests (real PostgreSQL) were not run: the backend is byte-identical to 5b39a3c, already verified in AI-S01-VERIFY-001 (integration 112/112).
+Note: VM Node is v22; `engines` requires `>=24 <25` (npm EBADENGINE warning only). The Windows/Node 24 run remains the authoritative environment.
+
+## Untouched
+
+`feat/ai-s01b-tool-usability` (DEV TRACK, other chat) and all other branches/worktrees. No force push, rebase, reset, clean, squash or branch deletion. Feature branches `feat/ui-shell-v2` and `docs/ui-ai-001-figma-approval` are kept.
+
+## Next recommended action
+
+1. Owner pushes main (`git push origin main`) and confirms `git ls-remote origin main` == local main.
+2. Then, in its own chat and branch/worktree from the pushed main: UI-AI-002 (AI Assistant panel frontend). Not started here.
+
+---
+
+## Previous handoff — UI-AI-001 (AI Assistant screen — Figma design approved)
 
 Date: 2026-09-30. Branch: `docs/ui-ai-001-figma-approval` (from main 5b39a3c; docs only). Track: PARALLEL TRACK — design only; no frontend code, backend, API, migration or auth change.
 Authority: owner approved the Figma proposal "with the 2 small corrections" (2026-09-30) and approved recording it.
