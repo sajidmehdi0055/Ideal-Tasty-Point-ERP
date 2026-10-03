@@ -7,8 +7,10 @@ import type { PurchaseOrderService } from '../../inventory/application/purchase-
 import type { PurchaseRecordService } from '../../inventory/application/purchase-record-service.js';
 import type { StockLocationService } from '../../inventory/application/stock-location-service.js';
 import type { StockService } from '../../inventory/application/stock-service.js';
+import type { StockTransferService } from '../../inventory/application/stock-transfer-service.js';
 import type { SupplierService } from '../../inventory/application/supplier-service.js';
 import { PURCHASE_ORDER_STATUSES } from '../../inventory/domain/purchase-order.js';
+import { STOCK_TRANSFER_STATUSES } from '../../inventory/domain/stock-transfer.js';
 import type { AiTool } from './tool.js';
 import { readTool } from './tool.js';
 
@@ -20,6 +22,7 @@ export interface InventoryToolServices {
   purchaseRecords: PurchaseRecordService;
   purchaseOrders: PurchaseOrderService;
   goodsReceipts: GoodsReceiptService;
+  stockTransfers: StockTransferService;
 }
 
 /**
@@ -164,6 +167,33 @@ export function inventoryTools(services: InventoryToolServices): AiTool[] {
       authorize: inventoryReader,
       async execute(input, auth) {
         return shape(await services.goodsReceipts.list(auth), input.limit);
+      },
+    }),
+    // AI-S03: S-07 Stock Transfers (ADR-0011), READ only (ADR-0012 addendum).
+    readTool({
+      name: 'inventory_list_stock_transfers',
+      description: 'Stock transfers between locations of the branch (transfer number, from/to location, status, line count, created/updated time), newest first. '
+        + 'Status meaning: SENT = dispatched from the source and still in transit (not yet received at the destination); RECEIVED = receipt confirmed at the destination; '
+        + 'CANCELLED = cancelled while in transit, the sent quantity went back to the source. Use status SENT to see what is in transit now.',
+      mode: 'READ',
+      input: z.object({ status: z.enum(STOCK_TRANSFER_STATUSES).optional(), limit: limitSchema }).strict(),
+      authorize: inventoryReader,
+      async execute(input, auth) {
+        const rows = await services.stockTransfers.list(input.status ? { status: input.status } : {}, auth);
+        return shape(rows, input.limit);
+      },
+    }),
+    readTool({
+      name: 'inventory_get_stock_transfer',
+      description: 'One stock transfer with its status, status_reason and lines. Per line: item_id, sent_quantity, received_quantity, variance_quantity and variance_reason '
+        + '(quantities in the item\'s base UOM). received_quantity and variance_quantity are null while the transfer is SENT (in transit) and for a CANCELLED transfer. '
+        + 'variance_quantity is the shortage recorded by the ERP at receipt (sent minus received: short, damaged or lost in transit); it reached neither the destination '
+        + 'nor the source. Location and item ids can be resolved to names with inventory_list_stock_locations and inventory_get_stock_balances.',
+      mode: 'READ',
+      input: z.object({ stock_transfer_id: z.uuid() }).strict(),
+      authorize: inventoryReader,
+      async execute(input, auth) {
+        return services.stockTransfers.get(input.stock_transfer_id, auth);
       },
     }),
   ];

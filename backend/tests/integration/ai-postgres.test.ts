@@ -32,6 +32,7 @@ describe('AI-S01 audit log and tools (real PostgreSQL)', () => {
   const items = new PgItemRepository(runtime);
   const locations = new PgStockLocationRepository(runtime);
   const stock = new PgStockRepository(runtime);
+  const transfers = new PgStockTransferRepository(runtime);
   const sink = new PgAiAuditSink(runtime);
   const ownerA: AuthContext = { userId: 'owner-a', role: 'OWNER', branchId: 'branch-a' };
   const managerB: AuthContext = { userId: 'manager-b', role: 'MANAGER', branchId: 'branch-b' };
@@ -43,7 +44,7 @@ describe('AI-S01 audit log and tools (real PostgreSQL)', () => {
       packVariantRepository: new PgPackVariantRepository(runtime), supplierRepository: new PgSupplierRepository(runtime),
       purchaseRecordRepository: new PgPurchaseRecordRepository(runtime), stockLocationRepository: locations, stockRepository: stock,
       goodsReceiptRepository: new PgGoodsReceiptRepository(runtime), purchaseOrderRepository: new PgPurchaseOrderRepository(runtime),
-      stockTransferRepository: new PgStockTransferRepository(runtime),
+      stockTransferRepository: transfers,
       authProvider: async () => auth,
       ai: { config: { state: 'READY', config: testAiConfig() }, auditSink: sink, providerFactory: () => provider },
     });
@@ -136,5 +137,73 @@ describe('AI-S01 audit log and tools (real PostgreSQL)', () => {
     } finally {
       await appA.close(); await appB.close();
     }
+  });
+
+  it('AI-S03: stock-transfer READ tools keep branch isolation through the real StockTransferService (list + get), audited per branch', async () => {
+    // Branch A: one RECEIVED transfer with a variance, one SENT (in transit).
+    const item = await items.create({ item_name: uniq('Flour'), primary_item_type: 'RAW_MATERIAL', base_uom: 'kg', brand: 'Generic / No Brand' }, ownerA);
+    const store = await locations.create({ name: uniq('Store A'), location_type: 'STORE' }, ownerA);
+    const kitchen = await locations.create({ name: uniq('Kitchen A'), location_type: 'KITCHEN' }, ownerA);
+    await stock.createOpening({ item_id: item.id, location_id: store.id, quantity: '20' }, ownerA);
+    const sent = (await transfers.send({ from_location_id: store.id, to_location_id: kitchen.id, lines: [{ item_id: item.id, quantity: '10' }] }, ownerA))!;
+    const received = (await transfers.receive(sent.id, { lines: [{ line_id: sent.lines[0]!.id, received_quantity: '9.5', variance_reason: 'spilled' }] }, ownerA))!;
+    const inTransit = (await transfers.send({ from_location_id: store.id, to_location_id: kitchen.id, lines: [{ item_id: item.id, quantity: '2' }] }, ownerA))!;
+    // Branch B: its own transfer.
+    const itemB = await items.create({ item_name: uniq('Oil'), primary_item_type: 'RAW_MATERIAL', base_uom: 'kg', brand: 'Generic / No Brand' }, managerB);
+    const storeB = await locations.create({ name: uniq('Store B'), location_type: 'STORE' }, managerB);
+    const kitchenB = await locations.create({ name: uniq('Kitchen B'), location_type: 'KITCHEN' }, managerB);
+    await stock.createOpening({ item_id: itemB.id, location_id: storeB.id, quantity: '5' }, managerB);
+    const transferB = (await transfers.send({ from_location_id: storeB.id, to_location_id: kitchenB.id, lines: [{ item_id: itemB.id, quantity: '1' }] }, managerB))!;
+
+    const ask = async (auth: AuthContext, ownId: string, otherId: string) => {
+      const provider = new FakeProvider([{ text: '', toolCalls: [
+        { id: 'l', name: 'inventory_list_stock_transfers', arguments: {} },
+        { id: 's', name: 'inventory_list_stock_transfers', arguments: { status: 'SENT' } },
+        { id: 'o', name: 'inventory_get_stock_transfer', arguments: { stock_transfer_id: ownId } },
+        { id: 'x', name: 'inventory_get_stock_transfer', arguments: { stock_transfer_id: otherId } },
+      ] }, answer('done')]);
+      const app = buildAiApp(auth, provider);
+      try {
+        const res = await app.inject({ method: 'POST', url: '/api/ai/chat', payload: { message: 'transfers?' } });
+        expect(res.statusCode).toBe(200);
+        const messages = provider.requests[1]!.messages.slice(-4) as { content: string }[];
+        return { res: res.json(), results: messages.map(m => JSON.parse(m.content)) };
+      } finally {
+        await app.close();
+      }
+    };
+
+    const a = await ask(ownerA, received.id, transferB.id);
+    const [allA, sentA, ownA, otherA] = a.results;
+    const idsA = allA.data.rows.map((row: { id: string }) => row.id);
+    expect(idsA).toEqual(expect.arrayContaining([received.id, inTransit.id]));
+    expect(idsA).not.toContain(transferB.id);
+    expect(sentA.data.rows.map((row: { id: string }) => row.id)).toContain(inTransit.id);
+    expect(sentA.data.rows.map((row: { id: string }) => row.id)).not.toContain(received.id);
+    expect(sentA.data.rows.every((row: { status: string }) => row.status === 'SENT')).toBe(true);
+    expect(ownA.data).toMatchObject({ id: received.id, status: 'RECEIVED', branch_id: 'branch-a',
+      lines: [{ item_id: item.id, sent_quantity: '10.000000', received_quantity: '9.500000', variance_quantity: '0.500000', variance_reason: 'spilled' }] });
+    expect(otherA).toMatchObject({ status: 'error', error_code: 'TRANSFER_NOT_FOUND' });
+    expect(JSON.stringify(otherA)).not.toContain(storeB.id);
+    expect(a.res.tool_calls.map((call: { status: string }) => call.status)).toEqual(['SUCCESS', 'SUCCESS', 'SUCCESS', 'ERROR']);
+
+    const b = await ask(managerB, transferB.id, received.id);
+    const [allB, sentB, ownB, otherB] = b.results;
+    const idsB = allB.data.rows.map((row: { id: string }) => row.id);
+    expect(idsB).toContain(transferB.id);
+    expect(idsB).not.toContain(received.id);
+    expect(idsB).not.toContain(inTransit.id);
+    expect(sentB.data.rows.map((row: { id: string }) => row.id)).not.toContain(inTransit.id);
+    expect(ownB.data).toMatchObject({ id: transferB.id, status: 'SENT', branch_id: 'branch-b', lines: [{ sent_quantity: '1.000000', received_quantity: null, variance_quantity: null }] });
+    expect(otherB).toMatchObject({ status: 'error', error_code: 'TRANSFER_NOT_FOUND' });
+    expect(JSON.stringify(otherB)).not.toContain(store.id);
+
+    const audit = (await admin.query(`SELECT tool_name, tool_params, outcome, error_code, actor_id, branch_id FROM ai_audit_log WHERE request_id = $1 AND event_type = 'TOOL_CALL' ORDER BY occurred_at`, [b.res.metadata.request_id])).rows;
+    expect(audit).toEqual([
+      { tool_name: 'inventory_list_stock_transfers', tool_params: {}, outcome: 'SUCCESS', error_code: null, actor_id: 'manager-b', branch_id: 'branch-b' },
+      { tool_name: 'inventory_list_stock_transfers', tool_params: { status: 'SENT' }, outcome: 'SUCCESS', error_code: null, actor_id: 'manager-b', branch_id: 'branch-b' },
+      { tool_name: 'inventory_get_stock_transfer', tool_params: { stock_transfer_id: transferB.id }, outcome: 'SUCCESS', error_code: null, actor_id: 'manager-b', branch_id: 'branch-b' },
+      { tool_name: 'inventory_get_stock_transfer', tool_params: { stock_transfer_id: received.id }, outcome: 'ERROR', error_code: 'TRANSFER_NOT_FOUND', actor_id: 'manager-b', branch_id: 'branch-b' },
+    ]);
   });
 });

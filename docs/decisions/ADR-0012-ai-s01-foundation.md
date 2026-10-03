@@ -36,3 +36,14 @@ Not possible yet (would require inventing business rules or data that do not exi
 - Existing endpoints, tables, grants and tests are unchanged; the migration is additive. After applying it, re-run `scripts/runtime-grants.sql` (existing upgrade order).
 - Rate limiting is per API process (in-memory); a multi-process deployment needs a shared limiter later.
 - Real authentication is still missing (ADR-0006 boundary); the AI endpoints are protected by the same `AuthContextProvider` as every other route, so the standalone server denies them exactly like the rest of the API.
+
+## Addendum A-1 — AI-S03 stock-transfer READ tools (2026-10-03)
+
+Status: technical addendum by the Manager within the approved decisions above (owner task AI-S03, Cowork Manager session 2026-10-03). It adds tools; it does not change or supersede any decision, which is why it is an addendum and not a new ADR.
+
+- Two READ tools over the S-07 Stock Transfer service ([ADR-0011](ADR-0011-s07-stock-transfer.md)): `inventory_list_stock_transfers` (optional `status` `SENT`/`RECEIVED`/`CANCELLED`, `limit`) → `StockTransferService.list`; `inventory_get_stock_transfer` (`stock_transfer_id`) → `StockTransferService.get`.
+- Same rules as the Phase 1 tools: `authorize` reuses `requireItemEditor` (OWNER/MANAGER, D-04); the service runs with the caller's own `AuthContext` and applies its guard and branch scoping again; no new query, no business calculation, NUMERIC values stay decimal strings (D-06); the tool layer only applies `limit` (default 50, max 200). A missing or other-branch transfer is the service's `TRANSFER_NOT_FOUND`, returned to the model as an error (no leak, no fake result).
+- Descriptions state the ADR-0011 meanings: `SENT` = dispatched and still in transit (D-04: in-transit is derived from `SENT` transfers); `variance_quantity` = sent − received recorded at receipt, a shortage that reaches neither location (O-03); received/variance are null while `SENT` and for `CANCELLED`.
+- No WRITE tool (send/receive/cancel stay in the ERP screens, AI-O-01). No migration, grant, dependency or frontend change. System prompt unchanged (`erp-ai-v1`): its rules already cover every ERP value and the tool list is injected per request.
+- Tool count: 12 (10 Phase 1 + 2). Implementation: [docs/engineering/ai-s03-implementation.md](../engineering/ai-s03-implementation.md).
+

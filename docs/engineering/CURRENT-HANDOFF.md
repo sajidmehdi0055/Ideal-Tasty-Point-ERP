@@ -1,4 +1,40 @@
-# Current Handoff — AI-S01-MERGE-001 (AI Foundation Merged to Main)
+# Current Handoff — AI-S03-IMPL-001 (Read-only AI tools for S-07 Stock Transfers — on feature branch)
+
+Date: 2026-10-03. Branch: `feat/ai-s03-transfer-tools` (from verified main `5b39a3c`; main == origin/main). NOT merged, NOT pushed.
+Authority: owner task AI-S03 in the Cowork Manager session (small slice: READ-only Stock Transfer AI tools; no migration, dependency, write tool or frontend). Governance form: [ADR-0012 addendum A-1](../decisions/ADR-0012-ai-s01-foundation.md#addendum-a-1--ai-s03-stock-transfer-read-tools-2026-10-03) (adds tools within the approved decisions; nothing superseded).
+
+## What changed
+
+- `backend/src/ai/tools/inventory-tools.ts`: `inventory_list_stock_transfers` (optional `status` SENT/RECEIVED/CANCELLED, `limit`) → `StockTransferService.list`; `inventory_get_stock_transfer` (`stock_transfer_id`) → `StockTransferService.get`. READ, `requireItemEditor` (OWNER/MANAGER), caller's `AuthContext`, results unchanged (decimal strings), descriptions explain in-transit (SENT) and variance (sent − received, reaches neither location). `InventoryToolServices` gains `stockTransfers`.
+- `app.ts` unchanged: it already passes the shared `services` object (incl. `stockTransfers`) to `inventoryTools`; the compiler now requires it. System prompt unchanged (`erp-ai-v1`). Tool count 10 → 12.
+- Tests: unit `ai-inventory-tools` (+6), `ai-api` (+1, wiring through `buildApp`, 12 tools offered); integration `ai-postgres` (+1, cross-branch isolation via the AI tools on real PostgreSQL with runtime grants).
+- Docs: ADR-0012 addendum A-1, `AI_ARCHITECTURE.md` §3, `docs/engineering/ai-s03-implementation.md`, backend/README.md, README.md, this file.
+
+## Verification (Cowork VM, Node v24.21.0, embedded PostgreSQL 17.10)
+
+| Check | Result |
+|---|---|
+| npm ci --ignore-scripts | PASS |
+| typecheck / lint / build | PASS / PASS / PASS |
+| test:unit | PASS — 527/527 (15 files; main 520 + 7) |
+| test:integration | PASS — 113/113 (8 files; main 112 + 1) |
+| migrations / dependencies / frontend | none changed |
+
+## Review status
+
+Pending: independent QA/Testing subagent (AI-S03-QA-001). Same-provider review limitation applies (Codex/Antigravity paused).
+
+## Next steps
+
+1. Independent QA → fixes → focused re-review.
+2. Owner: push branch + Windows/Docker PostgreSQL 17 verification (copy-paste prompt from the Manager).
+3. Owner-approved merge; post-merge verification.
+
+## Carried forward (unchanged)
+
+S-04..S-07 and AI-S01 migrations not applied to `erp_local`; S06-QA-001 NOTEs 2–5; S-07 carried-forward items; ADR-0010 A-01..A-07; no receiving/PO UI; no real login/session. A local branch `feat/ai-s01b-tool-usability` (worktree `Ideal-Tasty-Point-ERP-ai-s01b`) exists at `5b39a3c` with no commits of its own; if it later changes `inventory-tools.ts`, expect a small merge overlap with AI-S03.
+
+## Previous handoff — AI-S01-MERGE-001 (AI Foundation Merged to Main)
 
 Date: 2026-09-27. Branch: main. Merged from: feat/ai-s01-foundation (HEAD c0c576e = AI-S01 implementation/tests/docs + FIX-001/FIX-002 + sync merge 02689c6 with main ec7833d + QA-004 record e175502 + AI-S01-VERIFY-001 record c0c576e).
 Authority: explicit owner approval in the Cowork Manager session ("Haan, merge karo"), following AI-S01-QA-001..004 (independent QA/Testing subagent; final verdict PASS — ready for controlled merge, 0 BLOCKER/MAJOR/MINOR open) and AI-S01-VERIFY-001 (Windows 11, Node v24.18.1, Docker 29.8.0, PostgreSQL 17.11, `erp_test`: typecheck/lint/build PASS, unit 520/520, integration 112/112; branch pushed, origin == c0c576e). Same-provider review limitation applies (Codex/Antigravity paused).

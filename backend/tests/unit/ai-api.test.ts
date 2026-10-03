@@ -35,6 +35,11 @@ function setup(options: { auth?: AuthContext | null; config?: AiConfigResult; pr
     listBalances: vi.fn<StockRepository['listBalances']>().mockResolvedValue(balances),
     listMovements: vi.fn<StockRepository['listMovements']>().mockResolvedValue([]),
   } satisfies StockRepository;
+  const transfers = {
+    send: vi.fn(), receive: vi.fn(), cancel: vi.fn(),
+    list: vi.fn<StockTransferRepository['list']>().mockResolvedValue([]),
+    get: vi.fn<StockTransferRepository['get']>().mockResolvedValue(null),
+  } satisfies StockTransferRepository;
   const audit = new MemoryAuditSink();
   const provider = options.provider ?? new FakeProvider([answer('ok')]);
   const app = buildApp({
@@ -48,12 +53,12 @@ function setup(options: { auth?: AuthContext | null; config?: AiConfigResult; pr
     stockRepository: stock,
     goodsReceiptRepository: { create: vi.fn(), list: vi.fn(), get: vi.fn() } satisfies GoodsReceiptRepository,
     purchaseOrderRepository: { create: vi.fn(), update: vi.fn(), cancel: vi.fn(), close: vi.fn(), list: vi.fn(), get: vi.fn() } satisfies PurchaseOrderRepository,
-    stockTransferRepository: { send: vi.fn(), receive: vi.fn(), cancel: vi.fn(), list: vi.fn(), get: vi.fn() } satisfies StockTransferRepository,
+    stockTransferRepository: transfers,
     authProvider: async () => (options.auth === undefined ? owner : options.auth),
     ...(options.config ? { ai: { config: options.config, auditSink: audit, providerFactory: options.providerFactory ?? (() => provider) } } : {}),
   });
   apps.push(app);
-  return { app, stock, audit, provider };
+  return { app, stock, transfers, audit, provider };
 }
 
 const ready = (overrides = {}): AiConfigResult => ({ state: 'READY', config: testAiConfig(overrides) });
@@ -103,19 +108,44 @@ describe('AI API — chat', () => {
     expect(audit.entries.map(e => e.eventType)).toEqual(['TOOL_CALL', 'CHAT']);
   });
 
-  it('offers all ten Phase 1 inventory tools to Owner, all READ, and none to a role without inventory access', async () => {
+  it('offers all twelve inventory tools (Phase 1 + AI-S03 stock transfers) to Owner, all READ, and none to a role without inventory access', async () => {
     const provider = new FakeProvider([answer('ok')]);
     const { app } = setup({ config: ready(), provider });
     await chat(app, { message: 'hi' });
     expect(provider.requests[0]!.tools.map(tool => tool.name).sort()).toEqual([
       'inventory_compare_purchase_rates', 'inventory_get_purchase_history', 'inventory_get_purchase_order', 'inventory_get_stock_balances',
-      'inventory_get_stock_movements', 'inventory_list_goods_receipts', 'inventory_list_pack_variants', 'inventory_list_purchase_orders',
-      'inventory_list_stock_locations', 'inventory_list_suppliers',
+      'inventory_get_stock_movements', 'inventory_get_stock_transfer', 'inventory_list_goods_receipts', 'inventory_list_pack_variants',
+      'inventory_list_purchase_orders', 'inventory_list_stock_locations', 'inventory_list_stock_transfers', 'inventory_list_suppliers',
     ]);
+    expect(provider.requests[0]!.tools).toHaveLength(12);
     const denied = setup({ auth: cashier, config: ready() });
     const response = await chat(denied.app, { message: 'hi' });
     expect(response.statusCode).toBe(403);
     expect(response.json().error).toBe('AI_FORBIDDEN');
+  });
+
+  it('AI-S03: stock-transfer tools reach the app\'s StockTransferService with the caller\'s AuthContext; a missing transfer is a visible TRANSFER_NOT_FOUND error', async () => {
+    const id = 'e5e5e5e5-5555-4555-8555-555555555555';
+    const provider = new FakeProvider([
+      { text: '', toolCalls: [
+        { id: 't1', name: 'inventory_list_stock_transfers', arguments: { status: 'SENT' } },
+        { id: 't2', name: 'inventory_get_stock_transfer', arguments: { stock_transfer_id: id } },
+      ] },
+      answer('Koi transfer raste mein nahi.'),
+    ]);
+    const { app, transfers, audit } = setup({ config: ready(), provider });
+    const response = await chat(app, { message: 'Kya koi transfer raste mein hai?' });
+    expect(response.statusCode).toBe(200);
+    expect(transfers.list).toHaveBeenCalledWith({ status: 'SENT' }, owner);
+    expect(transfers.get).toHaveBeenCalledWith(id, owner);
+    expect(response.json().tool_calls).toEqual([
+      expect.objectContaining({ name: 'inventory_list_stock_transfers', mode: 'READ', status: 'SUCCESS' }),
+      { name: 'inventory_get_stock_transfer', mode: 'READ', status: 'ERROR', error_code: 'TRANSFER_NOT_FOUND' },
+    ]);
+    expect(transfers.send).not.toHaveBeenCalled();
+    expect(transfers.receive).not.toHaveBeenCalled();
+    expect(transfers.cancel).not.toHaveBeenCalled();
+    expect(audit.entries.map(e => e.eventType)).toEqual(['TOOL_CALL', 'TOOL_CALL', 'CHAT']);
   });
 
   it.each([

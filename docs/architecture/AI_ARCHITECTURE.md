@@ -59,7 +59,7 @@ Keys live only on the backend. The frontend never calls a provider directly.
 
 Each tool (`ai/tools/tool.ts`) has: unique `name`, `description`, strict zod `input` schema (sent to the model as JSON Schema), `mode` (`READ`/`WRITE`), `authorize(auth)` (reuses an existing ERP guard) and `execute` (READ) or `propose` (WRITE).
 
-Phase 1 tools (`ai/tools/inventory-tools.ts`, all READ, Owner/Manager, branch-scoped by the existing services):
+Tools (`ai/tools/inventory-tools.ts`, all READ, Owner/Manager, branch-scoped by the existing services; ten from AI-S01, two stock-transfer tools added in AI-S03 — [ADR-0012 addendum A-1](../decisions/ADR-0012-ai-s01-foundation.md#addendum-a-1--ai-s03-stock-transfer-read-tools-2026-10-03)):
 
 | Tool | Existing service call |
 |---|---|
@@ -73,6 +73,8 @@ Phase 1 tools (`ai/tools/inventory-tools.ts`, all READ, Owner/Manager, branch-sc
 | `inventory_list_purchase_orders` | `PurchaseOrderService.list` |
 | `inventory_get_purchase_order` | `PurchaseOrderService.get` |
 | `inventory_list_goods_receipts` | `GoodsReceiptService.list` |
+| `inventory_list_stock_transfers` (AI-S03) | `StockTransferService.list` (optional `status`: `SENT` = in transit, `RECEIVED`, `CANCELLED`) |
+| `inventory_get_stock_transfer` (AI-S03) | `StockTransferService.get` (lines with sent / received / variance quantity and reason) |
 
 The tool layer only filters and limits lists (default 50, max 200 rows, with `total_matching`/`truncated`). It never recalculates anything; NUMERIC values stay decimal strings.
 
@@ -82,7 +84,7 @@ Not available yet because the ERP has no such data or rule: low-stock alerts (no
 
 1. Make sure the business logic exists in an application service (never put queries or calculations in the tool).
 2. Add a `readTool({...})` entry (in the module's tools file) with a strict zod input, a clear description and `authorize` reusing that module's guard.
-3. Pass the service into the tools factory in `app.ts`.
+3. Add the service to the factory's services interface (e.g. `InventoryToolServices`). `app.ts` builds every service once and passes the same `services` object to the tools factory, so a service that already exists there is wired by that field (the compiler rejects a missing one); a new service must first be added to `app.ts`'s `services`.
 4. Add unit tests (authorization, validation, correct service call with the caller's `AuthContext`) and, if data is branch-owned, an integration test for branch isolation.
 
 ## 4. Permissions
