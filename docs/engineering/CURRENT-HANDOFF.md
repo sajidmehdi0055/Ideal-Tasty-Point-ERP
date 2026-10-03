@@ -29,11 +29,19 @@ Main moved 5b39a3c → 889a5e2 (UI-SHELL-V2-MERGE-001: frontend shell v2 + UI-AI
 - AI-S03-QA-001 (independent QA/Testing + security subagent, no implementation involvement, own clone + own PostgreSQL cluster): reproduced typecheck/lint/build PASS, unit 527/527, integration 113/113 (baseline 889a5e2: 520/112); 15 mutation checks (branch context, status filter, write calls, `.strict()`, uuid, authorize, fake not-found, NUMERIC→number, repository branch predicates) caught except M11 (derived field added to list output); sync-merge history fully kept; addendum form appropriate. Verdict **PASS — ready for controlled merge**: 0 BLOCKER, 0 MAJOR, 1 MINOR, 5 NOTE. Same-provider review limitation applies (Codex/Antigravity paused).
 - AI-S03-FIX-001: MINOR-1 fixed (exact `toEqual` on list-tool output); NOTE-1 fixed (get description explains `status_reason` = cancel reason, only for CANCELLED; location lookup with `include_inactive: true`); NOTE-2 recorded above; NOTE-3 fixed (ADR-0012 header mentions A-1; "Supersedes: none" line); NOTE-4 carried forward (no ERP in-transit total yet — a service-level summary would be a future slice; rule 5 points to transfer screens that do not exist yet); NOTE-5 resolved (main pushed). QA's own `git status` left a stale empty `.git/index.lock` in the owner repo; removed with owner-granted delete permission (plus today's leftover `.git/objects/tmp_obj_*` files from VM fetches; older ones untouched).
 - AI-S03-QA-002 (focused independent re-review of FIX-001 `bef6fa7`, same reviewer, own clone): diff limited to the fix scope, no history lost; typecheck/lint/build PASS, unit 527/527, integration 113/113; M11 now caught; new description text accurate (ADR-0011 D-01, DB CHECK on `status_reason`; `include_inactive` is a real input). 0 new findings. Verdict **PASS — ready for controlled merge**. Open: NOTE-4 (carried forward).
+- AI-S03-VERIFY-001 (VS Code Claude Code session on the owner's Windows machine; isolated worktree `Ideal-Tasty-Point-ERP-ai-s03-verify` at `91bf1c0`):
+  - Refs: after `git fetch`, main == origin/main == `889a5e2` (an ancestor of the branch) and local branch == `91bf1c0`.
+  - Environment: Windows 11, Node v24.18.1, npm 11.16.0, Docker 29.8.0, PostgreSQL 17.11 in the existing `ideal-tasty-point-s01-dev-postgres-1` container (already running/healthy, nothing recreated). Dedicated `erp_test` database with a fresh schema per run; `erp_local` untouched.
+  - npm ci: PASS (221 packages, 0 vulnerabilities; npm's allow-scripts left the esbuild postinstall unrun, not needed).
+  - typecheck/lint/build: PASS (exit 0).
+  - Tests: unit **527/527** (15 files); integration **113/113** (8 files).
+  - `git diff 889a5e2 feat/ai-s03-transfer-tools --stat`: 10 files (README.md, backend/README.md, `inventory-tools.ts`, 3 test files, 4 docs). No migration, package.json/lockfile, frontend or `runtime-grants.sql` change.
+  - Push: plain `git push -u origin feat/ai-s03-transfer-tools` created a new remote branch. After `git fetch`, origin == local == `91bf1c0`; this record commit was then pushed as well. Not merged.
 
 ## Next steps
 
 1. Done: independent QA (QA-001 PASS) → FIX-001 → focused re-review (QA-002 PASS).
-2. Owner: push branch + Windows/Docker PostgreSQL 17 verification (copy-paste prompt from the Manager).
+2. Done: branch pushed and Windows/Docker PostgreSQL 17 verification passed (AI-S03-VERIFY-001).
 3. Owner-approved merge; post-merge verification.
 
 ## Carried forward (unchanged)
