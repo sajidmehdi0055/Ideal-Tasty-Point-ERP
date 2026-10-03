@@ -28,11 +28,11 @@ Main moved 5b39a3c → 889a5e2 (UI-SHELL-V2-MERGE-001: frontend shell v2 + UI-AI
 
 - AI-S03-QA-001 (independent QA/Testing + security subagent, no implementation involvement, own clone + own PostgreSQL cluster): reproduced typecheck/lint/build PASS, unit 527/527, integration 113/113 (baseline 889a5e2: 520/112); 15 mutation checks (branch context, status filter, write calls, `.strict()`, uuid, authorize, fake not-found, NUMERIC→number, repository branch predicates) caught except M11 (derived field added to list output); sync-merge history fully kept; addendum form appropriate. Verdict **PASS — ready for controlled merge**: 0 BLOCKER, 0 MAJOR, 1 MINOR, 5 NOTE. Same-provider review limitation applies (Codex/Antigravity paused).
 - AI-S03-FIX-001: MINOR-1 fixed (exact `toEqual` on list-tool output); NOTE-1 fixed (get description explains `status_reason` = cancel reason, only for CANCELLED; location lookup with `include_inactive: true`); NOTE-2 recorded above; NOTE-3 fixed (ADR-0012 header mentions A-1; "Supersedes: none" line); NOTE-4 carried forward (no ERP in-transit total yet — a service-level summary would be a future slice; rule 5 points to transfer screens that do not exist yet); NOTE-5 resolved (main pushed). QA's own `git status` left a stale empty `.git/index.lock` in the owner repo; removed with owner-granted delete permission (plus today's leftover `.git/objects/tmp_obj_*` files from VM fetches; older ones untouched).
-- Pending: focused re-review of FIX-001 (AI-S03-QA-002).
+- AI-S03-QA-002 (focused independent re-review of FIX-001 `bef6fa7`, same reviewer, own clone): diff limited to the fix scope, no history lost; typecheck/lint/build PASS, unit 527/527, integration 113/113; M11 now caught; new description text accurate (ADR-0011 D-01, DB CHECK on `status_reason`; `include_inactive` is a real input). 0 new findings. Verdict **PASS — ready for controlled merge**. Open: NOTE-4 (carried forward).
 
 ## Next steps
 
-1. Independent QA → fixes → focused re-review.
+1. Done: independent QA (QA-001 PASS) → FIX-001 → focused re-review (QA-002 PASS).
 2. Owner: push branch + Windows/Docker PostgreSQL 17 verification (copy-paste prompt from the Manager).
 3. Owner-approved merge; post-merge verification.
 

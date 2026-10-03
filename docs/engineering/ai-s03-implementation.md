@@ -55,3 +55,4 @@ Verdict PASS — 0 BLOCKER, 0 MAJOR, 1 MINOR, 5 NOTE.
 
 After FIX-001: typecheck/lint/build PASS; unit 527/527; integration 113/113.
 
+AI-S03-QA-002 (focused re-review of FIX-001 `bef6fa7`): unit 527/527, integration 113/113 reproduced; M11 caught; 0 new findings; verdict PASS — ready for controlled merge.
