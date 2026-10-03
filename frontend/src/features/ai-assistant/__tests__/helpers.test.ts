@@ -40,6 +40,13 @@ describe('buildHistory (≤ 20 turns / 32,000 chars, whole pairs, newest kept)',
     ]);
   });
 
+  it('removes NUL characters the backend would reject', () => {
+    expect(buildHistory([{ question: 'q\u0000', answer: 'a\u0000b' }])).toEqual([
+      { role: 'user', content: 'q' },
+      { role: 'assistant', content: 'ab' },
+    ]);
+  });
+
   it('trims turns (the backend trims and rejects empty content)', () => {
     expect(buildHistory([{ question: '  hi  ', answer: ' ok ' }])).toEqual([
       { role: 'user', content: 'hi' },

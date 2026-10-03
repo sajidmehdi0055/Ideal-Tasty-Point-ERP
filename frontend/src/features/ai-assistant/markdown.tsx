@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 
 /**
  * Small, safe Markdown renderer for AI answers (UI-AI-001 contract gap 6:
@@ -174,33 +174,56 @@ export function parseBlocks(source: string): Block[] {
 // Inline: `code`, **bold** / __bold__, *italic* / _italic_. Underscore
 // emphasis needs non-word characters around it so identifiers such as
 // inventory_get_stock_balances stay intact.
+// Global (`g`) so each search starts at `lastIndex` on the whole line.
 const INLINE_PATTERNS: { type: 'code' | 'strong' | 'em'; regex: RegExp }[] = [
-  { type: 'code', regex: /`([^`\n]+)`/ },
-  { type: 'strong', regex: /\*\*(?=\S)([\s\S]*?\S)\*\*/ },
-  { type: 'strong', regex: /(?<![\w])__(?=\S)([\s\S]*?\S)__(?![\w])/ },
-  { type: 'em', regex: /(?<![\w*])\*(?=[^\s*])([^*\n]*?[^\s*])\*(?![\w*])/ },
-  { type: 'em', regex: /(?<![\w])_(?=[^\s_])([^_\n]*?[^\s_])_(?![\w])/ },
+  { type: 'code', regex: /`([^`\n]+)`/g },
+  { type: 'strong', regex: /\*\*(?=\S)([^\n]*?\S)\*\*/g },
+  { type: 'strong', regex: /(?<![\w])__(?=\S)([^\n]*?\S)__(?![\w])/g },
+  { type: 'em', regex: /(?<![\w*])\*(?=[^\s*])([^*\n]*?[^\s*])\*(?![\w*])/g },
+  { type: 'em', regex: /(?<![\w])_(?=[^\s_])([^_\n]*?[^\s_])_(?![\w])/g },
 ];
 
 const MAX_INLINE_DEPTH = 4;
+/**
+ * Lines longer than this are shown as plain text. Together with the cached
+ * search below this bounds the worst case for degenerate model output (e.g.
+ * thousands of unclosed `**`), which otherwise froze the tab (UI-AI-002
+ * review MINOR-1).
+ */
+export const MAX_INLINE_PARSE_CHARS = 4000;
 
 export function renderInline(text: string, depth = 0): ReactNode[] {
+  if (depth >= MAX_INLINE_DEPTH || text.length > MAX_INLINE_PARSE_CHARS) return [text];
   const nodes: ReactNode[] = [];
-  let rest = text;
+  // Next match of each pattern at or after `position`. A pattern with no
+  // match from some position has none from any later one either, so each
+  // pattern's full-line scan happens at most once per "no match" — the
+  // search is never repeated for every opener.
+  const nextMatch: (RegExpExecArray | null | undefined)[] = INLINE_PATTERNS.map(() => undefined);
+  let position = 0;
   let key = 0;
-  while (rest.length > 0) {
-    let best: { type: 'code' | 'strong' | 'em'; match: RegExpExecArray } | null = null;
-    if (depth < MAX_INLINE_DEPTH) {
-      for (const pattern of INLINE_PATTERNS) {
-        const match = pattern.regex.exec(rest);
-        if (match && (best === null || match.index < best.match.index)) best = { type: pattern.type, match };
+  while (position < text.length) {
+    let bestIndex = -1;
+    for (let index = 0; index < INLINE_PATTERNS.length; index += 1) {
+      const pattern = INLINE_PATTERNS[index];
+      if (!pattern) continue;
+      let match = nextMatch[index];
+      if (match === undefined || (match !== null && match.index < position)) {
+        pattern.regex.lastIndex = position;
+        match = pattern.regex.exec(text);
+        nextMatch[index] = match;
       }
+      const best = bestIndex >= 0 ? nextMatch[bestIndex] : null;
+      if (match && (!best || match.index < best.index)) bestIndex = index;
     }
-    if (!best) {
-      nodes.push(rest);
+    const match = bestIndex >= 0 ? nextMatch[bestIndex] : null;
+    const type = INLINE_PATTERNS[bestIndex]?.type;
+    if (!match || !type) {
+      nodes.push(text.slice(position));
       break;
     }
-    if (best.match.index > 0) nodes.push(rest.slice(0, best.match.index));
+    const best = { type, match };
+    if (best.match.index > position) nodes.push(text.slice(position, best.match.index));
     const inner = best.match[1] ?? '';
     if (best.type === 'code') {
       nodes.push(
@@ -218,7 +241,7 @@ export function renderInline(text: string, depth = 0): ReactNode[] {
       nodes.push(<em key={key}>{renderInline(inner, depth + 1)}</em>);
     }
     key += 1;
-    rest = rest.slice(best.match.index + best.match[0].length);
+    position = best.match.index + best.match[0].length;
   }
   return nodes;
 }
@@ -321,7 +344,8 @@ function renderBlock(block: Block, index: number): ReactNode {
   }
 }
 
-export function Markdown({ text }: { text: string }) {
+/** Memoised: an answer is parsed once, not again on every keystroke in the composer. */
+export const Markdown = memo(function Markdown({ text }: { text: string }) {
   const blocks = parseBlocks(text);
   return <div className="flex w-full flex-col gap-2 break-words">{blocks.map(renderBlock)}</div>;
-}
+});

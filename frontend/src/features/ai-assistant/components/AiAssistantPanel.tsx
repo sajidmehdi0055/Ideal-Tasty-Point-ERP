@@ -150,10 +150,11 @@ function PanelBody({ ai, variant }: { ai: AiAssistantContextValue; variant: AiPa
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [modal, close]);
 
-  // Keep the newest message in view.
+  // Keep the newest message in view. The welcome screen (no turns) stays at
+  // the top so its title is visible on short screens.
   useLayoutEffect(() => {
     const element = scrollRef.current;
-    if (element) element.scrollTop = element.scrollHeight;
+    if (element && ai.turns.length > 0) element.scrollTop = element.scrollHeight;
   }, [ai.turns]);
 
   // Focus returns to the composer when an answer (or error) arrives.
@@ -291,6 +292,11 @@ function PanelBody({ ai, variant }: { ai: AiAssistantContextValue; variant: AiPa
               onChange={ai.setDraft}
               onSend={ai.send}
               locked={ai.waiting}
+              waitHint={
+                ai.status?.provider === 'local' || !ai.status?.provider
+                  ? 'The local model can take a little time. One question at a time.'
+                  : 'The AI model can take a little time. One question at a time.'
+              }
               serverError={ai.composerError}
               textareaRef={textareaRef}
             />

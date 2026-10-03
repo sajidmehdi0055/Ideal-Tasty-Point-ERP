@@ -158,7 +158,8 @@ export function AiWaiting({ startedAt }: { startedAt: number }) {
         </span>
         <span className="text-[13px] text-ink-secondary">Checking ERP data…</span>
         <span className="flex-1" />
-        <span className="text-[11px] text-ink-muted" data-testid="ai-elapsed">
+        {/* Hidden from screen readers: a live region would read it out every second. */}
+        <span className="text-[11px] text-ink-muted" data-testid="ai-elapsed" aria-hidden="true">
           {seconds} s
         </span>
       </div>
@@ -240,7 +241,6 @@ export function AiErrorCard({
   return (
     <AiRow label="AI error">
       <div
-        role="alert"
         data-testid={`ai-error-${error.kind}`}
         className={`flex w-full flex-col gap-1.5 rounded-card p-3 ${copy.tone === 'warning' ? 'bg-warning-50' : 'bg-danger-50'}`}
       >

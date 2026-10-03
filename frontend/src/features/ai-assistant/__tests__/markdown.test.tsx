@@ -79,6 +79,23 @@ describe('Markdown (safe in-house renderer)', () => {
     expect(container.querySelectorAll('br')).toHaveLength(1);
   });
 
+  it('renders degenerate emphasis input quickly (review MINOR-1 repro)', () => {
+    for (const unit of ['*b* **a ', '`b` __a ', '_b_ **a ']) {
+      for (const total of [8000, 16000]) {
+        const text = unit.repeat(Math.ceil(total / unit.length)).slice(0, total);
+        const started = performance.now();
+        const { unmount } = render(<Markdown text={text} />);
+        expect(performance.now() - started).toBeLessThan(1500);
+        unmount();
+      }
+    }
+  });
+
+  it('still formats the parts it can on a degenerate line within the parse limit', () => {
+    const { container } = render(<Markdown text={`${'**a '.repeat(500)}*ok*`} />);
+    expect(container.querySelector('em')).toHaveTextContent('ok');
+  });
+
   it('does not hang or crash on pathological input', () => {
     const nasty = `${'**'.repeat(2000)}${'_'.repeat(2000)}${'|'.repeat(500)}\n${'|---'.repeat(200)}`;
     const started = Date.now();

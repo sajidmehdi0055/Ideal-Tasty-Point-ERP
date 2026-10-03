@@ -28,8 +28,10 @@ export function buildHistory(exchanges: readonly CompletedExchange[]): AiHistory
   for (let index = exchanges.length - 1; index >= 0; index -= 1) {
     const exchange = exchanges[index];
     if (!exchange) break;
-    const question = exchange.question.trim();
-    const answer = exchange.answer.trim();
+    // NUL characters are rejected by the backend (400 for every later
+    // question), so they are removed from the context that is sent back.
+    const question = exchange.question.replace(/\u0000/g, '').trim();
+    const answer = exchange.answer.replace(/\u0000/g, '').trim();
     if (!question || !answer) break;
     if (question.length > MAX_HISTORY_TURN_CHARS || answer.length > MAX_HISTORY_TURN_CHARS) break;
     const pairChars = question.length + answer.length;

@@ -333,6 +333,7 @@ describe('Waiting state (no streaming, no cancel)', () => {
     expect(screen.getByText('The local model can take a little time. One question at a time.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'New chat' })).toBeDisabled();
     expect(screen.getByTestId('ai-elapsed')).toHaveTextContent('0 s');
+    expect(screen.getByTestId('ai-elapsed')).toHaveAttribute('aria-hidden', 'true');
 
     // The timer ticks once a second from the request start (real interval; clock moved forward).
     const realNow = Date.now.bind(Date);
@@ -580,6 +581,18 @@ describe('Error states (Figma frames 06–10)', () => {
     await ask('two');
     await waitFor(() => expect(screen.getAllByTestId('ai-error-rate-limited')).toHaveLength(2));
     expect(screen.getAllByRole('button', { name: 'Retry' })).toHaveLength(1);
+  });
+});
+
+describe('Waiting hint follows the provider', () => {
+  it('a cloud primary provider does not claim to be the local model', async () => {
+    vi.mocked(api.getAiStatus).mockResolvedValue({ ...READY, provider: 'anthropic' });
+    vi.mocked(api.sendAiChat).mockReturnValue(new Promise(() => {}));
+    renderApp();
+    await openPanel();
+    expect(screen.getByTestId('ai-status-pill')).toHaveTextContent('Cloud model');
+    await ask('q');
+    expect(screen.getByText('The AI model can take a little time. One question at a time.')).toBeInTheDocument();
   });
 });
 

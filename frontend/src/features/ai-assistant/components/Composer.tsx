@@ -11,6 +11,8 @@ interface ComposerProps {
   onSend: () => void;
   /** One question at a time: locked while an answer is awaited. */
   locked: boolean;
+  /** Hint while waiting (frame 02 wording for the local model). */
+  waitHint: string;
   /** Inline message from a 400 response (shown in place of the hint). */
   serverError: string | null;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
@@ -21,7 +23,7 @@ interface ComposerProps {
  * 4,000-character counter, and the over-limit check from frame 08. While an
  * answer is awaited the field is locked (frame 02).
  */
-export function Composer({ value, onChange, onSend, locked, serverError, textareaRef }: ComposerProps) {
+export function Composer({ value, onChange, onSend, locked, waitHint, serverError, textareaRef }: ComposerProps) {
   const length = value.length;
   const tooLong = length > MAX_MESSAGE_CHARS;
   const canSend = !locked && !tooLong && value.trim() !== '';
@@ -41,7 +43,7 @@ export function Composer({ value, onChange, onSend, locked, serverError, textare
   }
 
   let hint = 'AI can make mistakes — verify important numbers.';
-  if (locked) hint = 'The local model can take a little time. One question at a time.';
+  if (locked) hint = waitHint;
   if (tooLong) hint = `Message is too long — maximum ${COUNT_FORMAT.format(MAX_MESSAGE_CHARS)} characters.`;
   else if (serverError) hint = serverError;
   const hintIsError = tooLong || (!locked && serverError !== null);
