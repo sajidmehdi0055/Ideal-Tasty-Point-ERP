@@ -1,7 +1,7 @@
 # ADR-0012: AI-S01 — AI Foundation (Gateway, Providers, Read-only ERP Tools, Audit)
 
 Date: 2026-09-27
-Status: **APPROVED — owner decisions 2026-09-27** (answered in the Cowork Manager session for AI-S01; technical design by the Manager within those decisions)
+Status: **APPROVED — owner decisions 2026-09-27** (answered in the Cowork Manager session for AI-S01; technical design by the Manager within those decisions). Addendum A-1 (2026-10-03, AI-S03 stock-transfer READ tools) at the end — adds tools only.
 Numbering: drafted as ADR-0011 on the feature branch; renumbered to ADR-0012 when main (which meanwhile received ADR-0011 for S-07 Stock Transfer) was merged into the branch. The migration was likewise renamed `202609270004_ai_s01_audit_log` so it runs after S-07's `202609270003`.
 Scope: Cross-cutting AI layer. Makes the ERP structurally AI-ready without changing any existing business rule, API contract or table. Phase 1 only.
 
@@ -45,5 +45,6 @@ Status: technical addendum by the Manager within the approved decisions above (o
 - Same rules as the Phase 1 tools: `authorize` reuses `requireItemEditor` (OWNER/MANAGER, D-04); the service runs with the caller's own `AuthContext` and applies its guard and branch scoping again; no new query, no business calculation, NUMERIC values stay decimal strings (D-06); the tool layer only applies `limit` (default 50, max 200). A missing or other-branch transfer is the service's `TRANSFER_NOT_FOUND`, returned to the model as an error (no leak, no fake result).
 - Descriptions state the ADR-0011 meanings: `SENT` = dispatched and still in transit (D-04: in-transit is derived from `SENT` transfers); `variance_quantity` = sent − received recorded at receipt, a shortage that reaches neither location (O-03); received/variance are null while `SENT` and for `CANCELLED`.
 - No WRITE tool (send/receive/cancel stay in the ERP screens, AI-O-01). No migration, grant, dependency or frontend change. System prompt unchanged (`erp-ai-v1`): its rules already cover every ERP value and the tool list is injected per request.
+- Supersedes: none. Superseded by: none.
 - Tool count: 12 (10 Phase 1 + 2). Implementation: [docs/engineering/ai-s03-implementation.md](../engineering/ai-s03-implementation.md).
 

@@ -111,6 +111,8 @@ describe('AI-S03 stock transfer tools', () => {
     }
     expect(tool('inventory_list_stock_transfers').description).toMatch(/SENT = dispatched .* in transit/);
     expect(tool('inventory_get_stock_transfer').description).toMatch(/variance_quantity is the shortage .*sent minus received/);
+    expect(tool('inventory_get_stock_transfer').description).toMatch(/status_reason \(the cancel reason; set only for CANCELLED\)/);
+    expect(tool('inventory_get_stock_transfer').description).toContain('include_inactive: true');
   });
 
   it('call StockTransferService with the caller\'s AuthContext and return its data unchanged (decimal strings, no recalculation)', async () => {
@@ -130,7 +132,10 @@ describe('AI-S03 stock transfer tools', () => {
   it('only limit the list (default 50, max 200)', async () => {
     const { run } = setup();
     expect(await run('inventory_list_stock_transfers', {})).toMatchObject({ total_matching: 60, returned: 50, truncated: true });
-    expect(await run('inventory_list_stock_transfers', { status: 'SENT', limit: 3 })).toMatchObject({ total_matching: 60, returned: 3, truncated: true });
+    // Exact output: the tool adds nothing (no derived totals) beyond the list envelope.
+    expect(await run('inventory_list_stock_transfers', { status: 'SENT', limit: 3 })).toEqual({
+      total_matching: 60, returned: 3, truncated: true, rows: [{ id: '0', status: 'SENT' }, { id: '1', status: 'SENT' }, { id: '2', status: 'SENT' }],
+    });
   });
 
   it('validate arguments strictly', () => {

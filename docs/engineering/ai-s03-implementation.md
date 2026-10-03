@@ -39,3 +39,19 @@ Mutation check (implementer): forcing the tools to use a fixed `branch-a` contex
 ## Verification (Cowork VM, Node 24.21.0, embedded PostgreSQL 17.10)
 
 AI-S03-IMPL-001: typecheck/lint/build PASS; unit 527/527 (15 files; main 520 + 7); integration 113/113 (8 files; main 112 + 1).
+
+## AI-S03-QA-001 (independent QA subagent) — findings and fixes (AI-S03-FIX-001)
+
+Verdict PASS — 0 BLOCKER, 0 MAJOR, 1 MINOR, 5 NOTE.
+
+| Finding | Resolution |
+|---|---|
+| MINOR-1 list output not pinned (a derived field could be added unnoticed) | unit test now asserts the exact list result with `toEqual` |
+| NOTE-1 `status_reason` unexplained; location lookup hides inactive locations | get description: `status_reason` = cancel reason (only CANCELLED); "use include_inactive: true"; asserted in unit test |
+| NOTE-2 merge commit also edited this file's Branch line | recorded (wording only) |
+| NOTE-3 addendum lacked explicit supersession line / header mention | ADR-0012 header mentions A-1; "Supersedes: none" added |
+| NOTE-4 no ERP in-transit total; rule 5 mentions screens that do not exist for transfers | carried forward (future slice; unchanged prompt) |
+| NOTE-5 push order | resolved — owner pushed main (`889a5e2`) |
+
+After FIX-001: typecheck/lint/build PASS; unit 527/527; integration 113/113.
+

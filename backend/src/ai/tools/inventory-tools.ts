@@ -185,10 +185,10 @@ export function inventoryTools(services: InventoryToolServices): AiTool[] {
     }),
     readTool({
       name: 'inventory_get_stock_transfer',
-      description: 'One stock transfer with its status, status_reason and lines. Per line: item_id, sent_quantity, received_quantity, variance_quantity and variance_reason '
+      description: 'One stock transfer with its status, status_reason (the cancel reason; set only for CANCELLED) and lines. Per line: item_id, sent_quantity, received_quantity, variance_quantity and variance_reason '
         + '(quantities in the item\'s base UOM). received_quantity and variance_quantity are null while the transfer is SENT (in transit) and for a CANCELLED transfer. '
         + 'variance_quantity is the shortage recorded by the ERP at receipt (sent minus received: short, damaged or lost in transit); it reached neither the destination '
-        + 'nor the source. Location and item ids can be resolved to names with inventory_list_stock_locations and inventory_get_stock_balances.',
+        + 'nor the source. Location and item ids can be resolved to names with inventory_list_stock_locations (use include_inactive: true) and inventory_get_stock_balances.',
       mode: 'READ',
       input: z.object({ stock_transfer_id: z.uuid() }).strict(),
       authorize: inventoryReader,

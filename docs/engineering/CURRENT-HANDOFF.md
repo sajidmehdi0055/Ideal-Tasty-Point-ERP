@@ -16,17 +16,19 @@ Authority: owner task AI-S03 in the Cowork Manager session (small slice: READ-on
 |---|---|
 | npm ci --ignore-scripts | PASS |
 | typecheck / lint / build | PASS / PASS / PASS |
-| test:unit | PASS — 527/527 (15 files; main 520 + 7) |
+| test:unit | PASS — 527/527 (15 files; main 520 + 7) — unchanged count after FIX-001 |
 | test:integration | PASS — 113/113 (8 files; main 112 + 1) |
 | migrations / dependencies / frontend | none changed |
 
 ## AI-S03-SYNC-001 (merge of main `889a5e2` into the branch)
 
-Main moved 5b39a3c → 889a5e2 (UI-SHELL-V2-MERGE-001: frontend shell v2 + UI-AI-001 design record; `backend/` unchanged). Only overlapping file: this one (both sides prepended a section). Resolved by keeping both: AI-S03 on top, UI-SHELL-V2-MERGE-001 title demoted to "Previous handoff", everything below kept unchanged. Note: main `889a5e2` was not yet pushed when the sync was made — push main before this branch.
+Main moved 5b39a3c → 889a5e2 (UI-SHELL-V2-MERGE-001: frontend shell v2 + UI-AI-001 design record; `backend/` unchanged). Only overlapping file: this one (both sides prepended a section). Resolved by keeping both: AI-S03 on top, UI-SHELL-V2-MERGE-001 title demoted to "Previous handoff", everything below kept unchanged. Main `889a5e2` was not yet pushed when the sync was made; by AI-S03-FIX-001 the owner had pushed it (origin/main == `889a5e2`). The merge commit also updated the Branch line of `ai-s03-implementation.md` (wording only, not a conflict).
 
 ## Review status
 
-Pending: independent QA/Testing subagent (AI-S03-QA-001). Same-provider review limitation applies (Codex/Antigravity paused).
+- AI-S03-QA-001 (independent QA/Testing + security subagent, no implementation involvement, own clone + own PostgreSQL cluster): reproduced typecheck/lint/build PASS, unit 527/527, integration 113/113 (baseline 889a5e2: 520/112); 15 mutation checks (branch context, status filter, write calls, `.strict()`, uuid, authorize, fake not-found, NUMERIC→number, repository branch predicates) caught except M11 (derived field added to list output); sync-merge history fully kept; addendum form appropriate. Verdict **PASS — ready for controlled merge**: 0 BLOCKER, 0 MAJOR, 1 MINOR, 5 NOTE. Same-provider review limitation applies (Codex/Antigravity paused).
+- AI-S03-FIX-001: MINOR-1 fixed (exact `toEqual` on list-tool output); NOTE-1 fixed (get description explains `status_reason` = cancel reason, only for CANCELLED; location lookup with `include_inactive: true`); NOTE-2 recorded above; NOTE-3 fixed (ADR-0012 header mentions A-1; "Supersedes: none" line); NOTE-4 carried forward (no ERP in-transit total yet — a service-level summary would be a future slice; rule 5 points to transfer screens that do not exist yet); NOTE-5 resolved (main pushed). QA's own `git status` left a stale empty `.git/index.lock` in the owner repo; removed with owner-granted delete permission (plus today's leftover `.git/objects/tmp_obj_*` files from VM fetches; older ones untouched).
+- Pending: focused re-review of FIX-001 (AI-S03-QA-002).
 
 ## Next steps
 
