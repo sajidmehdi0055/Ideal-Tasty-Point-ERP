@@ -1,4 +1,58 @@
-# Current Handoff — UI-SHELL-V2-MERGE-001 (ERP Shell v2 + UI-AI-001 design record merged to main)
+# Current Handoff — UI-AI-002 (AI Assistant panel — frontend implementation)
+
+Date: 2026-10-03. Branch: `feat/ui-ai-002-assistant-panel` (from main 889a5e2 == origin/main, confirmed with `git ls-remote`). Track: PARALLEL TRACK (frontend only — no backend, API, migration or auth change; no new npm dependency).
+Authority: owner task UI-AI-002 (implement the approved UI-AI-001 design, Phase 1 = states 01–10 + 12 tablet + mobile sheet). Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
+Status: implemented + independently reviewed (PASS) + review MINORs fixed and re-verified (PASS). **Not merged** — controlled merge only with explicit owner approval.
+
+## Commits
+
+| Commit | Content |
+|---|---|
+| 6c89f27 | feat(frontend): AI Assistant panel — Ask AI header button + slide-over chat |
+| 9f76523 | fix: review MINORs 1–4 + notes; `docs/engineering/ui-ai-002-implementation.md` |
+| (this commit) | docs: this handoff record |
+
+Details (files, behaviour decisions, how each of the 11 contract gaps is handled, deviations): [ui-ai-002-implementation.md](ui-ai-002-implementation.md).
+
+## Verification (fresh clone, cloud workspace, Node v24.21.0 / npm 10.9.4)
+
+| Check | Result |
+|---|---|
+| `npm ci` | OK, 0 vulnerabilities |
+| typecheck / lint / build | PASS / PASS / PASS |
+| vitest | **17 files, 168/168 PASS** (main: 13 files, 88) |
+| `git diff 889a5e2 HEAD -- backend` | empty |
+| package.json / lockfiles | unchanged (no new dependency) |
+| `itp-erp:dev-identity` / `check=true` in `dist/` | not present / not present |
+| Visual check (Playwright/Chromium, production build, mocked API) | states 01–10, 12 tablet, mobile, Light + Dark compared with the Figma renders — matches; deviations listed in the implementation note |
+
+The Windows/Node 24 run on the owner's machine remains the authoritative environment (not run here).
+
+## Independent review (UI-AI-002-REVIEW-001)
+
+Reviewer: fresh QA/Code-review subagent with no part in the implementation, own clone, own runs (Codex/Antigravity paused — same-provider substitute, not equivalent to an external reviewer).
+- On 6c89f27: **PASS — 0 BLOCKER, 0 MAJOR, 4 MINOR, 9 NOTE.** Real-browser run (desktop/tablet/mobile, request bodies, focus/Esc, XSS probe: nothing executable), 8 mutation checks (7 killed; the status-URL one survived → test added).
+  1. Markdown inline parser could freeze the tab on degenerate model output (cubic; 16k chars ≈ 20 s render, 58 s for 3 keystrokes) and re-parsed on every keystroke → fixed: memoised, cached per-pattern search, lines > 4,000 chars plain text; regression test fails on the old code.
+  2. Waiting timer read out every second by screen readers → `aria-hidden`.
+  3. Welcome screen opened scrolled to the bottom on small screens → only scroll when there are turns.
+  4. No implementation/handoff docs → implementation note + this record.
+  Notes fixed: status/chat URL test, NUL removed from history, waiting hint wording for cloud providers, no `role=alert` inside the live log.
+- Re-verification of 9f76523 by the same reviewer: **PASS — ready for controlled merge**, no new BLOCKER/MAJOR/MINOR. 16k-char repro now 51 ms render / 27 ms for 3 keystrokes; formatting corpus identical to before (fuzz: 0.8% cosmetic difference — an italic directly after another marker's closing `*`/`_` now stays literal, e.g. `**bold***it*`); further mutations killed.
+- Open NOTEs (no action needed to merge): the timing test is guarded by either the line cap or the match cache, not each alone; memoisation / welcome-scroll / no-`role=alert` have no dedicated regression test (browser-verified); owner/Figma check of the "Cloud model" wording, the icon-only button on 768–1279 px mouse desktops, and that a 403/disabled state lasts until reload.
+
+## Untouched
+
+main, `feat/ai-s01b-tool-usability` (DEV TRACK, other chat) and all other branches/worktrees. No merge, force push, rebase, reset, clean or branch deletion. State 11 (approval card, AI-S02) not built.
+
+## Next recommended action
+
+1. Owner brings the branch into the local repo and pushes it (commands in the chat), then confirms `git ls-remote origin feat/ui-ai-002-assistant-panel`.
+2. Optional: try it locally with the backend (`AI_ENABLED=true` + a local model) on Windows/Node 24.
+3. Controlled merge to main only on explicit owner approval.
+
+---
+
+## Previous handoff — UI-SHELL-V2-MERGE-001 (ERP Shell v2 + UI-AI-001 design record merged to main)
 
 Date: 2026-10-03. Branch: main. Track: PARALLEL TRACK (frontend + docs only — no backend, migration, API or auth change).
 Authority: explicit owner approval in the Cowork Manager session ("han kr do"), after UI-SHELL-V2-REVIEW-001 (independent QA/Testing subagent, PASS; 4 MINOR fixed in 4cba3b7), re-verification d1445db (PASS) and owner push of `feat/ui-shell-v2` (origin == d1445db, confirmed with `git ls-remote`). Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
