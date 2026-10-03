@@ -1,7 +1,7 @@
 # UI-AI-002 — AI Assistant panel (frontend implementation)
 
 Date: 2026-10-03. Track: PARALLEL TRACK (frontend only — no backend, API, migration or auth change; no new npm dependency).
-Branch: `feat/ui-ai-002-assistant-panel` (from main 889a5e2). Status: implemented + independently reviewed; **not merged**.
+Branch: `feat/ui-ai-002-assistant-panel` (from main 889a5e2). Status: implemented + independently reviewed; merged to main 2026-10-03 (fast-forward, UI-AI-002-MERGE-001).
 Design: [ui-ai-001-ai-assistant-design.md](ui-ai-001-ai-assistant-design.md) (UI-AI-001, Figma section `104:3226`, board `104:3288`). Contract: [AI_ARCHITECTURE.md](../architecture/AI_ARCHITECTURE.md) §6.
 Scope: Phase 1 = states 01–10, 12 (tablet) and the mobile full-screen sheet. State 11 (`proposed_action` approval card) is AI-S02 — not built.
 

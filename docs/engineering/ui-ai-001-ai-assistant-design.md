@@ -56,7 +56,7 @@ Tool → chip labels, chip status icons and the full error → state table are o
 
 ## Open items for the implementation slice (UI-AI-002)
 
-Status 2026-10-03: implemented on `feat/ui-ai-002-assistant-panel` (not merged) — see [ui-ai-002-implementation.md](ui-ai-002-implementation.md). The items below are kept as written at design approval.
+Status 2026-10-03: implemented on `feat/ui-ai-002-assistant-panel`, merged to main 2026-10-03 (UI-AI-002-MERGE-001) — see [ui-ai-002-implementation.md](ui-ai-002-implementation.md). The items below are kept as written at design approval.
 
 - Add "Ask AI" as a slot of `Shell/Header` (hidden when `available: false`) plus an icon-only version for the mobile header — the approved `Shell/Header` Figma component was intentionally not modified yet.
 - Depends on ERP Shell v2 (`feat/ui-shell-v2`, implemented + reviewed, not yet pushed/merged) because the header and theme tokens live there.

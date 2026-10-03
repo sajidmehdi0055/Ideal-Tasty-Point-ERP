@@ -1,4 +1,41 @@
-# Current Handoff — UI-AI-002 (AI Assistant panel — frontend implementation)
+# Current Handoff — UI-AI-002-MERGE-001 (AI Assistant panel merged to main)
+
+Date: 2026-10-03. Branch: main. Track: PARALLEL TRACK (frontend + docs only — no backend, migration, API or auth change).
+Authority: explicit owner approval in the Cowork Manager session ("merge kr do"), after UI-AI-002-REVIEW-001 (independent QA/Testing subagent: PASS on 6c89f27 with 4 MINOR, all fixed in 9f76523; re-verification PASS) and owner push of `feat/ui-ai-002-assistant-panel` (origin == db32579, confirmed with `git ls-remote`). Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
+
+## Merge
+
+| Source | Type | Result |
+|---|---|---|
+| `feat/ui-ai-002-assistant-panel` @ db32579 | fast-forward (`git merge --ff-only`) | main 889a5e2 → db32579; 26 files (`frontend/src` + 3 docs), no conflict |
+
+Pre-merge checks: main == origin/main == 889a5e2 (`git ls-remote`); main an ancestor of the branch; local branch == origin branch == db32579; main worktree had no tracked changes; `backend/`, `package.json` and lockfiles unchanged. A stale `.git/objects/maintenance.lock` (2026-09-18, not from this work) exists in the owner's repo and was left untouched.
+
+## Post-merge verification (fresh clone of main @ db32579, cloud workspace, Node v24.21.0 / npm 10.9.4)
+
+| Check | Frontend | Backend |
+|---|---|---|
+| `npm ci` | OK | OK |
+| typecheck | PASS | PASS |
+| lint | PASS | PASS |
+| build | PASS | PASS |
+| vitest | 17 files, 168/168 PASS | unit: 15 files, 520/520 PASS (same as AI-S01 baseline) |
+
+`git diff 889a5e2 db32579 -- backend` is empty; `itp-erp:dev-identity` and `check=true` absent from the frontend build. Backend integration tests (real PostgreSQL) not run: backend byte-identical to 889a5e2/5b39a3c, verified in AI-S01-VERIFY-001. The Windows/Node 24 run on the owner's machine remains the authoritative environment.
+
+## Untouched
+
+`feat/ai-s01b-tool-usability` (DEV TRACK, other chat) and all other branches/worktrees. Feature branch `feat/ui-ai-002-assistant-panel` and its worktree are kept. No force push, rebase, reset, clean, squash or branch deletion.
+
+## Next recommended action
+
+1. Owner pushes main (`git push origin main`) and confirms `git ls-remote origin main` == local main.
+2. Owner decisions still open (do not block): "Cloud model" pill wording; icon-only "Ask AI" on 768–1279 px mouse screens; 403/disabled panel state lasting until reload.
+3. Later slices: AI-S02 (approval card, state 11) after the DEV TRACK backend; real auth/branch contracts (401 shell state, branch in header).
+
+---
+
+## Previous handoff — UI-AI-002 (AI Assistant panel — frontend implementation)
 
 Date: 2026-10-03. Branch: `feat/ui-ai-002-assistant-panel` (from main 889a5e2 == origin/main, confirmed with `git ls-remote`). Track: PARALLEL TRACK (frontend only — no backend, API, migration or auth change; no new npm dependency).
 Authority: owner task UI-AI-002 (implement the approved UI-AI-001 design, Phase 1 = states 01–10 + 12 tablet + mobile sheet). Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
