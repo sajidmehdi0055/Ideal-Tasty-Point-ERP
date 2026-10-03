@@ -1,4 +1,26 @@
-# Current Handoff — UI-SHELL-V2-001 (ERP Shell v2: collapsible sidebar, header, Light/Dark theme)
+# Current Handoff — UI-AI-001 (AI Assistant screen — Figma design approved)
+
+Date: 2026-09-30. Branch: `docs/ui-ai-001-figma-approval` (from main 5b39a3c; docs only). Track: PARALLEL TRACK — design only; no frontend code, backend, API, migration or auth change.
+Authority: owner approved the Figma proposal "with the 2 small corrections" (2026-09-30) and approved recording it.
+
+## What was done
+
+- Figma file `N9KkqXIQuvCUj9NVAj6Cx4`, section `104:3226` "APPROVED 2026-09-30 — AI Assistant (UI-AI-001)": placement recommendation board, contract-gaps board, 12 states (desktop + one tablet frame), each in Light and Dark, inside the approved ERP Shell v2 components and `ITP / Theme` variables.
+- Decision: slide-over panel from a header "Ask AI" button, usable from any screen (not a full-page sidebar entry). Approval card for `proposed_action` is marked FUTURE (AI-S02).
+- Owner corrections applied: stronger panel separation (border/strong + deeper shadow, mainly for Dark); generic suggestion text instead of a sample supplier name.
+- Design record with states, behaviour, contract gaps and open items: [ui-ai-001-ai-assistant-design.md](ui-ai-001-ai-assistant-design.md).
+
+## Status
+
+main unchanged (5b39a3c == origin/main). This docs branch: committed locally, not pushed, not merged. `feat/ui-shell-v2` (ERP Shell v2): implemented + reviewed + re-verified (d1445db), not pushed, not merged — UI-AI-002 depends on it (header + theme tokens).
+
+## Next recommended action
+
+Owner decides: (1) push this docs branch and/or merge it (separate approval), (2) push/merge ERP Shell v2 (separate approval), (3) only then, when asked, UI-AI-002 — frontend implementation of the AI Assistant panel in its own branch/worktree.
+
+---
+
+## Previous handoff — UI-SHELL-V2-001 (ERP Shell v2: collapsible sidebar, header, Light/Dark theme)
 
 Date: 2026-09-27. Branch: `feat/ui-shell-v2` (base: main @ c30e289; main @ 5b39a3c merged in — S-06, S-07, AI-S01). Track: PARALLEL TRACK (frontend only — no backend, migration, API or auth change).
 Status: implemented + independently reviewed (PASS, 4 MINOR fixed on-branch — see "Independent review") + main merged in. **Not pushed to origin, not merged to main.**
