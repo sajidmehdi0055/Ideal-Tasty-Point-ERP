@@ -11,6 +11,8 @@ import type { SupplierRepository } from '../../src/inventory/application/supplie
 import type { PurchaseRecordRepository } from '../../src/inventory/application/purchase-record-repository.js';
 import { ITEM_LIST_DEFAULT_LIMIT, ITEM_LIST_MAX_LIMIT, ITEM_SEARCH_MAX_LENGTH, PRIMARY_ITEM_TYPES, type Item, type ItemInput } from '../../src/inventory/domain/item.js';
 import { ITEM_LIST_TRUNCATED_HEADER } from '../../src/inventory/api/item-routes.js';
+import { PgItemRepository } from '../../src/inventory/persistence/pg-item-repository.js';
+import type { Pool } from 'pg';
 import type { StockLocationRepository } from '../../src/inventory/application/stock-location-repository.js';
 import type { StockRepository } from '../../src/inventory/application/stock-repository.js';
 import type { GoodsReceiptRepository } from '../../src/inventory/application/goods-receipt-repository.js';
@@ -211,6 +213,15 @@ describe('INV-ITEM-LIST-001 item list and get-by-id', () => {
     for (const url of ['/api/inventory/items', `/api/inventory/items/${id}`]) {
       const response = await app.inject({ method: 'GET', url }); expect(response.statusCode).toBe(500); expect(response.body).not.toContain('secret');
     }
+  });
+  it('orders the PostgreSQL list by item_name, then item_code, and scopes it to the caller branch', async () => {
+    // Same-name rows come back in code order anyway (sequence = insertion order), so the
+    // integration test alone cannot prove the item_code tie-break; assert the SQL itself.
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    await new PgItemRepository({ query } as unknown as Pool).list({ limit: 5 }, owner);
+    const [sql, params] = query.mock.calls[0] as [string, unknown[]];
+    expect(sql.replace(/\s+/g, ' ')).toMatch(/WHERE im\.branch_id = \$1 .* ORDER BY im\.item_name, im\.item_code LIMIT \$4$/);
+    expect(params).toEqual([owner.branchId, null, null, 6]);
   });
   it('defends list/get service calls bypassing HTTP', async () => {
     const { repository } = setup(); const service = new ItemService(repository);

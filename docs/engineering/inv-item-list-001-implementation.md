@@ -39,9 +39,9 @@ Limits chosen (technical, not business): default 200 / max 500 keeps a single pi
 | `backend/src/inventory/application/item-service.ts` | `list` / `get`: role check first, then validation, then repository with the caller's `AuthContext`; `get` maps null → 404 `ITEM_NOT_FOUND` |
 | `backend/src/inventory/persistence/pg-item-repository.ts` | branch-scoped `SELECT … WHERE im.branch_id = $1`, `escapeLikePattern`, `LIMIT limit+1` |
 | `backend/src/inventory/api/item-routes.ts` | two GET routes; `X-Result-Truncated` header |
-| `backend/tests/unit/item-api.test.ts` | +48 tests (401/403/spoof/blank context, query parsing accept/reject, header, 404/400, 500 without secrets, service bypass) |
+| `backend/tests/unit/item-api.test.ts` | +49 tests (401/403/spoof/blank context, query parsing accept/reject, header, 404/400, 500 without secrets, service bypass, list SQL `ORDER BY item_name, item_code` + branch filter on a mocked `Pool`) |
 | `backend/tests/unit/*-api.test.ts` (10 files) | unused `ItemRepository` stand-ins gain `list`/`get: vi.fn()` (type-only; no behaviour change) |
-| `backend/tests/integration/item-postgres.test.ts` | +6 real-PostgreSQL tests (branch isolation for list/get, search by name and code, literal `%`/`_`/`\`, active filter, ordering incl. same-name tie-break, limit + header) |
+| `backend/tests/integration/item-postgres.test.ts` | +6 real-PostgreSQL tests (branch isolation for list/get, search by name and code, literal `%`/`_`/`\`, active filter, ordering by name, limit + header). Same-name rows return in code order even without the tie-break (codes follow insertion order), so the `item_code` tie-break is proven by the unit SQL test, not here (review MINOR-1) |
 | `backend/README.md` | API contract lines for the two GETs |
 
 ## Database
