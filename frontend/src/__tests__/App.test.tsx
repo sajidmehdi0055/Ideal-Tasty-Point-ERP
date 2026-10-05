@@ -2,8 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import App from '../App';
 import * as uomApi from '../features/catalog-settings/uom/api';
+import * as stockApi from '../features/stock/api';
 
 vi.mock('../features/catalog-settings/uom/api');
+vi.mock('../features/stock/api');
 
 describe('App routing (UI-UOM-001)', () => {
   afterEach(() => {
@@ -38,17 +40,30 @@ describe('App routing (UI-UOM-001)', () => {
     expect(window.location.pathname).toBe('/catalog-settings');
   });
 
-  it('renders the new placeholder screens for Suppliers, Purchases and Stock', async () => {
+  it('renders the placeholder screens for Suppliers and Purchases', async () => {
     for (const [path, title] of [
       ['/suppliers', 'Suppliers'],
       ['/purchases', 'Purchases & Rates'],
-      ['/stock/locations', 'Stock Locations'],
-      ['/stock/ledger', 'Stock Ledger'],
     ] as const) {
       window.history.pushState({}, '', path);
       const { unmount } = render(<App />);
       expect(await screen.findByRole('heading', { name: title, level: 3 })).toBeInTheDocument();
       unmount();
     }
+  });
+
+  it('routes /stock/locations and /stock/ledger to the live stock screens (UI-STOCK-002)', async () => {
+    vi.mocked(stockApi.listLocations).mockResolvedValue([]);
+    vi.mocked(stockApi.listBalances).mockResolvedValue([]);
+
+    window.history.pushState({}, '', '/stock/locations');
+    const first = render(<App />);
+    expect(await screen.findByText('No stock locations yet')).toBeInTheDocument();
+    first.unmount();
+
+    window.history.pushState({}, '', '/stock/ledger');
+    render(<App />);
+    expect(await screen.findByRole('tab', { name: 'Balances' })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByText('No stock recorded yet')).toBeInTheDocument();
   });
 });

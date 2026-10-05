@@ -1,0 +1,46 @@
+import { apiClient } from '../../lib/api-client';
+import type {
+  StockAdjustmentInput,
+  StockBalance,
+  StockLocation,
+  StockLocationInput,
+  StockLocationPatch,
+  StockMovement,
+  StockQuery,
+} from './types';
+
+const LOCATIONS_PATH = '/api/inventory/locations';
+const STOCK_PATH = '/api/inventory/stock';
+
+export function listLocations(): Promise<StockLocation[]> {
+  return apiClient.get<StockLocation[]>(LOCATIONS_PATH);
+}
+
+export function createLocation(input: StockLocationInput): Promise<StockLocation> {
+  return apiClient.post<StockLocation>(LOCATIONS_PATH, input);
+}
+
+export function updateLocation(id: string, patch: StockLocationPatch): Promise<StockLocation> {
+  return apiClient.patch<StockLocation>(`${LOCATIONS_PATH}/${encodeURIComponent(id)}`, patch);
+}
+
+/** Only the two filters the server accepts (`.strict()` query schema) are ever sent. */
+function toQueryString(query: StockQuery): string {
+  const params = new URLSearchParams();
+  if (query.item_id) params.set('item_id', query.item_id);
+  if (query.location_id) params.set('location_id', query.location_id);
+  const text = params.toString();
+  return text ? `?${text}` : '';
+}
+
+export function listBalances(query: StockQuery = {}): Promise<StockBalance[]> {
+  return apiClient.get<StockBalance[]>(`${STOCK_PATH}/balances${toQueryString(query)}`);
+}
+
+export function listMovements(query: StockQuery = {}): Promise<StockMovement[]> {
+  return apiClient.get<StockMovement[]>(`${STOCK_PATH}/movements${toQueryString(query)}`);
+}
+
+export function createAdjustment(input: StockAdjustmentInput): Promise<StockMovement> {
+  return apiClient.post<StockMovement>(`${STOCK_PATH}/adjustments`, input);
+}

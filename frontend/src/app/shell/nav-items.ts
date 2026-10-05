@@ -22,8 +22,8 @@ export interface NavSection {
 
 // UI-UOM-001: sections match the approved Figma sidebar (node 4:2) — Item
 // Master and Catalog Settings (UOM Master live, Brands/Pack Variants tabs
-// pending) under Inventory, plus placeholder-only Purchasing and Stock
-// sections whose screens are not built in this slice.
+// pending) under Inventory, plus placeholder-only Purchasing. Stock Locations
+// and Stock Ledger are live since UI-STOCK-002.
 export const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Inventory',
@@ -42,8 +42,8 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Stock',
     items: [
-      { to: '/stock/locations', label: 'Stock Locations', pending: true, icon: WarehouseIcon },
-      { to: '/stock/ledger', label: 'Stock Ledger', pending: true, icon: BoxesIcon },
+      { to: '/stock/locations', label: 'Stock Locations', pending: false, icon: WarehouseIcon },
+      { to: '/stock/ledger', label: 'Stock Ledger', pending: false, icon: BoxesIcon },
     ],
   },
 ];

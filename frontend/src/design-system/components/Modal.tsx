@@ -6,13 +6,17 @@ interface ModalProps {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  /** Optional icon before the title (e.g. a warning or power icon). */
+  icon?: ReactNode;
+  /** `md` = 448px (default), `lg` = 480px (stock dialogs, UI-STOCK-001). */
+  size?: 'md' | 'lg';
 }
 
 /**
  * Built on the native <dialog> element: free focus trap, Escape-to-close
  * and top-layer stacking, no extra dependency for a single-use pattern.
  */
-export function Modal({ open, title, onClose, children, footer }: ModalProps) {
+export function Modal({ open, title, onClose, children, footer, icon, size = 'md' }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -31,11 +35,14 @@ export function Modal({ open, title, onClose, children, footer }: ModalProps) {
         if (event.target === dialogRef.current) onClose();
       }}
       aria-labelledby={titleId}
-      className="m-auto w-full max-w-md rounded-card border border-line bg-canvas p-0 shadow-modal backdrop:bg-overlay"
+      className={`m-auto w-full ${size === 'lg' ? 'max-w-[480px]' : 'max-w-md'} rounded-card border border-line bg-canvas p-0 shadow-modal backdrop:bg-overlay`}
     >
       <div onClick={event => event.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
-          <h2 id={titleId} className="text-base font-semibold text-ink">{title}</h2>
+          <h2 id={titleId} className="flex items-center gap-2 text-base font-semibold text-ink">
+            {icon}
+            {title}
+          </h2>
           <button
             type="button"
             onClick={onClose}

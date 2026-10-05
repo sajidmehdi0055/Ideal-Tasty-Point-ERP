@@ -7,6 +7,7 @@ import { ItemFormPage } from './features/items/ItemFormPage';
 import { CatalogSettingsPage } from './features/catalog-settings/CatalogSettingsPage';
 import { PlaceholderPage } from './features/shared/PlaceholderPage';
 import { AiAssistantProvider } from './features/ai-assistant';
+import { StockLedgerPage, StockLocationsPage } from './features/stock';
 
 export default function App() {
   return (
@@ -49,24 +50,8 @@ export default function App() {
                     />
                   }
                 />
-                <Route
-                  path="/stock/locations"
-                  element={
-                    <PlaceholderPage
-                      title="Stock Locations"
-                      description="Stock Location's backend is live on main (S-04). This screen isn't wired up yet — frontend integration is pending, and the S-04 database migration has not been applied to the real operational database yet either."
-                    />
-                  }
-                />
-                <Route
-                  path="/stock/ledger"
-                  element={
-                    <PlaceholderPage
-                      title="Stock Ledger"
-                      description="Opening stock, adjustments, balances and movement history's backend is live on main (S-04). This screen isn't wired up yet — frontend integration is pending, and the S-04 database migration has not been applied to the real operational database yet either."
-                    />
-                  }
-                />
+                <Route path="/stock/locations" element={<StockLocationsPage />} />
+                <Route path="/stock/ledger" element={<StockLedgerPage />} />
 
                 <Route path="*" element={<Navigate to="/items" replace />} />
               </Routes>
