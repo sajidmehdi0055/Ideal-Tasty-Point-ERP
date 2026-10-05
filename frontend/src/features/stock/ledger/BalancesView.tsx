@@ -200,13 +200,13 @@ function GroupLabel({ group }: { group: Group }) {
 function BalancesTable({ groups, onHistory, onAdjust }: { groups: Group[] } & BalancesViewProps) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[720px] border-collapse text-left">
+      <table className="w-full min-w-[600px] border-collapse text-left">
         <thead>
           <tr className="h-9 border-y border-line bg-canvas-sunken">
             <th scope="col" className={`${HEAD} pl-4`}>Item</th>
-            <th scope="col" className={`${HEAD} w-[164px]`}>Code</th>
-            <th scope="col" className={`${HEAD} w-[224px] text-right`}>Quantity (base unit)</th>
-            <th scope="col" className={`${HEAD} w-[176px] pr-4 text-right`}>Actions</th>
+            <th scope="col" className={`${HEAD} w-[120px] lg:w-[164px]`}>Code</th>
+            <th scope="col" className={`${HEAD} w-[180px] lg:w-[224px] text-right`}>Quantity (base unit)</th>
+            <th scope="col" className={`${HEAD} w-[150px] lg:w-[176px] pr-4 text-right`}>Actions</th>
           </tr>
         </thead>
         {groups.map(group => (

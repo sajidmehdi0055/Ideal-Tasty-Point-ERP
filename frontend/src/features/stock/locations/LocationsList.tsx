@@ -21,15 +21,15 @@ const HEAD = 'px-3 text-[11px] font-semibold uppercase tracking-[0.5px] text-ink
 export function LocationsTable({ rows, itemsInStock, isOwner, busyId, onRename, onDeactivate, onActivate }: LocationsListProps) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[880px] border-collapse text-left">
+      <table className="w-full min-w-[680px] border-collapse text-left">
         <thead>
           <tr className="h-9 border-y border-line bg-canvas-sunken">
-            <th scope="col" className={`${HEAD} pl-4`}>Name</th>
-            <th scope="col" className={`${HEAD} w-[164px]`}>Type</th>
-            <th scope="col" className={`${HEAD} w-[224px]`}>Parent</th>
-            <th scope="col" className={`${HEAD} w-[164px] text-right`}>Items in stock</th>
-            <th scope="col" className={`${HEAD} w-[154px]`}>Status</th>
-            <th scope="col" className={`${HEAD} w-[216px] pr-4 text-right`}>Actions</th>
+            <th scope="col" className={`${HEAD} min-w-[150px] pl-4`}>Name</th>
+            <th scope="col" className={`${HEAD} w-[96px] lg:w-[164px]`}>Type</th>
+            <th scope="col" className={`${HEAD} w-[120px] lg:w-[224px]`}>Parent</th>
+            <th scope="col" className={`${HEAD} w-[96px] lg:w-[164px] text-right`}>Items in stock</th>
+            <th scope="col" className={`${HEAD} w-[96px] lg:w-[154px]`}>Status</th>
+            <th scope="col" className={`${HEAD} w-[160px] lg:w-[216px] pr-4 text-right`}>Actions</th>
           </tr>
         </thead>
         <tbody>
