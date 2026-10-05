@@ -1,4 +1,54 @@
-# Current Handoff — UI-AI-002-MERGE-001 (AI Assistant panel merged to main)
+# Current Handoff — INV-ITEM-LIST-001 (Item list/search + get-by-id endpoints)
+
+Date: 2026-10-06. Branch: `feat/inv-item-list-001` (from main 16980d3 == origin/main, checked after `git fetch`), worktree `Ideal-Tasty-Point-ERP-item-list`. Track: DEV TRACK (backend only — no frontend file, migration, dependency or business-rule change).
+Authority: owner task INV-ITEM-LIST-001, from owner decision D-1 (2026-10-05) on UI-STOCK-001 gap G-1 (no GET for items, so the Opening-stock dialog could not pick an item). Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
+Status: implemented + independently reviewed (PASS) + review MINOR fixed and re-verified (PASS). **Not merged** — controlled merge only with explicit owner approval.
+
+## Commits
+
+| Commit | Content |
+|---|---|
+| 4f19a67 | feat(backend): `GET /api/inventory/items` (branch-scoped list, strict `search`/`active`/`limit` query, `X-Result-Truncated` header) and `GET /api/inventory/items/:id`; tests; README; implementation note |
+| 7909b1a | test: list SQL `ORDER BY item_name, item_code` asserted on a mocked Pool (review MINOR-1); note wording |
+| (this commit) | docs: this handoff record |
+
+Details (query rules, limits 200 default / 500 max, cap signalling, no-index reasoning, files): [inv-item-list-001-implementation.md](inv-item-list-001-implementation.md).
+
+## Verification (owner's Windows machine, Node v24.18.1, Docker PostgreSQL 17 container `ideal-tasty-point-s01-dev-postgres-1`, `erp_test` database — `erp_local` not touched)
+
+| Check | main 16980d3 (baseline) | 7909b1a |
+|---|---|---|
+| typecheck / lint / build | — | PASS / PASS / PASS |
+| test:unit | 520/520 (15 files) | **569/569** (15 files; +49 new) |
+| test:integration (real PostgreSQL) | 112/112 (8 files) | **118/118** (8 files; +6 new) |
+| `git diff 16980d3` on `frontend/`, `backend/migrations`, `package.json`/lockfile, `scripts/` | — | empty |
+
+**Environment note:** `TEST_DATABASE_URL` in the owner's `backend/.env` (edited 2026-10-03) carries a password the Docker container rejects (`password authentication failed`). The tests were run with the same URL but the local password from `backend/.env.docker`, built in-process by a scratch runner that never prints it. `.env` was not changed — the owner should correct its `TEST_DATABASE_URL` password before running `npm run test:integration` directly.
+
+## Independent review (INV-ITEM-LIST-REVIEW-001)
+
+Reviewer: fresh QA/Code-review subagent with no part in the implementation, own clone (`Ideal-Tasty-Point-ERP-qa-itemlist`), own runs (same-provider substitute, not equivalent to an external reviewer).
+- On 4f19a67: **PASS — 0 BLOCKER, 0 MAJOR, 1 MINOR, 4 NOTE.** Own runs: typecheck/lint/build PASS, unit 568/568, integration 118/118. 14 mutants: 13 killed (branch filter list/get, ILIKE escaping incl. backslash, limit+1/truncation/slice, role checks in service, code search, active filter, ILIKE→LIKE, `.strict()`). Real-DB probes: Urdu search, `ITM-` prefix, lone/trailing `\`, `\%` all correct; `standard_conforming_strings` = on.
+  1. MINOR-1: the `item_code` tie-break mutant survived (same-name rows come back in code order anyway) and the note overstated coverage → fixed in 7909b1a (SQL-level unit test; wording corrected); mutant now killed.
+  - NOTE-1: `frontend/src/features/items/api.ts:14-19` comment still says the list route "is expected to 404" — stale; fix in the next frontend task (frontend out of scope here).
+  - NOTE-2: search terms appear in Fastify request logs (URL) — not secret today.
+  - NOTE-3: `X-Result-Truncated` is readable only same-origin (Vite proxy, no CORS); a cross-origin deployment must add `Access-Control-Expose-Headers`.
+  - NOTE-4: search length counted in UTF-16 units after trim; 100 Urdu characters accepted.
+- Re-verification of 7909b1a: **PASS** by the same reviewer, no new BLOCKER/MAJOR/MINOR. Own runs: typecheck/lint/build PASS, unit 569/569; diff 4f19a67..7909b1a = the one test + the note. M7 now killed by the new unit test; M1 and M3 still killed. NOTE-5: the reviewer's first full integration run had 1 failure (117/118) whose test name was not captured; its 4 later runs passed 118/118. That first run overlapped in time with the implementer's own integration run on the same `erp_test` database, a likely cause (not proven). The Manager then ran the suite 3 more times alone with failure names captured: 118/118 each time. Treat as a possible concurrency flake; if it recurs, rerun with full output to name the test.
+
+## Untouched
+
+main, `feat/ai-s01b-tool-usability`, `feat/ai-s03-transfer-tools`, all frontend files and all other branches/worktrees. No merge, push, force push, rebase, reset, clean or branch deletion.
+
+## Next recommended action
+
+1. Owner pushes the branch: `git -C "C:\Users\sajid mehdi\Documents\Ideal-Tasty-Point-ERP-item-list" push -u origin feat/inv-item-list-001`, then confirms `git ls-remote origin feat/inv-item-list-001` == local branch head.
+2. Controlled merge to main only on explicit owner approval.
+3. Then (frontend, separate task): Opening-stock item picker on `GET /api/inventory/items?search=…&active=true`, read `X-Result-Truncated`; fix the stale comment (NOTE-1).
+
+---
+
+## Previous handoff — UI-AI-002-MERGE-001 (AI Assistant panel merged to main)
 
 Date: 2026-10-03. Branch: main. Track: PARALLEL TRACK (frontend + docs only — no backend, migration, API or auth change).
 Authority: explicit owner approval in the Cowork Manager session ("merge kr do"), after UI-AI-002-REVIEW-001 (independent QA/Testing subagent: PASS on 6c89f27 with 4 MINOR, all fixed in 9f76523; re-verification PASS) and owner push of `feat/ui-ai-002-assistant-panel` (origin == db32579, confirmed with `git ls-remote`). Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
