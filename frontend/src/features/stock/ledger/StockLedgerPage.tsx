@@ -75,9 +75,12 @@ function StockLedgerContent() {
     return location ? locationPath(location, byId) : balance.location_name;
   };
 
+  // The approved G2 frame (115:11417) shows History as the item across all
+  // locations ("All locations", "Balance now … (2 locations)"); the location
+  // select stays available to narrow it to one location.
   function openHistory(balance: StockBalance) {
     setMovementItem({ id: balance.item_id, label: `${balance.item_name} (${balance.item_code})` });
-    setMovementLocation(balance.location_id);
+    setMovementLocation('');
     setSavedNote(undefined);
     setTab('movements');
   }
@@ -125,7 +128,7 @@ function StockLedgerContent() {
             type="button"
             role="tab"
             aria-selected={selected}
-            aria-controls={`${tabsId}-${entry.key}-panel`}
+            aria-controls={selected ? `${tabsId}-${entry.key}-panel` : undefined}
             tabIndex={selected ? 0 : -1}
             onClick={() => setTab(entry.key)}
             className={

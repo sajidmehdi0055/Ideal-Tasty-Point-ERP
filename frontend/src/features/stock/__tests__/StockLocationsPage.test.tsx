@@ -251,6 +251,38 @@ describe('StockLocationsPage (UI-STOCK-002, desktop)', () => {
     );
   });
 
+  it('explains a 403 on an active change as Owner-only (client role and server identity can differ)', async () => {
+    vi.mocked(stockApi.updateLocation).mockRejectedValue(new ApiError(403, 'FORBIDDEN', 'x'));
+    renderPage();
+    await screen.findByRole('table');
+    await userEvent.click(screen.getByRole('button', { name: `Activate ${LOWER_FREEZER_B.name}` }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Couldn't activate Lower Kitchen Freezer B: Only the Owner can activate or deactivate locations. (403 · FORBIDDEN)",
+    );
+  });
+
+  it('cannot be dismissed while a create is in flight (Esc / ✕ ignored, Cancel disabled)', async () => {
+    let resolve: (value: typeof FREEZER_2) => void = () => {};
+    vi.mocked(stockApi.createLocation).mockReturnValue(new Promise(res => (resolve = res)));
+    renderPage();
+    await screen.findByRole('table');
+    await userEvent.click(screen.getByRole('button', { name: 'New location' }));
+    const dialog = screen.getByRole('dialog');
+    await userEvent.type(within(dialog).getByLabelText('Name'), 'Rented Store 2');
+    await userEvent.click(within(dialog).getByRole('radio', { name: /^Store/ }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create location' }));
+
+    expect(within(dialog).getByRole('button', { name: 'Close dialog' })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeDisabled();
+    const cancelEvent = new Event('cancel', { cancelable: true });
+    dialog.dispatchEvent(cancelEvent);
+    expect(cancelEvent.defaultPrevented).toBe(true);
+    expect(stockApi.createLocation).toHaveBeenCalledTimes(1);
+
+    resolve(FREEZER_2);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
   it('marks inactive rows and keeps names readable', async () => {
     renderPage();
     await screen.findByRole('table');
@@ -294,6 +326,17 @@ describe('StockLocationsPage (UI-STOCK-002, mobile L8)', () => {
     await userEvent.click(menuButton);
     await userEvent.click(screen.getByRole('menuitem', { name: 'Rename' }));
     expect(screen.getByRole('dialog', { name: 'Rename “Main Store”' })).toBeInTheDocument();
+  });
+
+  it('leaves Activate out of the menu while that activation is in flight (no double PATCH)', async () => {
+    vi.mocked(stockApi.updateLocation).mockReturnValue(new Promise(() => {}));
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: `Actions for ${LOWER_FREEZER_B.name}` }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Activate' }));
+    expect(stockApi.updateLocation).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: `Actions for ${LOWER_FREEZER_B.name}` })).toHaveFocus();
+    await userEvent.click(screen.getByRole('button', { name: `Actions for ${LOWER_FREEZER_B.name}` }));
+    expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual(['Rename']);
   });
 
   it('gives a Manager only Rename in the menu', async () => {

@@ -6,7 +6,7 @@ import { useDevSession } from '../../../lib/session';
 import { useMediaQuery } from '../../../lib/use-media-query';
 import { createLocation, listBalances, listLocations, updateLocation } from '../api';
 import { Checkbox } from '../components/Checkbox';
-import { describeStockError } from '../format';
+import { describeActiveChangeError, describeStockError } from '../format';
 import { orderLocationTree } from '../locations-tree';
 import { isPositiveQuantity } from '../quantity';
 import type { StockLocation } from '../types';
@@ -137,7 +137,7 @@ function StockLocationsContent({ isOwner }: { isOwner: boolean }) {
       const message =
         error instanceof ApiError && error.code === 'PARENT_INACTIVE'
           ? 'Activate its parent store or kitchen first. (409 · PARENT_INACTIVE)'
-          : describeStockError(error);
+          : describeActiveChangeError(error);
       setActionError(`Couldn't activate ${location.name}: ${message}`);
     } finally {
       setBusyId(undefined);

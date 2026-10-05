@@ -88,13 +88,14 @@ export function LocationsTable({ rows, itemsInStock, isOwner, busyId, onRename, 
 }
 
 /** L8 mobile cards: actions in a ⋮ menu. */
-export function LocationCards({ rows, itemsInStock, isOwner, onRename, onDeactivate, onActivate }: LocationsListProps) {
+export function LocationCards({ rows, itemsInStock, isOwner, busyId, onRename, onDeactivate, onActivate }: LocationsListProps) {
   return (
     <ul className="flex flex-col gap-2.5">
       {rows.map(({ location, depth }) => {
         const count = itemsInStock.get(location.id) ?? 0;
         const items: ActionMenuItem[] = [{ label: 'Rename', onSelect: () => onRename(location) }];
-        if (isOwner) {
+        // While an activation is in flight the item is left out, so a double tap cannot send it twice.
+        if (isOwner && busyId !== location.id) {
           items.push(
             location.active
               ? { label: 'Deactivate', tone: 'danger', onSelect: () => onDeactivate(location) }

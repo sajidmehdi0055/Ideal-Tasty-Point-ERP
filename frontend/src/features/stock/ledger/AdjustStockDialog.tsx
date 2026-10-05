@@ -58,7 +58,7 @@ export function AdjustStockDialog({ balance, locationLabel, onSaved, onClose }: 
     else if (amount === null) next.quantity = 'Use a plain number with up to 12 digits and up to 6 decimals, e.g. 2.5.';
     else if (amount <= 0n) next.quantity = 'Quantity must be above zero.';
     if (!reason.trim()) next.reason = 'A reason is required.';
-    else if (reason.length > MAX_REASON_CHARS) next.reason = `Use at most ${MAX_REASON_CHARS} characters.`;
+    else if (reason.trim().length > MAX_REASON_CHARS) next.reason = `Use at most ${MAX_REASON_CHARS} characters.`;
     return next;
   }
 
@@ -140,6 +140,7 @@ export function AdjustStockDialog({ balance, locationLabel, onSaved, onClose }: 
       size="lg"
       title="Adjust stock"
       onClose={onClose}
+      dismissible={!submitting}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={submitting}>
@@ -223,8 +224,8 @@ export function AdjustStockDialog({ balance, locationLabel, onSaved, onClose }: 
             ) : (
               <p className="text-ink-muted">Shown in the ledger and the audit trail.</p>
             )}
-            <p className={`shrink-0 ${reason.length > MAX_REASON_CHARS ? 'font-semibold text-danger-600' : 'text-ink-muted'}`}>
-              {reason.length} / {MAX_REASON_CHARS}
+            <p className={`shrink-0 ${reason.trim().length > MAX_REASON_CHARS ? 'font-semibold text-danger-600' : 'text-ink-muted'}`}>
+              {reason.trim().length} / {MAX_REASON_CHARS}
             </p>
           </div>
         </div>

@@ -10,13 +10,18 @@ interface ModalProps {
   icon?: ReactNode;
   /** `md` = 448px (default), `lg` = 480px (stock dialogs, UI-STOCK-001). */
   size?: 'md' | 'lg';
+  /**
+   * `false` while a write is in flight: Esc, the backdrop and ✕ are ignored so
+   * the result (or error) of the request is not lost. Defaults to `true`.
+   */
+  dismissible?: boolean;
 }
 
 /**
  * Built on the native <dialog> element: free focus trap, Escape-to-close
  * and top-layer stacking, no extra dependency for a single-use pattern.
  */
-export function Modal({ open, title, onClose, children, footer, icon, size = 'md' }: ModalProps) {
+export function Modal({ open, title, onClose, children, footer, icon, size = 'md', dismissible = true }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -31,8 +36,11 @@ export function Modal({ open, title, onClose, children, footer, icon, size = 'md
     <dialog
       ref={dialogRef}
       onClose={onClose}
+      onCancel={event => {
+        if (!dismissible) event.preventDefault();
+      }}
       onClick={event => {
-        if (event.target === dialogRef.current) onClose();
+        if (dismissible && event.target === dialogRef.current) onClose();
       }}
       aria-labelledby={titleId}
       className={`m-auto w-full ${size === 'lg' ? 'max-w-[480px]' : 'max-w-md'} rounded-card border border-line bg-canvas p-0 shadow-modal backdrop:bg-overlay`}
@@ -46,8 +54,9 @@ export function Modal({ open, title, onClose, children, footer, icon, size = 'md
           <button
             type="button"
             onClick={onClose}
+            disabled={!dismissible}
             aria-label="Close dialog"
-            className="rounded-control p-1 text-ink-muted hover:bg-canvas-muted hover:text-ink"
+            className="rounded-control p-1 text-ink-muted hover:bg-canvas-muted hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
           >
             ✕
           </button>

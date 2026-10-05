@@ -123,6 +123,7 @@ export function LocationFormDialog({ mode, location, locations, onSubmit, onClos
       size="lg"
       title={title}
       onClose={onClose}
+      dismissible={!submitting}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={submitting}>

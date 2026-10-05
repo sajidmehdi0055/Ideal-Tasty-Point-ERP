@@ -104,31 +104,33 @@ describe('StockLedgerPage (UI-STOCK-002, desktop)', () => {
     expect(button).toHaveAccessibleDescription('Opening stock needs an item search, which is not available yet.');
   });
 
-  it('History opens Movements filtered to that item + location (G2)', async () => {
+  it('History opens Movements for that item across all locations, as in the G2 frame', async () => {
     renderPage();
     await screen.findByRole('table');
-    await userEvent.click(screen.getByRole('button', { name: 'History of Cooking Oil at Main Store' }));
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Location' }), MAIN.id);
+    await userEvent.click(await screen.findByRole('button', { name: 'History of Cooking Oil at Main Store' }));
 
     expect(screen.getByRole('tab', { name: 'Movements' })).toHaveAttribute('aria-selected', 'true');
-    expect(stockApi.listMovements).toHaveBeenLastCalledWith({ item_id: 'item-oil', location_id: MAIN.id });
+    expect(stockApi.listMovements).toHaveBeenLastCalledWith({ item_id: 'item-oil' });
     expect(await screen.findByText('Cooking Oil (CO-001)')).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Location' })).toHaveValue(MAIN.id);
-    expect(screen.getByText('Balance now: 72 LITER (1 location)')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Location' })).toHaveValue('');
+    expect(await screen.findByText('Balance now: 86.5 LITER (2 locations)')).toBeInTheDocument();
 
     const table = await screen.findByRole('table');
     expect(within(table).queryByRole('columnheader', { name: 'Item' })).not.toBeInTheDocument();
     const rows = within(table).getAllByRole('row').slice(1);
-    expect(rows).toHaveLength(4);
-    expect(within(rows[0]!).getByText('03 Oct 2026, 10:05')).toBeInTheDocument();
-    expect(within(rows[0]!).getByText('Transfer out')).toBeInTheDocument();
-    expect(within(rows[0]!).getByText('−10')).toHaveClass('text-danger-700');
-    expect(within(rows[1]!).getByText('+32')).toHaveClass('text-success-700');
-    expect(within(rows[2]!).getByText('Spilled tin')).toBeInTheDocument();
-    expect(within(rows[3]!).getByText('Opening')).toBeInTheDocument();
+    expect(rows).toHaveLength(5);
+    expect(within(rows[0]!).getByText('03 Oct 2026, 10:12')).toBeInTheDocument();
+    expect(within(rows[0]!).getByText('Transfer in')).toBeInTheDocument();
+    expect(within(rows[0]!).getByText('Lower Kitchen')).toBeInTheDocument();
+    expect(within(rows[1]!).getByText('\u221210')).toHaveClass('text-danger-700');
+    expect(within(rows[2]!).getByText('+32')).toHaveClass('text-success-700');
+    expect(within(rows[3]!).getByText('Spilled tin')).toBeInTheDocument();
+    expect(within(rows[4]!).getByText('Opening')).toBeInTheDocument();
 
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Location' }), '');
-    expect(stockApi.listMovements).toHaveBeenLastCalledWith({ item_id: 'item-oil' });
-    expect(await screen.findByText('Balance now: 86.5 LITER (2 locations)')).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Location' }), MAIN.id);
+    expect(stockApi.listMovements).toHaveBeenLastCalledWith({ item_id: 'item-oil', location_id: MAIN.id });
+    expect(await screen.findByText('Balance now: 72 LITER (1 location)')).toBeInTheDocument();
   });
 
   it('without an item filter shows every movement with an Item column; the chip can be cleared', async () => {
@@ -137,7 +139,6 @@ describe('StockLedgerPage (UI-STOCK-002, desktop)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'History of Chicken Breast at Main Store › Freezer 1' }));
     await screen.findByText('Chicken Breast (CH-003)');
     await userEvent.click(screen.getByRole('button', { name: 'Clear item filter' }));
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Location' }), '');
     expect(stockApi.listMovements).toHaveBeenLastCalledWith({});
 
     const table = await screen.findByRole('table');
@@ -258,6 +259,20 @@ describe('Adjust stock dialog (G3 / G5)', () => {
     expect(stockApi.createAdjustment).not.toHaveBeenCalled();
   });
 
+  it('counts the reason after trimming, like the server (500 + trailing spaces is allowed)', async () => {
+    vi.mocked(stockApi.createAdjustment).mockResolvedValue(
+      movement('new', 'item-oil', MAIN, 'ADJUSTMENT', '1.000000', 'x', '2026-10-05T08:00:00Z'),
+    );
+    const dialog = await openAdjust();
+    await userEvent.click(within(dialog).getByRole('radio', { name: 'Increase' }));
+    await userEvent.type(within(dialog).getByLabelText('Quantity (LITER)'), '1');
+    await userEvent.click(within(dialog).getByLabelText('Reason (required)'));
+    await userEvent.paste(`${'y'.repeat(500)}   `);
+    expect(within(dialog).getByText('500 / 500')).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save adjustment' }));
+    expect(stockApi.createAdjustment).toHaveBeenCalledWith(expect.objectContaining({ reason: 'y'.repeat(500) }));
+  });
+
   it('sends a signed decimal-string delta and a trimmed reason, then reloads and confirms', async () => {
     vi.mocked(stockApi.createAdjustment).mockResolvedValue(
       movement('new', 'item-oil', MAIN, 'ADJUSTMENT', '-2.500000', 'Spilled tin', '2026-10-05T08:00:00Z'),
@@ -348,7 +363,7 @@ describe('StockLedgerPage (UI-STOCK-002, mobile G7)', () => {
 
     await userEvent.click(menuButton);
     await userEvent.click(screen.getByRole('menuitem', { name: 'History' }));
-    expect(stockApi.listMovements).toHaveBeenLastCalledWith({ item_id: OIL_LOWER.item_id, location_id: LOWER.id });
+    expect(stockApi.listMovements).toHaveBeenLastCalledWith({ item_id: OIL_LOWER.item_id });
     expect(await screen.findByText('Transfer in')).toBeInTheDocument();
     expect(screen.getByText('+10')).toBeInTheDocument();
     expect(OIL_MAIN.location_id).toBe(MAIN.id);

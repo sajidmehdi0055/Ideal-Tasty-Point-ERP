@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button, Modal } from '../../../design-system/components';
 import { CircleAlertIcon, PowerIcon, TriangleAlertIcon } from '../../../design-system/icons';
-import { describeStockError } from '../format';
+import { describeActiveChangeError } from '../format';
 import type { StockLocation } from '../types';
 
 export type BlockedReason = 'LOCATION_HAS_STOCK' | 'LOCATION_HAS_ACTIVE_CHILDREN' | 'LOCATION_HAS_PENDING_TRANSFERS';
@@ -33,7 +33,7 @@ export function DeactivateDialog({ location, onConfirm, onClose }: DeactivateDia
     try {
       await onConfirm();
     } catch (err) {
-      setError(describeStockError(err));
+      setError(describeActiveChangeError(err));
       setSubmitting(false);
     }
   }
@@ -45,6 +45,7 @@ export function DeactivateDialog({ location, onConfirm, onClose }: DeactivateDia
       title={`Deactivate “${location.name}”?`}
       icon={<PowerIcon className="h-4 w-4 shrink-0 text-danger-700" />}
       onClose={onClose}
+      dismissible={!submitting}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={submitting}>

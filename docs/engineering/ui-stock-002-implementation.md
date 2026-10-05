@@ -1,7 +1,7 @@
 # UI-STOCK-002 — Stock Locations + Stock Ledger (frontend implementation)
 
 Date: 2026-10-06. Track: PARALLEL TRACK (frontend only — no backend, API, migration or auth change; no new npm dependency).
-Branch: `feat/ui-stock-002-stock-screens` (from `docs/ui-stock-001-figma-approval` bfcf582, which is main 16980d3 + the approved design record). Status: implemented, independent QA pending/recorded in CURRENT-HANDOFF; **not merged**.
+Branch: `feat/ui-stock-002-stock-screens` (from `docs/ui-stock-001-figma-approval` bfcf582, which is main 16980d3 + the approved design record). Status: implemented + independently reviewed (QA PASS, MINORs fixed — see CURRENT-HANDOFF); **not merged**.
 Design: [ui-stock-001-stock-screens-design.md](ui-stock-001-stock-screens-design.md) (UI-STOCK-001, Figma section `110:10042`, board `110:10045`). Contract: S-04 (ADR-0008) + movement types from S-05 / S-07 on main.
 
 ## Code
@@ -18,12 +18,12 @@ Design: [ui-stock-001-stock-screens-design.md](ui-stock-001-stock-screens-design
 | `locations/StockLocationsPage.tsx` | L1, L6, L7, L8 + dialogs; items-in-stock count = balances above zero per location (client-side). |
 | `locations/LocationFormDialog.tsx` | L2 New location (Name, Type cards, Parent only for Freezer — active stores/kitchens only) and L3 Rename (type and parent read-only). |
 | `locations/DeactivateDialogs.tsx` | L4 confirmation and L5 "Cannot deactivate" for `LOCATION_HAS_STOCK` / `LOCATION_HAS_ACTIVE_CHILDREN` / `LOCATION_HAS_PENDING_TRANSFERS`. |
-| `ledger/StockLedgerPage.tsx` | Tabs Balances / Movements (arrow keys), Opening stock disabled (G4), Adjust dialog, "Adjustment saved" status line. |
+| `ledger/StockLedgerPage.tsx` | Tabs Balances / Movements (arrow keys), Opening stock disabled (G4), Adjust dialog, "Adjustment saved" status line. History → Movements for that item across all locations (G2 frame). |
 | `ledger/BalancesView.tsx` | G1 / G6 / G7: server location filter, client item filter, "Hide zero balances" on by default, groups in Stock Locations order with parent path, footer counts. |
 | `ledger/MovementsView.tsx` | G2: newest first (server order), item chip from History, signed coloured change, type tags, "Balance now". Item names and units come from balances read with the same filter (movements carry ids only). |
 | `ledger/AdjustStockDialog.tsx` | G3 / G5: Increase / Decrease, quantity in base unit, reason required (≤ 500, counter), exact client preview, 409 `NEGATIVE_BALANCE` inline. |
 
-Other changes: `App.tsx` (routes `/stock/locations`, `/stock/ledger` → the new pages), `app/shell/nav-items.ts` (Stock items no longer `pending`), `design-system/components/Modal.tsx` (optional `icon` before the title and `size="lg"` = 480 px; existing callers unchanged), `design-system/icons` (+6 Lucide icons: CornerDownRight, MapPin, EllipsisVertical, Minus, Power, ArrowRight — lucide-static 1.48.0, ISC). Tests: `features/stock/__tests__/` (helpers, Stock Locations, Stock Ledger) + updated `App.test.tsx` and `Sidebar.test.tsx`.
+Other changes: `App.tsx` (routes `/stock/locations`, `/stock/ledger` → the new pages), `app/shell/nav-items.ts` (Stock items no longer `pending`), `design-system/components/Modal.tsx` (optional `icon` before the title, `size="lg"` = 480 px, and `dismissible` — `false` while a write is in flight so Esc / backdrop / ✕ cannot drop its result; existing callers unchanged), `design-system/icons` (+6 Lucide icons: CornerDownRight, MapPin, EllipsisVertical, Minus, Power, ArrowRight — lucide-static 1.48.0, ISC). Tests: `features/stock/__tests__/` (helpers, Stock Locations, Stock Ledger) + updated `App.test.tsx` and `Sidebar.test.tsx`.
 
 ## Behaviour decisions inside the approved design
 
@@ -35,6 +35,8 @@ Other changes: `App.tsx` (routes `/stock/locations`, `/stock/ledger` → the new
 - Create: client checks name 1–200 (trimmed), type chosen, parent chosen for Freezer; `409 DUPLICATE_LOCATION_NAME` → under Name; `400 INVALID_PARENT` / `409 PARENT_INACTIVE` → under Parent; `400 VALIDATION_ERROR` issues → per field. Rename with an unchanged name closes without a request.
 - Adjust: no direction is pre-selected — the user must choose Increase or Decrease (the frame's "Decrease" is sample data). `quantity_delta` = `-`+quantity for Decrease. A negative preview turns red but Save is not blocked; the server's `409 NEGATIVE_BALANCE` is shown under Quantity (G5). `LOCATION_INACTIVE` / `ITEM_INACTIVE` / `OPENING_REQUIRED` / 404 → message at the top of the dialog. After saving, the balances re-read and a one-line "Adjustment saved — …" status is shown.
 - Opening stock (G4, gap G-1): the button is disabled with the visible explanation "Opening stock needs an item search, which is not available yet." (linked with `aria-describedby`). The G4 dialog is not built until the item list/search endpoint (D-1, DEV TRACK `feat/inv-item-list-001`) is on main.
+- History: the approved G2 frame (115:11417) shows the item across **all locations** ("All locations", "Balance now: 86.5 LITER (2 locations)") while one bullet of the design record says "item + location". The frame is followed (Figma = design source of truth); the location select narrows it. Owner can flip this with one line (`openHistory`).
+- Writes in flight: dialogs cannot be closed (Esc / backdrop / ✕ ignored, Cancel disabled); a mobile Activate in flight is removed from the ⋮ menu. A 403 on an `active` change says "Only the Owner can activate or deactivate locations". The reason limit is counted after trimming, like the server.
 - Movements without an item filter (Movements tab opened directly) show an extra ITEM column; with the History chip the column is hidden as in G2.
 - Mobile (< 768 px): cards with ⋮ menus (L8 / G7), segmented tabs. The ledger keeps the item search and "Hide zero balances" (not drawn in G7) and does not show Opening stock (not drawn in G7). Movement cards were not drawn; they follow the same card style.
 

@@ -89,7 +89,9 @@ export function ActionMenu({ label, items }: { label: string; items: ActionMenuI
               type="button"
               role="menuitem"
               onClick={() => {
-                close(false);
+                // Focus goes back to ⋮ first, so a dialog opened by the item
+                // returns focus there when it closes (not to <body>).
+                close(true);
                 item.onSelect();
               }}
               className={`px-3 py-2.5 text-left text-[13px] font-medium hover:bg-canvas-hover focus-visible:bg-canvas-hover focus-visible:outline-none ${

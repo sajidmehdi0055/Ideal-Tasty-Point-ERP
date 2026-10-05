@@ -33,6 +33,14 @@ export function describeStockError(error: unknown): string {
   return error.message;
 }
 
+/** Error text for an Owner-only `active` change: a 403 there means "Owner only", not "Owner or Manager". */
+export function describeActiveChangeError(error: unknown): string {
+  if (error instanceof ApiError && error.status === 403) {
+    return `Only the Owner can activate or deactivate locations. ${codeSuffix(error)}`;
+  }
+  return describeStockError(error);
+}
+
 /** "(409 · CODE)" suffix the approved design shows after inline server errors. */
 export function codeSuffix(error: ApiError): string {
   return `(${error.status} · ${error.code})`;
