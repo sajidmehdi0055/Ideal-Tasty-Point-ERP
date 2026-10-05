@@ -1,4 +1,39 @@
-# Current Handoff — UI-STOCK-001 (Stock Locations + Stock Ledger — Figma design approved)
+# Current Handoff — UI-STOCK-002 (Stock Locations + Stock Ledger — frontend implemented, not merged)
+
+Date: 2026-10-06. Branch: `feat/ui-stock-002-stock-screens` (from `docs/ui-stock-001-figma-approval` bfcf582 = main 16980d3 + the approved design record). Track: PARALLEL TRACK — frontend only; no backend, API, migration, auth or dependency change.
+Authority: owner asked to start UI-STOCK-002 (2026-10-05) after approving UI-STOCK-001 ("Approve hai") and D-1.
+
+## What was done
+
+- `/stock/locations` (L1–L8) and `/stock/ledger` (G1–G3, G5–G7) implemented per [ui-stock-001-stock-screens-design.md](ui-stock-001-stock-screens-design.md); details, decisions and deviations in [ui-stock-002-implementation.md](ui-stock-002-implementation.md).
+- Opening stock (G4) stays **disabled with an explanation** until the item list/search endpoint (D-1, DEV TRACK `feat/inv-item-list-001`) is merged — that branch was not touched.
+- Stock nav items are no longer "pending". `Modal` gained optional `icon`, `size`, `dismissible` (backwards compatible). 6 Lucide icons vendored.
+
+## Verification
+
+Fresh clone, Node 24.21.0: `npm ci`, typecheck, lint clean, **20 files / 222 tests pass**, build OK, `grep itp-erp:dev-identity dist` → none; `git diff 16980d3..HEAD -- backend` empty; no package/lockfile change. Visual: Playwright/Chromium vs Figma frames (Light + Dark, 1440 / 820 / 390 px) on the dev build with mocked API.
+
+## Independent review (UI-STOCK-002-REVIEW-001)
+
+QA/Testing subagent with its own clone: **PASS** on 7ecf98d with 6 MINOR (no BLOCKER/MAJOR). MINOR 2–6 + two NOTEs fixed in 0216b2f; focused re-review **PASS** (222 tests). MINOR 1 (this handoff) closed by this entry. Remaining NOTEs (not fixed by design): Home/End keys, `aria-disabled` on Opening stock, NEGATIVE_BALANCE text quotes the loaded balance, a searched freezer shows without its parent row. Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
+
+## Open owner decision (non-blocking)
+
+- History → Movements: the G2 frame shows the item across **all locations**; one design-record bullet says "item + location". Implemented as the frame (Figma = design source of truth). One-line change if "item + location" is wanted.
+
+## Status
+
+main unchanged (16980d3 == origin/main). `docs/ui-stock-001-figma-approval` pushed (bfcf582), not merged. `feat/ui-stock-002-stock-screens`: committed, **not pushed, not merged**.
+
+## Next recommended action
+
+1. Owner pushes `feat/ui-stock-002-stock-screens` (contains bfcf582, so merging it also brings the design record).
+2. Owner approval → controlled fast-forward merge → post-merge verification.
+3. After D-1 is merged on main: small follow-up slice to enable Opening stock (G4 dialog).
+
+---
+
+## Previous handoff — UI-STOCK-001 (Stock Locations + Stock Ledger — Figma design approved)
 
 Date: 2026-10-05. Branch: `docs/ui-stock-001-figma-approval` (from main 16980d3 == origin/main; docs only). Track: PARALLEL TRACK — design only; no frontend code, backend, API, migration or auth change.
 Authority: owner chose Stock Locations + Stock Ledger as the next task (2026-10-03) and approved the Figma proposal as proposed (2026-10-05). Owner decision D-1 (2026-10-05): request an item list/search endpoint from the DEV TRACK.
