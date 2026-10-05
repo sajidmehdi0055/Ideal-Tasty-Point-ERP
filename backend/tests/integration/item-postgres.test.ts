@@ -201,3 +201,100 @@ describe('S-01 real PostgreSQL migration and persistence', () => {
     expect(item.item_code).toBe('ITM-1000000');
   });
 });
+
+describe('INV-ITEM-LIST-001 item list/search and get-by-id (real PostgreSQL)', () => {
+  // Own branches so items created by the other tests in this schema never show up here.
+  const listOwner: AuthContext = { userId: 'owner-list', role: 'OWNER', branchId: `list-a-${suffix}` };
+  const listManager: AuthContext = { userId: 'manager-list', role: 'MANAGER', branchId: `list-b-${suffix}` };
+  const create = (item_name: string, auth: AuthContext) => repository.create({ ...input, item_name }, auth);
+  async function getList(auth: AuthContext, query = '') {
+    const app = buildTestApp(auth);
+    try {
+      const response = await app.inject({ method: 'GET', url: `/api/inventory/items${query}` });
+      expect(response.statusCode).toBe(200);
+      return { items: response.json<Item[]>(), truncated: response.headers['x-result-truncated'] };
+    } finally { await app.close(); }
+  }
+  const names = (items: Item[]) => items.map(item => item.item_name);
+
+  let flour: Item, flourTwin: Item, sugar: Item, percent: Item, underscore: Item, backslash: Item, inactive: Item, otherBranch: Item;
+  beforeAll(async () => {
+    flour = await create('flour', listOwner);
+    flourTwin = await create('flour', listOwner);
+    sugar = await create('sugar', listOwner);
+    percent = await create('ghee 50% off', listOwner);
+    underscore = await create('oil_tin', listOwner);
+    backslash = await create('rice\\basmati', listOwner);
+    inactive = await create('salt', listOwner);
+    await admin.query('UPDATE item_master SET active = false WHERE id = $1', [inactive.id]);
+    inactive = { ...inactive, active: false };
+    otherBranch = await create('flour', listManager);
+  });
+
+  it('lists only the caller branch, ordered by item_name then item_code, in the Item shape', async () => {
+    const { items, truncated } = await getList(listOwner);
+    expect(truncated).toBeUndefined();
+    expect(items.every(item => item.branch_id === listOwner.branchId)).toBe(true);
+    expect(items.map(item => item.id)).not.toContain(otherBranch.id);
+    expect(names(items)).toEqual(['flour', 'flour', 'ghee 50% off', 'oil_tin', 'rice\\basmati', 'salt', 'sugar']);
+    const [first, second] = [flour, flourTwin].sort((a, b) => a.item_code.localeCompare(b.item_code));
+    expect(items.slice(0, 2).map(item => item.id)).toEqual([first?.id, second?.id]);
+    const listedFlour = items.find(item => item.id === flour.id);
+    expect(listedFlour).toEqual(flour);
+    expect(Object.keys(listedFlour ?? {}).sort()).toEqual(
+      ['active', 'base_uom', 'branch_id', 'brand', 'created_at', 'id', 'item_code', 'item_name', 'primary_item_type', 'updated_at']);
+    const other = await getList(listManager);
+    expect(other.items.map(item => item.id)).toEqual([otherBranch.id]);
+  });
+
+  it('searches case-insensitively by name and by item code', async () => {
+    expect(names((await getList(listOwner, '?search=FLOUR')).items)).toEqual(['flour', 'flour']);
+    expect(names((await getList(listOwner, '?search=uGa')).items)).toEqual(['sugar']);
+    expect((await getList(listOwner, `?search=${sugar.item_code.toLowerCase()}`)).items.map(item => item.id)).toEqual([sugar.id]);
+    // Code search is still branch-scoped: another branch's code finds nothing.
+    expect((await getList(listOwner, `?search=${otherBranch.item_code}`)).items).toEqual([]);
+  });
+
+  it('treats %, _ and backslash in the search term literally', async () => {
+    expect((await getList(listOwner, '?search=%25')).items.map(item => item.id)).toEqual([percent.id]);
+    expect((await getList(listOwner, '?search=_')).items.map(item => item.id)).toEqual([underscore.id]);
+    expect((await getList(listOwner, '?search=s_lt')).items).toEqual([]); // would match "salt" if _ were a wildcard
+    expect((await getList(listOwner, '?search=%5C')).items.map(item => item.id)).toEqual([backslash.id]);
+    expect((await getList(listOwner, '?search=f%25r')).items).toEqual([]); // would match "flour" if % were a wildcard
+  });
+
+  it('filters by active', async () => {
+    expect((await getList(listOwner, '?active=false')).items).toEqual([inactive]);
+    const active = (await getList(listOwner, '?active=true')).items;
+    expect(active).toHaveLength(6);
+    expect(active.every(item => item.active)).toBe(true);
+  });
+
+  it('caps the list at limit and signals truncation only when more items matched', async () => {
+    const capped = await getList(listOwner, '?limit=2');
+    expect(names(capped.items)).toEqual(['flour', 'flour']);
+    expect(capped.truncated).toBe('true');
+    const exact = await getList(listOwner, '?limit=7');
+    expect(exact.items).toHaveLength(7);
+    expect(exact.truncated).toBeUndefined();
+    const combined = await getList(listOwner, '?search=flour&active=true&limit=1');
+    expect(combined.items).toHaveLength(1);
+    expect(combined.truncated).toBe('true');
+  });
+
+  it('gets one item by id within the branch and returns 404 ITEM_NOT_FOUND otherwise', async () => {
+    const ownerApp = buildTestApp(listOwner);
+    try {
+      const found = await ownerApp.inject({ method: 'GET', url: `/api/inventory/items/${inactive.id}` });
+      expect(found.statusCode).toBe(200);
+      expect(found.json()).toEqual(inactive);
+      for (const missingId of [otherBranch.id, randomUUID()]) {
+        const missing = await ownerApp.inject({ method: 'GET', url: `/api/inventory/items/${missingId}` });
+        expect(missing.statusCode).toBe(404);
+        expect(missing.json()).toMatchObject({ error: 'ITEM_NOT_FOUND' });
+      }
+    } finally { await ownerApp.close(); }
+    expect(await repository.get(flour.id, listManager)).toBeNull();
+    expect(await repository.get(otherBranch.id, listManager)).toEqual(otherBranch);
+  });
+});

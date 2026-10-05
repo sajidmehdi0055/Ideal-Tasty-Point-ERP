@@ -1,6 +1,6 @@
 import { requireItemEditor } from '../../auth/context.js';
 import { AppError } from '../../errors.js';
-import { itemIdSchema, itemInputSchema, itemPatchSchema } from '../domain/item.js';
+import { itemIdSchema, itemInputSchema, itemListQuerySchema, itemPatchSchema } from '../domain/item.js';
 import type { ItemInput } from '../domain/item.js';
 import type { ItemRepository } from './item-repository.js';
 
@@ -21,6 +21,18 @@ export class ItemService {
     if (parsed.base_uom !== undefined) patch.base_uom = parsed.base_uom;
     if (parsed.brand !== undefined) patch.brand = parsed.brand;
     const item = await this.repository.update(itemIdSchema.parse(id), patch, auth);
+    if (!item) throw new AppError(404, 'ITEM_NOT_FOUND', 'Item not found');
+    return item;
+  }
+
+  async list(query: unknown, context: unknown) {
+    const auth = requireItemEditor(context);
+    return this.repository.list(itemListQuerySchema.parse(query ?? {}), auth);
+  }
+
+  async get(id: unknown, context: unknown) {
+    const auth = requireItemEditor(context);
+    const item = await this.repository.get(itemIdSchema.parse(id), auth);
     if (!item) throw new AppError(404, 'ITEM_NOT_FOUND', 'Item not found');
     return item;
   }

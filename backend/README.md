@@ -26,6 +26,8 @@ The standalone server binds to 127.0.0.1 and intentionally denies mutations with
 
 - `POST /api/inventory/items`: returns 201 and the persisted item after item and audit transaction commit.
 - `PATCH /api/inventory/items/:id`: returns 200 and the updated item; at least one editable field required. ID is a system-generated UUID.
+- `GET /api/inventory/items` (INV-ITEM-LIST-001): 200 and a plain JSON array of items (same shape as create/edit) from the caller's branch only, ordered by `item_name`, then `item_code`. Optional query, strict (unknown parameters → 400): `search` (trimmed, at most 100 characters; case-insensitive substring match on `item_name` OR `item_code`; `%`, `_` and `\` are matched literally; blank = no filter), `active=true|false` (exact lowercase), `limit` (integer 1–500, default 200). If more items match than `limit`, the first `limit` are returned and the response carries the header `X-Result-Truncated: true`; the header is absent otherwise. A repeated parameter is rejected with 400.
+- `GET /api/inventory/items/:id`: 200 and the item; 404 `ITEM_NOT_FOUND` for an unknown id or another branch's item (same response); 400 for a malformed id.
 
 Create body (PATCH accepts a nonempty subset):
 
@@ -40,7 +42,7 @@ Create body (PATCH accepts a nonempty subset):
 
 Types: RAW_MATERIAL, WIP_SEMI_FINISHED, FINISHED_SELLING_PRODUCT, DIRECT_PURCHASE_SALE. Exactly one string value, never an array. Name/unit/brand must be nonblank text; units and brand are values, not new catalog-management workflows. Whitespace at edges is trimmed. Null, missing create fields and unknown properties are rejected. Code, ID, branch, timestamps and active state cannot be supplied or edited through this API.
 
-Only OWNER or MANAGER in the trusted AuthContext may mutate. branch_id derives exclusively from its authorized branchId. Update selects by both ID and branch; an absent or different-branch item returns the same 404. Responses include item_code, branch_id, active=true on creation and timestamps. 400 indicates invalid input, 401 missing/invalid context, 403 other roles; 500 reports failure without exposing SQL/credentials. No audit-read permission; create/edit responses return the stored result.
+Only OWNER or MANAGER in the trusted AuthContext may mutate or read items (there is no separate read-only role yet). branch_id derives exclusively from its authorized branchId. Update selects by both ID and branch; an absent or different-branch item returns the same 404. Responses include item_code, branch_id, active=true on creation and timestamps. 400 indicates invalid input, 401 missing/invalid context, 403 other roles; 500 reports failure without exposing SQL/credentials. No audit-read permission; create/edit responses return the stored result.
 
 `base_uom` stays a plain name string at this API boundary (e.g. `"kg"`); the server resolves it case-insensitively/trimmed against an existing **active** UOM Master row and stores a foreign key internally. An unresolvable name returns 400 `INVALID_BASE_UOM`. This is the one S-02 behavior change to the S-01 contract: `base_uom` must now name a real UOM, not arbitrary text.
 

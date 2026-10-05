@@ -38,7 +38,7 @@ function setup(options: { auth?: AuthContext | null; config?: AiConfigResult; pr
   const audit = new MemoryAuditSink();
   const provider = options.provider ?? new FakeProvider([answer('ok')]);
   const app = buildApp({
-    repository: { create: vi.fn(), update: vi.fn() } satisfies ItemRepository,
+    repository: { create: vi.fn(), update: vi.fn(), list: vi.fn(), get: vi.fn() } satisfies ItemRepository,
     uomRepository: { create: vi.fn(), update: vi.fn(), list: vi.fn(), findActiveByName: vi.fn() } satisfies UomRepository,
     brandRepository: { create: vi.fn(), update: vi.fn(), list: vi.fn(), findActiveByName: vi.fn() } satisfies BrandRepository,
     packVariantRepository: { create: vi.fn(), update: vi.fn(), list: vi.fn() } satisfies PackVariantRepository,

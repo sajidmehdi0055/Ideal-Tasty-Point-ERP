@@ -9,7 +9,8 @@ import type { BrandRepository } from '../../src/inventory/application/brand-repo
 import type { PackVariantRepository } from '../../src/inventory/application/pack-variant-repository.js';
 import type { SupplierRepository } from '../../src/inventory/application/supplier-repository.js';
 import type { PurchaseRecordRepository } from '../../src/inventory/application/purchase-record-repository.js';
-import { PRIMARY_ITEM_TYPES, type Item, type ItemInput } from '../../src/inventory/domain/item.js';
+import { ITEM_LIST_DEFAULT_LIMIT, ITEM_LIST_MAX_LIMIT, ITEM_SEARCH_MAX_LENGTH, PRIMARY_ITEM_TYPES, type Item, type ItemInput } from '../../src/inventory/domain/item.js';
+import { ITEM_LIST_TRUNCATED_HEADER } from '../../src/inventory/api/item-routes.js';
 import type { StockLocationRepository } from '../../src/inventory/application/stock-location-repository.js';
 import type { StockRepository } from '../../src/inventory/application/stock-repository.js';
 import type { GoodsReceiptRepository } from '../../src/inventory/application/goods-receipt-repository.js';
@@ -34,7 +35,10 @@ const unusedPackVariantRepository: PackVariantRepository = { create: vi.fn(), up
 const unusedSupplierRepository: SupplierRepository = { create: vi.fn(), update: vi.fn(), list: vi.fn(), findActiveByName: vi.fn() };
 const unusedPurchaseRecordRepository: PurchaseRecordRepository = { create: vi.fn(), list: vi.fn(), getRateComparison: vi.fn() };
 function setup(auth: AuthContext | null = owner, defaultProvider = false) {
-  const repository = { create: vi.fn<ItemRepository['create']>().mockResolvedValue(saved), update: vi.fn<ItemRepository['update']>().mockResolvedValue(saved) } satisfies ItemRepository;
+  const repository = {
+    create: vi.fn<ItemRepository['create']>().mockResolvedValue(saved), update: vi.fn<ItemRepository['update']>().mockResolvedValue(saved),
+    list: vi.fn<ItemRepository['list']>().mockResolvedValue({ items: [saved], truncated: false }), get: vi.fn<ItemRepository['get']>().mockResolvedValue(saved),
+  } satisfies ItemRepository;
   const app = buildApp({
     repository, uomRepository: unusedUomRepository, brandRepository: unusedBrandRepository,
     packVariantRepository: unusedPackVariantRepository, supplierRepository: unusedSupplierRepository,
@@ -134,5 +138,88 @@ describe('S-01 errors and response', () => {
   });
   it('reports malformed JSON as client error', async () => {
     const { app } = setup(); expect((await app.inject({ method: 'POST', url: '/api/inventory/items', payload: '{bad', headers: { 'content-type': 'application/json' } })).statusCode).toBe(400);
+  });
+});
+describe('INV-ITEM-LIST-001 item list and get-by-id', () => {
+  const reads = [{ method: 'GET' as const, url: '/api/inventory/items' }, { method: 'GET' as const, url: `/api/inventory/items/${id}` }];
+  const noRepositoryCall = (repository: ReturnType<typeof setup>['repository']) => {
+    expect(repository.list).not.toHaveBeenCalled(); expect(repository.get).not.toHaveBeenCalled();
+  };
+  for (const read of reads) {
+    it.each(['OWNER', 'MANAGER'])(`${read.url} permits %s and passes the trusted AuthContext`, async role => {
+      const auth = { ...owner, role, branchId: 'trusted-branch' }; const { app, repository } = setup(auth);
+      expect((await app.inject({ ...read, headers: { 'x-branch-id': 'attacker-branch' } })).statusCode).toBe(200);
+      if (read.url === '/api/inventory/items') expect(repository.list).toHaveBeenCalledWith({ limit: ITEM_LIST_DEFAULT_LIMIT }, auth);
+      else expect(repository.get).toHaveBeenCalledWith(id, auth);
+    });
+    it.each(['STAFF', 'STORE_KEEPER', 'owner', 'UNKNOWN'])(`${read.url} denies %s with 403`, async role => {
+      const { app, repository } = setup({ ...owner, role }); expect((await app.inject(read)).statusCode).toBe(403); noRepositoryCall(repository);
+    });
+    it(`${read.url} rejects missing/spoofed identity with 401`, async () => {
+      const { app, repository } = setup(null, true);
+      expect((await app.inject({ ...read, headers: { 'x-auth-context': JSON.stringify(owner), 'x-user-role': 'OWNER' } })).statusCode).toBe(401);
+      noRepositoryCall(repository);
+    });
+    it.each(['userId', 'branchId'])(`${read.url} rejects blank context %s with 401`, async field => {
+      const { app, repository } = setup({ ...owner, [field]: ' ' }); expect((await app.inject(read)).statusCode).toBe(401); noRepositoryCall(repository);
+    });
+  }
+  it('returns a plain JSON array of Item without the truncation header when not capped', async () => {
+    const { app } = setup(); const response = await app.inject({ method: 'GET', url: '/api/inventory/items' });
+    expect(response.json()).toEqual([saved]); expect(response.headers[ITEM_LIST_TRUNCATED_HEADER]).toBeUndefined();
+  });
+  it('keeps the array shape and sets the truncation header when the list is capped', async () => {
+    const { app, repository } = setup(); repository.list.mockResolvedValue({ items: [saved], truncated: true });
+    const response = await app.inject({ method: 'GET', url: '/api/inventory/items?limit=1' });
+    expect(response.statusCode).toBe(200); expect(response.json()).toEqual([saved]); expect(response.headers[ITEM_LIST_TRUNCATED_HEADER]).toBe('true');
+  });
+  it.each([
+    ['search=%20Flour%20', { search: 'Flour', limit: ITEM_LIST_DEFAULT_LIMIT }],
+    ['search=%20%20', { limit: ITEM_LIST_DEFAULT_LIMIT }],
+    ['search=50%25_off', { search: '50%_off', limit: ITEM_LIST_DEFAULT_LIMIT }],
+    ['active=true', { active: true, limit: ITEM_LIST_DEFAULT_LIMIT }],
+    ['active=false', { active: false, limit: ITEM_LIST_DEFAULT_LIMIT }],
+    ['limit=1', { limit: 1 }],
+    [`limit=${ITEM_LIST_MAX_LIMIT}`, { limit: ITEM_LIST_MAX_LIMIT }],
+    ['search=itm-000&active=true&limit=25', { search: 'itm-000', active: true, limit: 25 }],
+  ])('parses query %s', async (qs, expected) => {
+    const { app, repository } = setup(); expect((await app.inject({ method: 'GET', url: `/api/inventory/items?${qs}` })).statusCode).toBe(200);
+    expect(repository.list).toHaveBeenCalledWith(expected, owner);
+  });
+  it.each([
+    'unknown=1', 'branch_id=other', 'active=yes', 'active=TRUE', 'active=1', 'limit=0', `limit=${ITEM_LIST_MAX_LIMIT + 1}`,
+    'limit=-1', 'limit=1.5', 'limit=abc', 'limit=', 'limit=1e2', 'search=a&search=b', 'active=true&active=false',
+    'search=bad%00name', `search=${'x'.repeat(ITEM_SEARCH_MAX_LENGTH + 1)}`,
+  ])('rejects invalid query %s with 400', async qs => {
+    const { app, repository } = setup(); const response = await app.inject({ method: 'GET', url: `/api/inventory/items?${qs}` });
+    expect(response.statusCode).toBe(400); expect(response.json()).toMatchObject({ error: 'VALIDATION_ERROR' }); noRepositoryCall(repository);
+  });
+  it('accepts a search of exactly the maximum length', async () => {
+    const { app } = setup(); expect((await app.inject({ method: 'GET', url: `/api/inventory/items?search=${'x'.repeat(ITEM_SEARCH_MAX_LENGTH)}` })).statusCode).toBe(200);
+  });
+  it('get-by-id returns the item, 404 ITEM_NOT_FOUND when absent/other branch, 400 for malformed id', async () => {
+    const { app, repository } = setup();
+    expect((await app.inject({ method: 'GET', url: `/api/inventory/items/${id}` })).json()).toEqual(saved);
+    repository.get.mockResolvedValue(null);
+    const missing = await app.inject({ method: 'GET', url: `/api/inventory/items/${id}` });
+    expect(missing.statusCode).toBe(404); expect(missing.json()).toMatchObject({ error: 'ITEM_NOT_FOUND' });
+    repository.get.mockClear();
+    expect((await app.inject({ method: 'GET', url: '/api/inventory/items/not-uuid' })).statusCode).toBe(400); expect(repository.get).not.toHaveBeenCalled();
+  });
+  it('reports read failures as 500 without secrets', async () => {
+    const { app, repository } = setup(); repository.list.mockRejectedValue(new Error('secret connection string')); repository.get.mockRejectedValue(new Error('secret connection string'));
+    for (const url of ['/api/inventory/items', `/api/inventory/items/${id}`]) {
+      const response = await app.inject({ method: 'GET', url }); expect(response.statusCode).toBe(500); expect(response.body).not.toContain('secret');
+    }
+  });
+  it('defends list/get service calls bypassing HTTP', async () => {
+    const { repository } = setup(); const service = new ItemService(repository);
+    await expect(service.list({}, { ...owner, role: 'STAFF' })).rejects.toMatchObject({ status: 403 });
+    await expect(service.list({}, null)).rejects.toMatchObject({ status: 401 });
+    await expect(service.get(id, null)).rejects.toMatchObject({ status: 401 });
+    await expect(service.list({ limit: 'x' }, owner)).rejects.toThrow();
+    noRepositoryCall(repository);
+    await expect(service.list(undefined, owner)).resolves.toEqual({ items: [saved], truncated: false });
+    expect(repository.list).toHaveBeenCalledWith({ limit: ITEM_LIST_DEFAULT_LIMIT }, owner);
   });
 });

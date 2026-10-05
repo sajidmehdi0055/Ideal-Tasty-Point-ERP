@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import type { AuthContext } from '../../auth/context.js';
 import { AppError } from '../../errors.js';
-import type { ItemRepository } from '../application/item-repository.js';
-import type { Item, ItemInput } from '../domain/item.js';
+import type { ItemListResult, ItemRepository } from '../application/item-repository.js';
+import type { Item, ItemInput, ItemListQuery } from '../domain/item.js';
 import { appendItemAudit } from './item-audit.js';
 import { withTransaction } from './transaction.js';
 
@@ -18,6 +18,11 @@ const ITEM_RETURNING_COLUMNS = `id, item_code, branch_id, item_name, primary_ite
 
 function toItem(row: ItemRow): Item {
   return { ...row, created_at: row.created_at.toISOString(), updated_at: row.updated_at.toISOString() };
+}
+
+/** Makes a user search term literal inside an ILIKE pattern (escape character: backslash). */
+function escapeLikePattern(term: string): string {
+  return term.replace(/[\\%_]/g, match => `\\${match}`);
 }
 
 export class PgItemRepository implements ItemRepository {
@@ -76,5 +81,31 @@ export class PgItemRepository implements ItemRepository {
       await appendItemAudit(client, auth, 'UPDATE', before, after);
       return after;
     });
+  }
+
+  /** Branch-scoped; fetches one row beyond the limit to tell whether the list was cut off. */
+  async list(query: ItemListQuery, auth: AuthContext): Promise<ItemListResult> {
+    const pattern = query.search === undefined ? null : `%${escapeLikePattern(query.search)}%`;
+    const result = await this.pool.query<ItemRow>(
+      `SELECT ${ITEM_SELECT_COLUMNS} FROM item_master im JOIN uom_master um ON um.id = im.base_uom_id
+       WHERE im.branch_id = $1
+         AND ($2::text IS NULL OR im.item_name ILIKE $2 ESCAPE '\\' OR im.item_code ILIKE $2 ESCAPE '\\')
+         AND ($3::boolean IS NULL OR im.active = $3)
+       ORDER BY im.item_name, im.item_code
+       LIMIT $4`,
+      [auth.branchId, pattern, query.active ?? null, query.limit + 1],
+    );
+    const truncated = result.rows.length > query.limit;
+    return { items: result.rows.slice(0, query.limit).map(toItem), truncated };
+  }
+
+  async get(id: string, auth: AuthContext): Promise<Item | null> {
+    const result = await this.pool.query<ItemRow>(
+      `SELECT ${ITEM_SELECT_COLUMNS} FROM item_master im JOIN uom_master um ON um.id = im.base_uom_id
+       WHERE im.id = $1 AND im.branch_id = $2`,
+      [id, auth.branchId],
+    );
+    const row = result.rows[0];
+    return row ? toItem(row) : null;
   }
 }

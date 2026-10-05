@@ -37,7 +37,7 @@ const opening = { item_id: itemId, location_id: locationId, quantity: '10' };
 const adjustment = { item_id: itemId, location_id: locationId, quantity_delta: '-2.5', reason: 'Counted wrong at opening' };
 
 const apps: FastifyInstance[] = [];
-const unusedItemRepository: ItemRepository = { create: vi.fn(), update: vi.fn() };
+const unusedItemRepository: ItemRepository = { create: vi.fn(), update: vi.fn(), list: vi.fn(), get: vi.fn() };
 const unusedUomRepository: UomRepository = { create: vi.fn(), update: vi.fn(), list: vi.fn(), findActiveByName: vi.fn() };
 const unusedBrandRepository: BrandRepository = { create: vi.fn(), update: vi.fn(), list: vi.fn(), findActiveByName: vi.fn() };
 const unusedPackVariantRepository: PackVariantRepository = { create: vi.fn(), update: vi.fn(), list: vi.fn() };
