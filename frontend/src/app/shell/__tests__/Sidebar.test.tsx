@@ -17,12 +17,12 @@ function renderPanel(variant: SidebarPanelVariant, collapsed: string[] = []) {
 }
 
 describe('SidebarPanel', () => {
-  it('lists Item Master and Catalog Settings as live, and the rest as pending', () => {
+  it('lists Item Master, Catalog Settings and the Stock screens as live, and the rest as pending', () => {
     renderPanel('pinned');
-    for (const label of [/item master/i, /catalog settings/i]) {
+    for (const label of [/item master/i, /catalog settings/i, /stock locations/i, /stock ledger/i]) {
       expect(screen.getByRole('link', { name: label })).not.toHaveTextContent('Pending');
     }
-    for (const label of [/suppliers/i, /purchases & rates/i, /stock locations/i, /stock ledger/i]) {
+    for (const label of [/suppliers/i, /purchases & rates/i]) {
       expect(screen.getByRole('link', { name: label })).toHaveTextContent('Pending');
     }
   });
@@ -64,7 +64,8 @@ describe('SidebarRail', () => {
       </MemoryRouter>,
     );
     expect(screen.getByRole('link', { name: 'Catalog Settings' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Stock Ledger (pending)' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Stock Ledger' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Suppliers (pending)' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Pin sidebar' })).toBeInTheDocument();
   });
 });

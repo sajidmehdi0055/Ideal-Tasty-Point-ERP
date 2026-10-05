@@ -1,4 +1,79 @@
-# Current Handoff — INV-ITEM-LIST-001 (Item list/search + get-by-id endpoints)
+# Current Handoff — MERGE-002 (INV-ITEM-LIST-001 + UI-STOCK-002 merged to main)
+
+Date: 2026-10-06. Branch: main. Tracks: DEV TRACK (INV-ITEM-LIST-001, backend) + PARALLEL TRACK (UI-STOCK-002, frontend + docs incl. the UI-STOCK-001 design record).
+Authority: explicit owner approval in the Cowork Manager session ("dono branches main mein merge kr do"), after INV-ITEM-LIST-REVIEW-001 (PASS, re-verification PASS) and UI-STOCK-002-REVIEW-001 (PASS, re-review PASS), and owner push of both branches (origin == local: `feat/inv-item-list-001` 7ef68de, `feat/ui-stock-002-stock-screens` a137886, confirmed with `git ls-remote`). Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
+
+## Merge
+
+| Source | Type | Result |
+|---|---|---|
+| `feat/inv-item-list-001` @ 7ef68de | fast-forward | main 16980d3 → 7ef68de (backend + 2 docs) |
+| `feat/ui-stock-002-stock-screens` @ a137886 (incl. bfcf582) | merge commit (`--no-ff`) | only conflict: this file — both records kept in full, this merge record added on top |
+
+Pre-merge checks: main == origin/main == 16980d3 (`git ls-remote`); 16980d3 an ancestor of both branches; the only file both branches change is `docs/engineering/CURRENT-HANDOFF.md`; owner's main worktree had no tracked changes.
+
+## Post-merge verification (merged tree, cloud workspace, Node v24.21.0)
+
+| Check | Frontend | Backend |
+|---|---|---|
+| `npm ci` | OK | OK |
+| typecheck / lint / build | PASS / PASS / PASS | PASS / PASS / PASS |
+| tests | vitest 20 files, 222/222 | unit 15 files, 569/569 |
+
+Merged `backend/` is byte-identical to 7ef68de (integration 118/118 on the owner's Windows/Docker PostgreSQL 17, INV-ITEM-LIST-001 record below); merged `frontend/` is byte-identical to a137886. `itp-erp:dev-identity` and `check=true` absent from the frontend build. Integration tests not re-run after the merge (backend unchanged by it).
+
+## Environment
+
+`backend/.env` (gitignored, owner's machine only): `TEST_DATABASE_URL` password set to the local Docker password from `backend/.env.docker` (user/host/port/database unchanged; nothing printed). Owner confirms with `npm run test:integration` in `backend/`.
+
+## Untouched
+
+`feat/ai-s01b-tool-usability`, `feat/ai-s03-transfer-tools`, all other branches/worktrees (feature branches kept). No force push, rebase, reset, clean, squash or branch deletion.
+
+## Next recommended action
+
+1. Owner pushes main (`git push origin main`) and confirms `git ls-remote origin main` == local main.
+2. Owner runs `npm run test:integration` in `backend/` (checks the `.env` fix).
+3. UI-STOCK-003 (Opening stock dialog with item picker + stale `frontend/src/features/items/api.ts` comment) in a new chat.
+
+---
+
+## Previous handoff — UI-STOCK-002 (Stock Locations + Stock Ledger — frontend implemented, not merged)
+
+Date: 2026-10-06. Branch: `feat/ui-stock-002-stock-screens` (from `docs/ui-stock-001-figma-approval` bfcf582 = main 16980d3 + the approved design record). Track: PARALLEL TRACK — frontend only; no backend, API, migration, auth or dependency change.
+Authority: owner asked to start UI-STOCK-002 (2026-10-05) after approving UI-STOCK-001 ("Approve hai") and D-1.
+
+## What was done
+
+- `/stock/locations` (L1–L8) and `/stock/ledger` (G1–G3, G5–G7) implemented per [ui-stock-001-stock-screens-design.md](ui-stock-001-stock-screens-design.md); details, decisions and deviations in [ui-stock-002-implementation.md](ui-stock-002-implementation.md).
+- Opening stock (G4) stays **disabled with an explanation** until the item list/search endpoint (D-1, DEV TRACK `feat/inv-item-list-001`) is merged — that branch was not touched.
+- Stock nav items are no longer "pending". `Modal` gained optional `icon`, `size`, `dismissible` (backwards compatible). 6 Lucide icons vendored.
+
+## Verification
+
+Fresh clone, Node 24.21.0: `npm ci`, typecheck, lint clean, **20 files / 222 tests pass**, build OK, `grep itp-erp:dev-identity dist` → none; `git diff 16980d3..HEAD -- backend` empty; no package/lockfile change. Visual: Playwright/Chromium vs Figma frames (Light + Dark, 1440 / 820 / 390 px) on the dev build with mocked API.
+
+## Independent review (UI-STOCK-002-REVIEW-001)
+
+QA/Testing subagent with its own clone: **PASS** on 7ecf98d with 6 MINOR (no BLOCKER/MAJOR). MINOR 2–6 + two NOTEs fixed in 0216b2f; focused re-review **PASS** (222 tests). MINOR 1 (this handoff) closed by this entry. Remaining NOTEs (not fixed by design): Home/End keys, `aria-disabled` on Opening stock, NEGATIVE_BALANCE text quotes the loaded balance, a searched freezer shows without its parent row. Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
+
+## Open owner decision (non-blocking)
+
+- History → Movements: the G2 frame shows the item across **all locations**; one design-record bullet says "item + location". Implemented as the frame (Figma = design source of truth). One-line change if "item + location" is wanted.
+
+## Status
+
+main unchanged (16980d3 == origin/main). `docs/ui-stock-001-figma-approval` pushed (bfcf582), not merged. `feat/ui-stock-002-stock-screens`: committed, **not pushed, not merged**.
+
+## Next recommended action
+
+1. Owner pushes `feat/ui-stock-002-stock-screens` (contains bfcf582, so merging it also brings the design record).
+2. Owner approval → controlled fast-forward merge → post-merge verification.
+3. After D-1 is merged on main: small follow-up slice to enable Opening stock (G4 dialog).
+
+---
+
+## Previous handoff — INV-ITEM-LIST-001 (Item list/search + get-by-id endpoints)
 
 Date: 2026-10-06. Branch: `feat/inv-item-list-001` (from main 16980d3 == origin/main, checked after `git fetch`), worktree `Ideal-Tasty-Point-ERP-item-list`. Track: DEV TRACK (backend only — no frontend file, migration, dependency or business-rule change).
 Authority: owner task INV-ITEM-LIST-001, from owner decision D-1 (2026-10-05) on UI-STOCK-001 gap G-1 (no GET for items, so the Opening-stock dialog could not pick an item). Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
@@ -45,6 +120,29 @@ main, `feat/ai-s01b-tool-usability`, `feat/ai-s03-transfer-tools`, all frontend 
 1. Owner pushes the branch: `git -C "C:\Users\sajid mehdi\Documents\Ideal-Tasty-Point-ERP-item-list" push -u origin feat/inv-item-list-001`, then confirms `git ls-remote origin feat/inv-item-list-001` == local branch head.
 2. Controlled merge to main only on explicit owner approval.
 3. Then (frontend, separate task): Opening-stock item picker on `GET /api/inventory/items?search=…&active=true`, read `X-Result-Truncated`; fix the stale comment (NOTE-1).
+
+---
+
+## Previous handoff — UI-STOCK-001 (Stock Locations + Stock Ledger — Figma design approved)
+
+Date: 2026-10-05. Branch: `docs/ui-stock-001-figma-approval` (from main 16980d3 == origin/main; docs only). Track: PARALLEL TRACK — design only; no frontend code, backend, API, migration or auth change.
+Authority: owner chose Stock Locations + Stock Ledger as the next task (2026-10-03) and approved the Figma proposal as proposed (2026-10-05). Owner decision D-1 (2026-10-05): request an item list/search endpoint from the DEV TRACK.
+
+## What was done
+
+- Figma file `N9KkqXIQuvCUj9NVAj6Cx4`, section `110:10042` "APPROVED 2026-10-05 — Stock Locations + Stock Ledger (UI-STOCK-001)": contract/gaps/error board, local components bound to `ITP / Theme`, Stock Locations L1–L8, Stock Ledger G1–G7 (Light) and Dark twins of L1, L2, G1, G2, G3, L8 — built from ERP Shell v2 instances.
+- Design record with states, behaviour, 7 contract gaps and error → UI mapping: [ui-stock-001-stock-screens-design.md](ui-stock-001-stock-screens-design.md).
+- Backend gap found: no item list/search endpoint (`GET /api/inventory/items` not registered) → Opening stock item picker blocked (G-1). D-1 approved: DEV TRACK request (copy-paste prompt given in the Cowork chat); until it is merged the Opening stock button stays disabled with an explanation.
+
+## Status
+
+main unchanged (16980d3 == origin/main). This docs branch: committed, not pushed, not merged.
+
+## Next recommended action
+
+1. Owner pushes this docs branch; merge separately approved.
+2. DEV TRACK (own chat/branch): item list/search endpoint (D-1).
+3. UI-STOCK-002: frontend implementation of UI-STOCK-001 in its own branch/worktree (when the owner asks).
 
 ---
 
