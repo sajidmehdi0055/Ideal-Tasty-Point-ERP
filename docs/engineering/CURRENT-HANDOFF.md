@@ -1,4 +1,27 @@
-# Current Handoff — UI-AI-002-MERGE-001 (AI Assistant panel merged to main)
+# Current Handoff — UI-STOCK-001 (Stock Locations + Stock Ledger — Figma design approved)
+
+Date: 2026-10-05. Branch: `docs/ui-stock-001-figma-approval` (from main 16980d3 == origin/main; docs only). Track: PARALLEL TRACK — design only; no frontend code, backend, API, migration or auth change.
+Authority: owner chose Stock Locations + Stock Ledger as the next task (2026-10-03) and approved the Figma proposal as proposed (2026-10-05). Owner decision D-1 (2026-10-05): request an item list/search endpoint from the DEV TRACK.
+
+## What was done
+
+- Figma file `N9KkqXIQuvCUj9NVAj6Cx4`, section `110:10042` "APPROVED 2026-10-05 — Stock Locations + Stock Ledger (UI-STOCK-001)": contract/gaps/error board, local components bound to `ITP / Theme`, Stock Locations L1–L8, Stock Ledger G1–G7 (Light) and Dark twins of L1, L2, G1, G2, G3, L8 — built from ERP Shell v2 instances.
+- Design record with states, behaviour, 7 contract gaps and error → UI mapping: [ui-stock-001-stock-screens-design.md](ui-stock-001-stock-screens-design.md).
+- Backend gap found: no item list/search endpoint (`GET /api/inventory/items` not registered) → Opening stock item picker blocked (G-1). D-1 approved: DEV TRACK request (copy-paste prompt given in the Cowork chat); until it is merged the Opening stock button stays disabled with an explanation.
+
+## Status
+
+main unchanged (16980d3 == origin/main). This docs branch: committed, not pushed, not merged.
+
+## Next recommended action
+
+1. Owner pushes this docs branch; merge separately approved.
+2. DEV TRACK (own chat/branch): item list/search endpoint (D-1).
+3. UI-STOCK-002: frontend implementation of UI-STOCK-001 in its own branch/worktree (when the owner asks).
+
+---
+
+## Previous handoff — UI-AI-002-MERGE-001 (AI Assistant panel merged to main)
 
 Date: 2026-10-03. Branch: main. Track: PARALLEL TRACK (frontend + docs only — no backend, migration, API or auth change).
 Authority: explicit owner approval in the Cowork Manager session ("merge kr do"), after UI-AI-002-REVIEW-001 (independent QA/Testing subagent: PASS on 6c89f27 with 4 MINOR, all fixed in 9f76523; re-verification PASS) and owner push of `feat/ui-ai-002-assistant-panel` (origin == db32579, confirmed with `git ls-remote`). Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
