@@ -1,4 +1,20 @@
-# Current Handoff — ERP-REVIEW-FIX-002 merged to main (bd121ce)
+# Current Handoff — MERGE-003 (UI-STOCK-003 Opening stock dialog merged to main, c82d4ad)
+
+Date: 2026-10-07. Branch: main. Track: PARALLEL TRACK (frontend + docs only).
+Authority: owner approval 2026-10-07 (Option 1): merge UI-STOCK-003 with `--no-ff`, push main for this merge only, no branch/worktree deletion, UI-REFRESH-001 not started. Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
+
+- Pre-merge: feature review UI-STOCK-003-REVIEW-001 **PASS** (on 0ece37c + focused re-review of db70d0f). Branch already contained main bd121ce (merge 666d1d5); its conflict resolution plus docs commit 602ff99 got a separate focused review UI-STOCK-003-MERGE-REVIEW (QA/Testing subagent, own clone `Ideal-Tasty-Point-ERP-qa-ui-stock-003-merge`): **PASS**, 0 BLOCKER / 0 MAJOR / 0 MINOR, 2 NOTEs (demo script lives in untracked `Claude outputs/`; "no AuthContext → 401" claim not verified). QA run on 602ff99: npm ci OK, typecheck/lint/build exit 0, vitest 22 files / 263 tests, no `itp-erp:dev-identity` in dist, no backend/dependency diff vs bd121ce.
+- Merge: `git merge --no-ff feat/ui-stock-003-opening-stock` → **c82d4ad** (parents bd121ce, 602ff99; tree identical to 602ff99). Pushed: origin/main bd121ce → c82d4ad.
+- Post-merge on main (owner Windows, Node v24.18.1, `frontend/`): `npm ci` OK · typecheck PASS · lint PASS · vitest **22 files / 263 tests** PASS · build OK · `itp-erp:dev-identity` in dist: none. Backend unchanged by this merge (not re-run).
+- DB changes: none. Branch `feat/ui-stock-003-opening-stock` and its worktree are kept.
+
+## Next recommended action
+
+1. UI-REFRESH-001 (Direction A visual refresh, frontend only) in a new chat, from main c82d4ad.
+
+---
+
+## Previous handoff — ERP-REVIEW-FIX-002 merged to main (bd121ce)
 
 Date: 2026-10-06. Branch: main. Track: DEV TRACK.
 
