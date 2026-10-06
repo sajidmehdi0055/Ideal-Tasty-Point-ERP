@@ -3,6 +3,23 @@ import type { Item, ItemInput } from './types';
 
 const BASE_PATH = '/api/inventory/items';
 
+/** Response header set by GET /api/inventory/items when more items matched than were returned (INV-ITEM-LIST-001). */
+export const ITEM_LIST_TRUNCATED_HEADER = 'X-Result-Truncated';
+
+export interface ItemListQuery {
+  /** Case-insensitive match on item name or code, done by the backend (max 100 characters). */
+  search?: string;
+  /** Optional, sent only when set: the stock item picker needs active-only + a smaller page (backend supports both, INV-ITEM-LIST-001). */
+  active?: boolean;
+  limit?: number;
+}
+
+export interface ItemListResult {
+  items: Item[];
+  /** True when the backend capped the result (default 200 items); narrow with `search`. */
+  truncated: boolean;
+}
+
 export function createItem(input: ItemInput): Promise<Item> {
   return apiClient.post<Item>(BASE_PATH, input);
 }
@@ -11,40 +28,18 @@ export function updateItem(id: string, patch: Partial<ItemInput>): Promise<Item>
   return apiClient.patch<Item>(`${BASE_PATH}/${id}`, patch);
 }
 
-/**
- * Query of `GET /api/inventory/items` (INV-ITEM-LIST-001, on main). The server
- * schema is strict: only these three keys, `active` exactly `true`/`false`,
- * `limit` 1–500 (server default 200), `search` ≤ 100 characters matched
- * case-insensitively against item name or code.
- */
-export interface ItemListQuery {
-  search?: string;
-  active?: boolean;
-  limit?: number;
-}
-
-export interface ItemListPage {
-  items: Item[];
-  /** More items matched than `limit` (`X-Result-Truncated: true`) — narrow the search. */
-  truncated: boolean;
-}
-
-function toQueryString(query: ItemListQuery): string {
+/** Branch-scoped item list from the backend (OWNER/MANAGER). Uses the backend's default limit unless `limit` is set. */
+export async function listItems(query: ItemListQuery = {}): Promise<ItemListResult> {
   const params = new URLSearchParams();
   const search = query.search?.trim();
   if (search) params.set('search', search);
   if (query.active !== undefined) params.set('active', String(query.active));
   if (query.limit !== undefined) params.set('limit', String(query.limit));
-  const text = params.toString();
-  return text ? `?${text}` : '';
+  const qs = params.toString();
+  const { data, headers } = await apiClient.getWithHeaders<Item[]>(qs ? `${BASE_PATH}?${qs}` : BASE_PATH);
+  return { items: data, truncated: headers.get(ITEM_LIST_TRUNCATED_HEADER) === 'true' };
 }
 
-/** Branch-scoped item list/search, ordered by name then code, with the truncation flag. */
-export async function listItemsPage(query: ItemListQuery = {}): Promise<ItemListPage> {
-  const { body, headers } = await apiClient.getWithHeaders<Item[]>(`${BASE_PATH}${toQueryString(query)}`);
-  return { items: body, truncated: headers.get('X-Result-Truncated') === 'true' };
-}
-
-export async function listItems(query: ItemListQuery = {}): Promise<Item[]> {
-  return (await listItemsPage(query)).items;
+export function getItem(id: string): Promise<Item> {
+  return apiClient.get<Item>(`${BASE_PATH}/${encodeURIComponent(id)}`);
 }

@@ -1,6 +1,6 @@
 import { useEffect, useId, useState, type KeyboardEvent } from 'react';
 import { ChevronDownIcon } from '../../../design-system/icons';
-import { listItemsPage } from '../../items/api';
+import { listItems } from '../../items/api';
 import type { Item } from '../../items/types';
 import { describeStockError } from '../format';
 
@@ -58,7 +58,7 @@ export function ItemPicker({ value, onChange, error, disabled = false }: ItemPic
     if (!open) return;
     let ignore = false;
     const timer = window.setTimeout(() => {
-      listItemsPage({ search: term, active: true, limit: ITEM_PICKER_LIMIT })
+      listItems({ search: term, active: true, limit: ITEM_PICKER_LIMIT })
         .then(page => {
           if (!ignore) setAnswer({ key: requestKey, results: { status: 'live', items: page.items, truncated: page.truncated } });
         })

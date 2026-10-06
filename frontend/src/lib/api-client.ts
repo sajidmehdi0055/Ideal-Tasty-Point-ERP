@@ -31,7 +31,11 @@ function describeStatus(status: number): string {
   }
 }
 
-async function send<T>(path: string, init?: RequestInit): Promise<{ body: T; headers: Headers }> {
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  return (await requestWithHeaders<T>(path, init)).data;
+}
+
+async function requestWithHeaders<T>(path: string, init?: RequestInit): Promise<{ data: T; headers: Headers }> {
   let response: Response;
   try {
     response = await fetch(path, {
@@ -42,7 +46,7 @@ async function send<T>(path: string, init?: RequestInit): Promise<{ body: T; hea
     throw new ApiError(0, 'NETWORK_ERROR', 'Could not reach the server. Is the backend running?');
   }
 
-  if (response.status === 204) return { body: undefined as T, headers: response.headers };
+  if (response.status === 204) return { data: undefined as T, headers: response.headers };
 
   const text = await response.text();
   let body: unknown;
@@ -62,17 +66,13 @@ async function send<T>(path: string, init?: RequestInit): Promise<{ body: T; hea
     );
   }
 
-  return { body: body as T, headers: response.headers };
-}
-
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  return (await send<T>(path, init)).body;
+  return { data: body as T, headers: response.headers };
 }
 
 export const apiClient = {
   get: <T>(path: string) => request<T>(path, { method: 'GET' }),
-  /** GET that also returns the response headers (e.g. `X-Result-Truncated` on the item list). */
-  getWithHeaders: <T>(path: string) => send<T>(path, { method: 'GET' }),
+  /** Same as `get`, plus the response headers (e.g. `X-Result-Truncated` on capped lists). */
+  getWithHeaders: <T>(path: string) => requestWithHeaders<T>(path, { method: 'GET' }),
   post: <T>(path: string, body: unknown) => request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
   patch: <T>(path: string, body: unknown) => request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
 };

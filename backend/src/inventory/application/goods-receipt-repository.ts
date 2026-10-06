@@ -16,7 +16,7 @@ export interface GoodsReceiptRepository {
    * 409 PO_NOT_OPEN, 400 PO_SUPPLIER_MISMATCH, 400 PO_LINE_MISMATCH,
    * 409 RECEIPT_BEFORE_ORDER; the PO status is updated in the same transaction.
    */
-  create(input: GoodsReceiptInput, auth: AuthContext): Promise<GoodsReceipt | null>;
+  create(input: GoodsReceiptInput, auth: AuthContext, idempotencyKey?: string): Promise<GoodsReceipt | null>;
   /** Branch-scoped (via location), newest receipt date first. */
   list(auth: AuthContext): Promise<GoodsReceiptSummary[]>;
   /** Null when missing or in another branch. */

@@ -9,8 +9,8 @@ function positiveDecimalSchema(label: string) {
     .refine(value => Number(value) > 0, `${label} must be greater than 0`);
 }
 
-function todayUtcDateString(): string {
-  return new Date().toISOString().slice(0, 10);
+function todayBusinessDateString(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 }
 
 function isLeapYear(year: number): boolean {
@@ -25,7 +25,7 @@ export function isValidCalendarDate(value: string): boolean {
   const parts = value.split('-').map(Number);
   const year = parts[0]; const month = parts[1]; const day = parts[2];
   if (year === undefined || month === undefined || day === undefined) return false;
-  if (month < 1 || month > 12) return false;
+  if (year < 1 || year > 9999 || month < 1 || month > 12) return false;
   const daysInMonth = [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
   const days = daysInMonth[month - 1];
   if (days === undefined) return false;
@@ -36,7 +36,7 @@ const purchaseDateSchema = z.string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'purchase_date must be a plain calendar date string, e.g. "2026-09-20"')
   .refine(isValidCalendarDate, 'purchase_date must be a valid calendar date')
   // Backdated/historical entries are explicitly allowed; only future dates are rejected.
-  .refine(value => value <= todayUtcDateString(), 'purchase_date cannot be in the future');
+  .refine(value => value <= todayBusinessDateString(), 'purchase_date cannot be in the future');
 
 export const purchaseRecordInputSchema = z.object({
   supplier_id: z.uuid(),

@@ -217,5 +217,81 @@ describe('S-05 Goods Receiving (real PostgreSQL)', () => {
     await expect(admin.query('DELETE FROM goods_receipt_audit WHERE goods_receipt_id=$1', [r.id])).rejects.toThrow(/immutable/);
     await expect(admin.query('TRUNCATE goods_receipt CASCADE')).rejects.toThrow(/immutable/);
   });
+
+  it('serializes concurrent keyed retries, survives lost response/restart, and rejects changed payload without side effects', async () => {
+    const p = await product(); const sup = await supplier(); const loc = await store();
+    const input = { supplier_id: sup.id, location_id: loc.id, receipt_date: await businessDate(0), lines: [lineOf(p)] };
+    const key = randomUUID();
+    const before = await count('goods_receipt');
+    const results = await Promise.all(Array.from({ length: 6 }, () => receipts.create(input, owner, key)));
+    expect(new Set(results.map(r => r!.id)).size).toBe(1);
+    expect(await count('goods_receipt')).toBe(before + 1);
+    expect(await balance(p.item.id, loc.id)).toBe('16.000000');
+    const original = results[0]!;
+    expect((await admin.query('SELECT 1 FROM goods_receipt_audit WHERE goods_receipt_id=$1', [original.id])).rowCount).toBe(1);
+    expect((await admin.query('SELECT 1 FROM purchase_record WHERE id=$1', [original.lines[0]!.purchase_record_id])).rowCount).toBe(1);
+    await suppliers.update(sup.id, { active: false }, owner);
+    // New repository instance and now-inactive supplier: retry still returns original commit.
+    expect(await new PgGoodsReceiptRepository(runtime).create(input, owner, key)).toEqual(original);
+    await expect(receipts.create({ ...input, lines: [lineOf(p, '2')] }, owner, key)).rejects.toMatchObject({ status: 409, code: 'IDEMPOTENCY_CONFLICT' });
+    expect(await count('goods_receipt')).toBe(before + 1);
+    expect(await balance(p.item.id, loc.id)).toBe('16.000000');
+    await expect(runtime.query('DELETE FROM goods_receipt_request WHERE receipt_id=$1', [original.id])).rejects.toThrow(/permission denied/);
+    await expect(admin.query("UPDATE goods_receipt_request SET request_key='changed' WHERE receipt_id=$1", [original.id])).rejects.toThrow(/immutable/);
+    await expect(admin.query('TRUNCATE goods_receipt_request')).rejects.toThrow(/immutable/);
+  });
+
+  it('does not poison failed keys and scopes successful keys to user and branch; unkeyed deliveries remain distinct', async () => {
+    const p = await product(); const sup = await supplier(); const loc = await store();
+    const input = { supplier_id: sup.id, location_id: loc.id, receipt_date: await businessDate(0), lines: [lineOf(p)] };
+    const key = randomUUID();
+    await suppliers.update(sup.id, { active: false }, owner);
+    await expect(receipts.create(input, owner, key)).rejects.toMatchObject({ code: 'SUPPLIER_INACTIVE' });
+    expect((await admin.query('SELECT 1 FROM goods_receipt_request WHERE request_key=$1', [key])).rowCount).toBe(0);
+    await suppliers.update(sup.id, { active: true }, owner);
+    const first = await receipts.create(input, owner, key);
+    expect((await receipts.create(input, managerA, key))!.id).not.toBe(first!.id);
+    expect(await receipts.create(input, { ...owner, branchId: managerB.branchId }, key)).toBeNull();
+    const b = await product('16', managerB); const lb = await store(managerB);
+    expect((await receipts.create({ ...input, location_id: lb.id, lines: [lineOf(b)] }, { ...owner, branchId: managerB.branchId }, key))!.id).not.toBe(first!.id);
+    const noKey1 = await receipts.create(input, owner); const noKey2 = await receipts.create(input, owner);
+    expect(noKey1!.id).not.toBe(noKey2!.id);
+  });
+
+  it('replays a receipt after its linked PO becomes RECEIVED without another PO audit or stock write', async () => {
+    const p = await product(); const sup = await supplier(); const loc = await store();
+    const date = await businessDate(0);
+    const po = await new PgPurchaseOrderRepository(runtime).create({ supplier_id: sup.id, order_date: date,
+      lines: [{ item_id: p.item.id, brand_id: p.brand.id, pack_variant_id: p.pack.id, ordered_quantity: '1' }] }, owner);
+    const input = { supplier_id: sup.id, location_id: loc.id, receipt_date: date, purchase_order_id: po!.id,
+      lines: [{ ...lineOf(p), purchase_order_line_id: po!.lines[0]!.id }] };
+    const app = buildTestApp(owner); const key = randomUUID();
+    try {
+      const request = { method: 'POST' as const, url: '/api/inventory/receipts', headers: { 'idempotency-key': key }, payload: input };
+      const first = await app.inject(request); expect(first.statusCode).toBe(201);
+      const beforeAudit = await count('purchase_order_audit');
+      const retry = await app.inject(request); expect(retry.statusCode).toBe(201); expect(retry.json()).toEqual(first.json());
+      expect(await count('purchase_order_audit')).toBe(beforeAudit);
+      expect(await balance(p.item.id, loc.id)).toBe('16.000000');
+    } finally { await app.close(); }
+  });
+
+  it('rolls back receipt, ledger, purchases, audits and key together after a late persistence failure', async () => {
+    const p = await product(); const sup = await supplier(); const loc = await store();
+    const input = { supplier_id: sup.id, location_id: loc.id, receipt_date: await businessDate(0), lines: [lineOf(p)] };
+    const tables = ['goods_receipt', 'goods_receipt_line', 'purchase_record', 'stock_movement', 'goods_receipt_audit', 'purchase_record_audit', 'stock_movement_audit', 'goods_receipt_request'];
+    const before = await Promise.all(tables.map(count));
+    await admin.query(`CREATE FUNCTION test_fail_request() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected late failure'; END $$;
+      CREATE TRIGGER test_fail_request BEFORE INSERT ON goods_receipt_request FOR EACH ROW EXECUTE FUNCTION test_fail_request();`);
+    const key = randomUUID();
+    try {
+      await expect(receipts.create(input, owner, key)).rejects.toThrow('injected late failure');
+      expect(await Promise.all(tables.map(count))).toEqual(before);
+    } finally {
+      await admin.query('DROP TRIGGER test_fail_request ON goods_receipt_request; DROP FUNCTION test_fail_request()');
+    }
+    expect(await receipts.create(input, owner, key)).toBeTruthy();
+    expect(await balance(p.item.id, loc.id)).toBe('16.000000');
+  });
 });
 

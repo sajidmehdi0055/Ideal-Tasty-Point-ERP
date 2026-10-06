@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { DevSessionProvider } from '../../../lib/session';
@@ -96,16 +96,62 @@ describe('ItemFormPage', () => {
     expect(screen.queryByLabelText(/item name/i)).not.toBeInTheDocument();
   });
 
-  it('explains why an item cannot be edited when it is not available in this session', () => {
-    renderAt('/items/unknown-id/edit');
-    expect(screen.getByText(/item not available for editing/i)).toBeInTheDocument();
+  it('fetches the item by id on a direct navigation with no router state, showing loading then the prefilled form', async () => {
+    let resolveGetItem!: (value: Item) => void;
+    vi.mocked(itemsApi.getItem).mockReturnValue(
+      new Promise<Item>(resolve => {
+        resolveGetItem = resolve;
+      }),
+    );
+    renderAt('/items/1/edit');
+
+    expect(itemsApi.getItem).toHaveBeenCalledWith('1');
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+
+    resolveGetItem(item);
+
+    expect(await screen.findByDisplayValue('Flour')).toBeInTheDocument();
   });
 
-  it('prefills from router state and saves an edit', async () => {
-    vi.mocked(itemsApi.updateItem).mockResolvedValue({ ...item, item_name: 'Fine Flour' });
-    renderAt('/items/1/edit', { item });
+  it('shows "Item not found for your branch." when getItem 404s', async () => {
+    vi.mocked(itemsApi.getItem).mockRejectedValue(new ApiError(404, 'ITEM_NOT_FOUND', 'not found'));
+    renderAt('/items/unknown-id/edit');
 
-    expect(screen.getByDisplayValue('Flour')).toBeInTheDocument();
+    expect(await screen.findByText('Item not found for your branch.')).toBeInTheDocument();
+  });
+
+  it('shows the honest sign-in message when getItem 401s', async () => {
+    vi.mocked(itemsApi.getItem).mockRejectedValue(new ApiError(401, 'UNAUTHENTICATED', 'no session'));
+    renderAt('/items/1/edit');
+
+    expect(await screen.findByText(/sign-in is not implemented yet/i)).toBeInTheDocument();
+  });
+
+  it('shows the honest permission message when getItem 403s', async () => {
+    vi.mocked(itemsApi.getItem).mockRejectedValue(new ApiError(403, 'FORBIDDEN', 'no permission'));
+    renderAt('/items/1/edit');
+
+    expect(await screen.findByText(/only owner or manager can create or edit items/i)).toBeInTheDocument();
+  });
+
+  it('reloads the item when the user clicks Try again after a failed load', async () => {
+    vi.mocked(itemsApi.getItem)
+      .mockRejectedValueOnce(new ApiError(0, 'NETWORK_ERROR', 'Could not reach the server. Is the backend running?'))
+      .mockResolvedValueOnce(item);
+    renderAt('/items/1/edit');
+
+    expect(await screen.findByText(/could not reach the server/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /try again/i }));
+    expect(await screen.findByDisplayValue(item.item_name)).toBeInTheDocument();
+    expect(itemsApi.getItem).toHaveBeenCalledTimes(2);
+  });
+
+  it('loads an item by id and saves an edit', async () => {
+    vi.mocked(itemsApi.getItem).mockResolvedValue(item);
+    vi.mocked(itemsApi.updateItem).mockResolvedValue({ ...item, item_name: 'Fine Flour' });
+    renderAt('/items/1/edit');
+
+    expect(await screen.findByDisplayValue('Flour')).toBeInTheDocument();
     await userEvent.clear(screen.getByLabelText(/item name/i));
     await userEvent.type(screen.getByLabelText(/item name/i), 'Fine Flour');
     await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
@@ -115,39 +161,206 @@ describe('ItemFormPage', () => {
     );
   });
 
-  it('does not keep showing a previous item after navigating directly to another item\'s edit route', async () => {
-    // Both routes share the same <ItemFormPage /> route element, so React
-    // Router does not unmount/remount it for an id-only navigation — without
-    // a key tied to the item id, ItemForm's internal useState keeps the
-    // first item's values.
-    const itemA: Item = { ...item, id: '1', item_name: 'Alpha' };
-    const itemB: Item = { ...item, id: '2', item_name: 'Bravo' };
+  it("never shows a superseded id's data once its late response resolves after a newer id has already loaded", async () => {
+    const itemTwo: Item = { ...item, id: '2', item_code: 'ITM-000002', item_name: 'Sugar' };
+    let resolveItemOne!: (value: Item) => void;
+    const getItemMock = vi.mocked(itemsApi.getItem);
+    getItemMock.mockImplementation(id => {
+      if (id === '1') {
+        return new Promise<Item>(resolve => {
+          resolveItemOne = resolve;
+        });
+      }
+      return Promise.resolve(itemTwo);
+    });
 
-    function Harness() {
+    function TestHarness() {
       const navigate = useNavigate();
       return (
         <>
-          <button type="button" onClick={() => navigate('/items/2/edit', { state: { item: itemB } })}>
-            Go to item 2
-          </button>
-          <ItemFormPage />
+          <button onClick={() => navigate('/items/2/edit')}>go-to-item-2</button>
+          <Routes>
+            <Route path="/items/:id/edit" element={<ItemFormPage />} />
+          </Routes>
         </>
       );
     }
 
     render(
       <DevSessionProvider>
-        <MemoryRouter initialEntries={[{ pathname: '/items/1/edit', state: { item: itemA } }]}>
-          <Routes>
-            <Route path="/items/:id/edit" element={<Harness />} />
-          </Routes>
+        <MemoryRouter initialEntries={['/items/1/edit']}>
+          <TestHarness />
         </MemoryRouter>
       </DevSessionProvider>,
     );
 
-    expect(screen.getByDisplayValue('Alpha')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /go to item 2/i }));
-    expect(await screen.findByDisplayValue('Bravo')).toBeInTheDocument();
-    expect(screen.queryByDisplayValue('Alpha')).not.toBeInTheDocument();
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'go-to-item-2' }));
+
+    expect(await screen.findByDisplayValue('Sugar')).toBeInTheDocument();
+
+    resolveItemOne(item);
+    await waitFor(() => expect(getItemMock).toHaveBeenCalledWith('1'));
+
+    expect(screen.queryByDisplayValue('Flour')).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue('Sugar')).toBeInTheDocument();
+  });
+
+  describe('bounded independent-review corrections', () => {
+    it('clears stale item data and form values when navigating from a loaded edit page to the new-item page', async () => {
+      vi.mocked(itemsApi.getItem).mockResolvedValue(item);
+
+      function TestHarness() {
+        const navigate = useNavigate();
+        return (
+          <>
+            <button onClick={() => navigate('/items/new')}>go-to-new</button>
+            <Routes>
+              <Route path="/items/new" element={<ItemFormPage />} />
+              <Route path="/items/:id/edit" element={<ItemFormPage />} />
+            </Routes>
+          </>
+        );
+      }
+
+      render(
+        <DevSessionProvider>
+          <MemoryRouter initialEntries={['/items/1/edit']}>
+            <TestHarness />
+          </MemoryRouter>
+        </DevSessionProvider>,
+      );
+
+      expect(await screen.findByDisplayValue('Flour')).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: 'go-to-new' }));
+
+      expect(await screen.findByText('New item')).toBeInTheDocument();
+      expect(screen.queryByDisplayValue('Flour')).not.toBeInTheDocument();
+      expect(screen.getByLabelText(/item name/i)).toHaveValue('');
+    });
+
+    it('does not leak typed create-mode values into a subsequently loaded edit page', async () => {
+      vi.mocked(itemsApi.getItem).mockResolvedValue(item);
+
+      function TestHarness() {
+        const navigate = useNavigate();
+        return (
+          <>
+            <button onClick={() => navigate('/items/1/edit')}>go-to-edit-1</button>
+            <Routes>
+              <Route path="/items/new" element={<ItemFormPage />} />
+              <Route path="/items/:id/edit" element={<ItemFormPage />} />
+            </Routes>
+          </>
+        );
+      }
+
+      render(
+        <DevSessionProvider>
+          <MemoryRouter initialEntries={['/items/new']}>
+            <TestHarness />
+          </MemoryRouter>
+        </DevSessionProvider>,
+      );
+
+      await userEvent.type(screen.getByLabelText(/item name/i), 'Draft Item');
+      expect(screen.getByLabelText(/item name/i)).toHaveValue('Draft Item');
+
+      await userEvent.click(screen.getByRole('button', { name: 'go-to-edit-1' }));
+
+      expect(await screen.findByDisplayValue('Flour')).toBeInTheDocument();
+      expect(screen.queryByDisplayValue('Draft Item')).not.toBeInTheDocument();
+    });
+
+    it('does not redirect or show a stale success message when a save resolves after navigating away', async () => {
+      vi.mocked(itemsApi.getItem).mockResolvedValue(item);
+      let resolveUpdate!: (value: Item) => void;
+      vi.mocked(itemsApi.updateItem).mockReturnValue(
+        new Promise<Item>(resolve => {
+          resolveUpdate = resolve;
+        }),
+      );
+
+      function TestHarness() {
+        const navigate = useNavigate();
+        return (
+          <>
+            <button onClick={() => navigate('/items/new')}>go-elsewhere</button>
+            <Routes>
+              <Route path="/items/new" element={<ItemFormPage />} />
+              <Route path="/items/:id/edit" element={<ItemFormPage />} />
+              <Route path="/items" element={<p>Back on the item list</p>} />
+            </Routes>
+          </>
+        );
+      }
+
+      render(
+        <DevSessionProvider>
+          <MemoryRouter initialEntries={['/items/1/edit']}>
+            <TestHarness />
+          </MemoryRouter>
+        </DevSessionProvider>,
+      );
+
+      expect(await screen.findByDisplayValue('Flour')).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
+      await waitFor(() => expect(itemsApi.updateItem).toHaveBeenCalledTimes(1));
+
+      await userEvent.click(screen.getByRole('button', { name: 'go-elsewhere' }));
+      expect(await screen.findByText('New item')).toBeInTheDocument();
+
+      resolveUpdate({ ...item, item_name: 'Fine Flour' });
+      await act(async () => {});
+
+      expect(screen.queryByText('Back on the item list')).not.toBeInTheDocument();
+      expect(screen.getByText('New item')).toBeInTheDocument();
+    });
+
+    it('does not surface a stale error when a save fails after navigating away', async () => {
+      vi.mocked(itemsApi.getItem).mockResolvedValue(item);
+      let rejectUpdate!: (reason: unknown) => void;
+      vi.mocked(itemsApi.updateItem).mockReturnValue(
+        new Promise<Item>((_resolve, reject) => {
+          rejectUpdate = reject;
+        }),
+      );
+
+      function TestHarness() {
+        const navigate = useNavigate();
+        return (
+          <>
+            <button onClick={() => navigate('/items/new')}>go-elsewhere</button>
+            <Routes>
+              <Route path="/items/new" element={<ItemFormPage />} />
+              <Route path="/items/:id/edit" element={<ItemFormPage />} />
+            </Routes>
+          </>
+        );
+      }
+
+      render(
+        <DevSessionProvider>
+          <MemoryRouter initialEntries={['/items/1/edit']}>
+            <TestHarness />
+          </MemoryRouter>
+        </DevSessionProvider>,
+      );
+
+      expect(await screen.findByDisplayValue('Flour')).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
+      await waitFor(() => expect(itemsApi.updateItem).toHaveBeenCalledTimes(1));
+
+      await userEvent.click(screen.getByRole('button', { name: 'go-elsewhere' }));
+      expect(await screen.findByText('New item')).toBeInTheDocument();
+
+      rejectUpdate(new ApiError(500, 'INTERNAL_ERROR', 'boom'));
+      await act(async () => {});
+
+      expect(screen.queryByText('boom')).not.toBeInTheDocument();
+      expect(screen.getByText('New item')).toBeInTheDocument();
+    });
   });
 });

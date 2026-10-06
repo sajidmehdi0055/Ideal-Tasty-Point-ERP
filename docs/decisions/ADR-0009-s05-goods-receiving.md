@@ -37,3 +37,8 @@ Scope: Inventory S-05. Partially addresses INV-17 and B-05 (receipt finality/cor
 Purchase Orders (S-06), rejected/short/excess quantities, invoices/payments/supplier ledger, expiry/lots, transfers/issues, counts, costing/valuation, frontend screens, Store Keeper role.
 
 Supersedes: none. Amends ADR-0008 D-03 (adjustment prerequisite is now "any earlier entry", opening must be first). Related: ADR-0007, ADR-0008.
+
+## Follow-up 2026-10-06 (ERP-REVIEW-FIX-002, not merged until owner approval)
+
+- The A-01 NOTE above is resolved on branch `fix/erp-review-fixes-002`: standalone `POST /purchases` now uses the Asia/Karachi business date; year `0000` is rejected for all purchase/receipt/order dates. The original note is kept as history.
+- Optional `Idempotency-Key` retry protection for `POST /receipts` (scope: [2026-10-03-erp-review-fixes.md](2026-10-03-erp-review-fixes.md)). It does not change O-08: the supplier bill number stays optional and non-unique.

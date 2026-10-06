@@ -81,3 +81,6 @@ GRANT INSERT ON stock_transfer_audit TO :"runtime_role";
 -- AI audit log (ADR-0012 D-07): insert-only for the runtime role. No SELECT,
 -- UPDATE or DELETE: audit review uses an owner/admin connection.
 GRANT INSERT ON ai_audit_log TO :"runtime_role";
+
+-- Retry mappings are immutable; no UPDATE, DELETE or TRUNCATE.
+GRANT SELECT, INSERT ON goods_receipt_request TO :"runtime_role";

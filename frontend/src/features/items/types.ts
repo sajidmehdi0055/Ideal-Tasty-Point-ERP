@@ -1,11 +1,8 @@
 /**
  * Mirrors backend/src/inventory/domain/item.ts and the API contract in
- * backend/README.md on `main` (stable S-01) exactly. Do not add fields the
- * stable backend does not accept — see
- * docs/engineering/inventory-s01-implementation.md for the authoritative
- * contract. In particular `base_uom` is plain text on this stable
- * contract; it only becomes a UOM Master lookup on the unmerged S-02
- * branch, which this frontend slice does not depend on.
+ * backend/README.md. `base_uom` is resolved through the UOM Master
+ * (S-02, merged to main) on the backend; on this contract it is still a
+ * string field. Do not add fields the backend does not accept.
  */
 export const PRIMARY_ITEM_TYPES = [
   'RAW_MATERIAL',

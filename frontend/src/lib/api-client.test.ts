@@ -27,7 +27,7 @@ describe('apiClient', () => {
       vi.fn().mockResolvedValue(new Response('[1]', { status: 200, headers: { 'X-Result-Truncated': 'true' } })),
     );
     const result = await apiClient.getWithHeaders<number[]>('/api/x');
-    expect(result.body).toEqual([1]);
+    expect(result.data).toEqual([1]);
     expect(result.headers.get('x-result-truncated')).toBe('true');
   });
 

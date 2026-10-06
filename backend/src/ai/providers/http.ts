@@ -11,6 +11,8 @@ export async function postJson(fetchImpl: FetchLike, url: string, headers: Recor
   try {
     response = await fetchImpl(url, {
       method: 'POST',
+      // Never forward ERP data or credentials to a redirected destination (AI-O-02).
+      redirect: 'error',
       headers: { 'content-type': 'application/json', ...headers },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(timeoutMs),

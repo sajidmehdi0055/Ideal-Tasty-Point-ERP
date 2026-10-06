@@ -187,3 +187,26 @@ describe('S-06 Goods Receipt against a Purchase Order (optional link, ADR-0010 O
     expect(res.statusCode).toBe(status); expect(res.json()).toMatchObject({ error: code });
   });
 });
+
+describe('receipt retry key contract', () => {
+  it('passes a validated key with parsed input and rejects malformed keys before persistence', async () => {
+    const { app, receipts } = setup();
+    const res = await app.inject({ method: 'POST', url: '/api/inventory/receipts', headers: { 'idempotency-key': 'delivery_123' }, payload: input });
+    expect(res.statusCode).toBe(201);
+    expect(receipts.create).toHaveBeenCalledWith(input, owner, 'delivery_123');
+    receipts.create.mockClear();
+    for (const key of ['', 'a'.repeat(129), 'two keys', 'a,b']) {
+      const invalid = await app.inject({ method: 'POST', url: '/api/inventory/receipts', headers: { 'idempotency-key': key }, payload: input });
+      expect(invalid.statusCode).toBe(400);
+      expect(invalid.json().error).toBe('INVALID_IDEMPOTENCY_KEY');
+    }
+    expect(receipts.create).not.toHaveBeenCalled();
+  });
+  it('returns the persistence conflict without turning it into a success', async () => {
+    const { app, receipts } = setup();
+    receipts.create.mockRejectedValueOnce(new AppError(409, 'IDEMPOTENCY_CONFLICT', 'different payload'));
+    const res = await app.inject({ method: 'POST', url: '/api/inventory/receipts', headers: { 'idempotency-key': 'delivery' }, payload: input });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toBe('IDEMPOTENCY_CONFLICT');
+  });
+});

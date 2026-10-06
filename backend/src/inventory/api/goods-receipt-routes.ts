@@ -6,7 +6,7 @@ import type { GoodsReceiptService } from '../application/goods-receipt-service.j
 export function registerGoodsReceiptRoutes(app: FastifyInstance, service: GoodsReceiptService, authProvider: AuthContextProvider) {
   app.post('/api/inventory/receipts', async (request, reply) => {
     const context = requireItemEditor(await authProvider(request));
-    return reply.code(201).send(await service.create(request.body, context));
+    return reply.code(201).send(await service.create(request.body, context, request.headers['idempotency-key']));
   });
 
   // Receipts are create-only: no PATCH/DELETE. A wrong quantity is corrected
