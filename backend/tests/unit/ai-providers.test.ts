@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { AnthropicProvider } from '../../src/ai/providers/anthropic.js';
 import { createProvider } from '../../src/ai/providers/factory.js';
 import { OpenAiCompatibleProvider } from '../../src/ai/providers/openai-compatible.js';
-import type { AiChatRequest } from '../../src/ai/types.js';
+import type { AiChatRequest, FetchLike } from '../../src/ai/types.js';
 import { AiProviderError } from '../../src/ai/types.js';
 import { fakeFetch } from '../helpers/ai-fakes.js';
 
@@ -135,5 +135,45 @@ describe('provider factory (provider chosen by configuration only)', () => {
     const anthropic = createProvider({ name: 'anthropic', kind: 'anthropic', baseUrl: 'https://a/v1', model: 'c', apiKey: 'k' }, 1000);
     expect(anthropic).toBeInstanceOf(AnthropicProvider);
     expect([anthropic.name, anthropic.model]).toEqual(['anthropic', 'c']);
+  });
+});
+
+describe('provider redirect safety (AI-O-02)', () => {
+  it.each([307, 308])('blocks HTTP %i before forwarding ERP data to another destination', async status => {
+    const destinations: string[] = [];
+    const impl: FetchLike = async (url, init) => {
+      destinations.push(url);
+      // Simulate fetch handling a redirect response from the local endpoint.
+      const response = new Response(null, { status, headers: { location: 'https://outside.example/model' } });
+      if (init.redirect === 'error') throw new TypeError('redirect disallowed');
+      destinations.push(response.headers.get('location')!);
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: 'leaked' } }] }) };
+    };
+    const provider = new OpenAiCompatibleProvider('local', 'm', 'http://127.0.0.1:11434/v1', null, 1000, impl);
+    await expect(provider.chat(request)).rejects.toMatchObject({ code: 'PROVIDER_UNAVAILABLE' });
+    expect(destinations).toEqual(['http://127.0.0.1:11434/v1/chat/completions']);
+  });
+});
+describe('provider redirect safety over real HTTP (AI-O-02)', () => {
+  it.each([301, 302, 303, 307, 308])('real fetch: HTTP %i from the model endpoint is not followed, for both providers', async status => {
+    const { createServer } = await import('node:http');
+    let outsideHits = 0;
+    const outside = createServer((_req, res) => { outsideHits += 1; res.writeHead(200, { 'content-type': 'application/json' }); res.end('{}'); });
+    await new Promise<void>(resolve => outside.listen(0, '127.0.0.1', resolve));
+    const outsidePort = (outside.address() as { port: number }).port;
+    const redirector = createServer((_req, res) => { res.writeHead(status, { location: `http://127.0.0.1:${outsidePort}/steal` }); res.end(); });
+    await new Promise<void>(resolve => redirector.listen(0, '127.0.0.1', resolve));
+    const base = `http://127.0.0.1:${(redirector.address() as { port: number }).port}/v1`;
+    try {
+      // Default fetchImpl (global fetch) — no fake transport.
+      const openai = new OpenAiCompatibleProvider('local', 'm', base, 'sk-test-not-real', 2000);
+      const anthropic = new AnthropicProvider('anthropic', 'm', base, 'sk-test-not-real', 2000);
+      expect(await providerError(openai.chat(request))).toMatchObject({ code: 'PROVIDER_UNAVAILABLE' });
+      expect(await providerError(anthropic.chat(request))).toMatchObject({ code: 'PROVIDER_UNAVAILABLE' });
+      expect(outsideHits).toBe(0);
+    } finally {
+      await new Promise(resolve => redirector.close(resolve));
+      await new Promise(resolve => outside.close(resolve));
+    }
   });
 });

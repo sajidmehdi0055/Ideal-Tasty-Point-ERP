@@ -1,17 +1,14 @@
-import { useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Card, ErrorState } from '../../design-system/components';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Card, ErrorState, LoadingState } from '../../design-system/components';
 import { useDevSession } from '../../lib/session';
 import { ApiError } from '../../lib/api-client';
-import { createItem, updateItem } from './api';
-import { sessionItemCache } from './session-cache';
+import { createItem, getItem, updateItem } from './api';
 import { ItemForm } from './components/ItemForm';
 import type { Item, ItemInput } from './types';
 import type { ItemFieldErrors } from './validation';
 
-interface EditLocationState {
-  item?: Item;
-}
+type LoadStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
 function describeItemError(error: ApiError): string {
   if (error.status === 401) {
@@ -27,18 +24,62 @@ function describeItemError(error: ApiError): string {
 export function ItemFormPage() {
   const { id } = useParams<{ id: string }>();
   const mode: 'create' | 'edit' = id ? 'edit' : 'create';
-  const location = useLocation();
   const navigate = useNavigate();
   const { canEditItems } = useDevSession();
 
-  const existingItem =
-    mode === 'edit'
-      ? ((location.state as EditLocationState | null)?.item ?? (id ? sessionItemCache.findById(id) : undefined))
-      : undefined;
+  const [item, setItem] = useState<Item | undefined>(undefined);
+  const [loadStatus, setLoadStatus] = useState<LoadStatus>(mode === 'edit' ? 'loading' : 'idle');
+  const [loadError, setLoadError] = useState<ApiError>();
+  const [reloadToken, setReloadToken] = useState(0);
 
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string>();
   const [fieldErrors, setFieldErrors] = useState<ItemFieldErrors>();
+
+  // Identifies the current route's edit target (mode + id). A save's async
+  // callback captures this token and checks it before touching state/navigate,
+  // so a stale response from a superseded route can never affect what the
+  // user is now looking at (edit->new, edit A -> edit B, or unmount).
+  const activeTokenRef = useRef<symbol | undefined>(undefined);
+
+  useEffect(() => {
+    const token = Symbol('item-form-route');
+    activeTokenRef.current = token;
+    let ignore = false;
+
+    async function run() {
+      // A new route target (including switching from a loaded edit page to
+      // the create page) must never keep the previous target's item/form state.
+      setItem(undefined);
+      setLoadError(undefined);
+      setServerError(undefined);
+      setFieldErrors(undefined);
+      setSubmitting(false);
+
+      if (mode !== 'edit' || !id || !canEditItems) {
+        setLoadStatus('idle');
+        return;
+      }
+
+      setLoadStatus('loading');
+      try {
+        const fetched = await getItem(id!);
+        if (ignore) return;
+        setItem(fetched);
+        setLoadStatus('loaded');
+      } catch (err) {
+        if (ignore) return;
+        setLoadError(err instanceof ApiError ? err : new ApiError(0, 'UNKNOWN_ERROR', 'Something went wrong.'));
+        setLoadStatus('error');
+      }
+    }
+
+    void run();
+    return () => {
+      ignore = true;
+      if (activeTokenRef.current === token) activeTokenRef.current = undefined;
+    };
+  }, [mode, id, reloadToken, canEditItems]);
 
   if (!canEditItems) {
     return (
@@ -51,30 +92,45 @@ export function ItemFormPage() {
     );
   }
 
-  if (mode === 'edit' && !existingItem) {
+  if (mode === 'edit' && loadStatus === 'loading') {
+    return (
+      <Card>
+        <LoadingState label="Loading item…" />
+      </Card>
+    );
+  }
+
+  if (mode === 'edit' && loadStatus === 'error') {
     return (
       <Card>
         <ErrorState
-          title="Item not available for editing"
-          message="The stable backend has no get-by-id endpoint for items yet, so this screen can only edit an item that's already in your current list view — open it from the Item list right after creating or editing it."
+          message={loadError ? describeItemError(loadError) : 'Something went wrong.'}
+          onRetry={() => setReloadToken(token => token + 1)}
         />
       </Card>
     );
   }
 
   async function handleSubmit(values: ItemInput) {
+    const token = activeTokenRef.current;
     setSubmitting(true);
     setServerError(undefined);
     setFieldErrors(undefined);
     try {
-      const saved = mode === 'create' ? await createItem(values) : await updateItem(existingItem!.id, values);
-      sessionItemCache.upsert(saved);
+      const saved = mode === 'create' ? await createItem(values) : await updateItem(item!.id, values);
+      // The route may have changed (or the page unmounted) while this request
+      // was in flight. A late success must never redirect whatever the user
+      // is now looking at.
+      if (activeTokenRef.current !== token) return;
       navigate('/items', {
         state: {
           successMessage: mode === 'create' ? `Item ${saved.item_code} created.` : `Item ${saved.item_code} updated.`,
         },
       });
     } catch (err) {
+      // Same guard for a late failure: it belongs to a superseded route and
+      // must not surface as an error on the page the user has since moved to.
+      if (activeTokenRef.current !== token) return;
       if (err instanceof ApiError && err.code === 'VALIDATION_ERROR' && err.issues) {
         const mapped: ItemFieldErrors = {};
         for (const issue of err.issues) {
@@ -92,22 +148,24 @@ export function ItemFormPage() {
         setServerError('Something went wrong.');
       }
     } finally {
-      setSubmitting(false);
+      if (activeTokenRef.current === token) setSubmitting(false);
     }
   }
 
   return (
-    <Card title={mode === 'create' ? 'New item' : `Edit ${existingItem?.item_code}`}>
-      <ItemForm
-        key={id ?? 'new'}
-        mode={mode}
-        initialValues={existingItem}
-        submitting={submitting}
-        serverError={serverError}
-        serverFieldErrors={fieldErrors}
-        onSubmit={values => void handleSubmit(values)}
-        onCancel={() => navigate('/items')}
-      />
+    <Card title={mode === 'create' ? 'New item' : `Edit ${item?.item_code}`}>
+      {mode === 'create' || (mode === 'edit' && loadStatus === 'loaded') ? (
+        <ItemForm
+          key={mode === 'create' ? 'create' : id}
+          mode={mode}
+          initialValues={mode === 'create' ? undefined : item}
+          submitting={submitting}
+          serverError={serverError}
+          serverFieldErrors={fieldErrors}
+          onSubmit={values => void handleSubmit(values)}
+          onCancel={() => navigate('/items')}
+        />
+      ) : null}
     </Card>
   );
 }

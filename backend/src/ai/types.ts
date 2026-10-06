@@ -57,7 +57,7 @@ export class AiProviderError extends Error {
   }
 }
 
-export type FetchLike = (input: string, init: { method: string; headers: Record<string, string>; body?: string; signal?: AbortSignal }) => Promise<{
+export type FetchLike = (input: string, init: { method: string; headers: Record<string, string>; body?: string; signal?: AbortSignal; redirect?: RequestRedirect }) => Promise<{
   ok: boolean;
   status: number;
   json(): Promise<unknown>;

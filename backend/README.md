@@ -87,7 +87,7 @@ Global, standalone catalog -- not nested under a branch or another entity, same 
 
 **No PATCH/edit/void endpoint exists at all.** Once created, a purchase record is immutable in full (every field, not only identity columns) -- correcting or reversing a purchase record is an explicitly deferred, undecided business rule for a later slice, not something this API silently allows. This never touches stock/quantity-on-hand; there is no stock engine yet, and no Purchase Order/GRN/Supplier Ledger/Payments workflow in this slice -- it is purely a rate/history record.
 
-`quantity` and `rate` are transported as **decimal strings** end-to-end (never JSON numbers), exactly like Pack Variant's `conversion_factor`, so the `NUMERIC(18,6)` "never float" guarantee holds at the API boundary too. Both must be `> 0`. `purchase_date` is a plain `YYYY-MM-DD` calendar date string; it must be a real calendar date (Postgres/JS Date parsing does not itself validate this -- "2026-02-30" is checked manually against real days-in-month/leap-year rules) and **cannot be in the future** (`400`); backdated/historical entries are explicitly allowed, since staff commonly enter historical records.
+`quantity` and `rate` are transported as **decimal strings** end-to-end (never JSON numbers), exactly like Pack Variant's `conversion_factor`, so the `NUMERIC(18,6)` "never float" guarantee holds at the API boundary too. Both must be `> 0`. `purchase_date` is a plain `YYYY-MM-DD` calendar date string; it must be a real calendar date (Postgres/JS Date parsing does not itself validate this -- "2026-02-30" is checked manually against real days-in-month/leap-year rules) and **cannot be in the future** (`400`) — "today" is the **Asia/Karachi** business date, the same rule receiving uses (ADR-0009 A-01; before ERP-REVIEW-FIX-002 this endpoint used UTC). Year `0000` is rejected (PostgreSQL has no year zero), which also applies to `receipt_date` and `order_date`; backdated/historical entries are explicitly allowed, since staff commonly enter historical records.
 
 Purchase Record carries no `branch_id` of its own; branch ownership is enforced through the referenced `item_id`, exactly like Pack Variant -- for create via the item lookup, and for `GET`/list via a `JOIN` to `item_master` filtered by the caller's `AuthContext.branchId`. Creating a purchase record for an item that does not belong to the caller's authorized branch returns the same `404 ITEM_NOT_FOUND` as a missing item, never leaking cross-branch existence.
 
@@ -198,3 +198,19 @@ The ledger (`stock_movement`) is append-only: no edit/delete route, no runtime U
 ### AI layer (AI-S01, ADR-0012)
 
 Optional and OFF by default (`AI_ENABLED=false`). `GET /api/ai/status`, `POST /api/ai/chat` (authenticated; 503 while disabled). Ten read-only Inventory/Purchasing tools over the existing services, local OpenAI-compatible model first, cloud providers only with `AI_CLOUD_ENABLED=true`, append-only `ai_audit_log` (runtime role: INSERT only). Configuration, tools, limits and how to extend: [docs/architecture/AI_ARCHITECTURE.md](../docs/architecture/AI_ARCHITECTURE.md). After applying migration `202609270004_ai_s01_audit_log`, re-run `scripts/runtime-grants.sql` as usual.
+
+### Receipt retry protection (ERP-REVIEW-FIX-002)
+
+`POST /api/inventory/receipts` accepts an **optional** `Idempotency-Key` header: 1–128 ASCII letters, digits, `_` or `-` (anything else → 400 `INVALID_IDEMPOTENCY_KEY`, before any database work).
+
+- The key is scoped to the authenticated **branch + user**. Same key + same receipt body → the original receipt is returned (201), with no second receipt, stock movement, purchase record or audit row — also when the PO, supplier or location changed after the first commit.
+- Same key + different body → 409 `IDEMPOTENCY_CONFLICT`, nothing written. "Same body" means the same validated values: key order and surrounding spaces in `supplier_bill_no` do not matter, but e.g. `"1.0"` vs `"1"` or an upper-case UUID count as different — a retrying client must re-send exactly what it sent first.
+- Concurrent requests with one key are serialized (transaction-scoped advisory lock); exactly one receipt is created.
+- A request that fails (validation, inactive supplier, any database error) stores no key, so the same key can be retried after the problem is fixed.
+- **Limitation:** without the header (all current clients) every POST is a separate receipt, exactly as before. Protection exists only for a client that generates one key per intended delivery and re-sends that same key and body on retry. This is **not** supplier-bill de-duplication: `supplier_bill_no` stays optional free text (ADR-0009 O-08) and two receipts with the same bill number are still allowed.
+
+Migration `202610030001_inventory_receipt_idempotency` (additive): new table `goods_receipt_request` (branch, actor, key, SHA-256 of the parsed body, unique FK to `goods_receipt`), immutable via the existing `inventory_reject_history_mutation()` triggers; the down migration refuses. Runtime role: `SELECT, INSERT` only — re-run `scripts/runtime-grants.sql` after migrating. No existing table or row is changed.
+
+### AI provider redirects (ERP-REVIEW-FIX-002)
+
+All AI provider calls use `fetch(..., { redirect: 'error' })`: an HTTP 3xx from a model endpoint is never followed, so ERP data and API keys cannot be forwarded to a destination that the `AI_CLOUD_ENABLED` / local-address checks never saw (AI-O-02). The call fails as `PROVIDER_UNAVAILABLE`. Live AI settings are unchanged.

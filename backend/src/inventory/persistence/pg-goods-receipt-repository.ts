@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import type { AuthContext } from '../../auth/context.js';
 import { AppError } from '../../errors.js';
@@ -43,8 +43,25 @@ async function loadLines(client: Pool | PoolClient, receiptId: string): Promise<
 export class PgGoodsReceiptRepository implements GoodsReceiptRepository {
   constructor(private readonly pool: Pool) {}
 
-  async create(input: GoodsReceiptInput, auth: AuthContext): Promise<GoodsReceipt | null> {
+  async create(input: GoodsReceiptInput, auth: AuthContext, idempotencyKey?: string): Promise<GoodsReceipt | null> {
     return withTransaction(this.pool, async (client) => {
+      // Serialize retry keys before mutable PO/status checks. Mapping commits with receipt.
+      const requestHash = createHash('sha256').update(JSON.stringify(input)).digest('hex');
+      if (idempotencyKey !== undefined) {
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))', [JSON.stringify(['receipt', auth.branchId, auth.userId, idempotencyKey])]);
+        const previous = await client.query<{ request_hash: string; receipt_id: string }>(
+          'SELECT request_hash, receipt_id FROM goods_receipt_request WHERE branch_id=$1 AND actor_id=$2 AND request_key=$3',
+          [auth.branchId, auth.userId, idempotencyKey]);
+        const saved = previous.rows[0];
+        if (saved) {
+          if (saved.request_hash !== requestHash) throw new AppError(409, 'IDEMPOTENCY_CONFLICT', 'Idempotency-Key was already used with a different receipt');
+          const result = await client.query<HeaderRow>(
+            `SELECT ${HEADER_COLUMNS} FROM goods_receipt gr JOIN stock_location sl ON sl.id=gr.location_id WHERE gr.id=$1 AND sl.branch_id=$2`, [saved.receipt_id, auth.branchId]);
+          const row = result.rows[0];
+          if (!row) throw new Error('Committed receipt request has no branch-visible receipt');
+          return { ...iso(row), lines: await loadLines(client, row.id) };
+        }
+      }
       // 1. Branch ownership first (404 before any other signal, nothing leaked).
       const location = await client.query<{ branch_id: string; active: boolean }>(
         'SELECT branch_id, active FROM stock_location WHERE id = $1 FOR SHARE', [input.location_id],
@@ -181,6 +198,10 @@ export class PgGoodsReceiptRepository implements GoodsReceiptRepository {
       const receipt: GoodsReceipt = { ...iso(headerRow), lines };
       if (po && poBefore) await refreshPurchaseOrderAfterReceipt(client, po, poBefore, receipt.id, auth);
       await appendGoodsReceiptAudit(client, auth, receipt);
+      if (idempotencyKey !== undefined) {
+        await client.query('INSERT INTO goods_receipt_request (branch_id, actor_id, request_key, request_hash, receipt_id) VALUES ($1,$2,$3,$4,$5)',
+          [auth.branchId, auth.userId, idempotencyKey, requestHash, receipt.id]);
+      }
       return receipt;
     });
   }

@@ -1,4 +1,48 @@
-# Current Handoff — MERGE-002 (INV-ITEM-LIST-001 + UI-STOCK-002 merged to main)
+# Current Handoff — ERP-REVIEW-FIX-002 (Codex review fixes adapted onto main — implemented, independently reviewed, NOT committed/merged)
+
+Date: 2026-10-06. Branch: `fix/erp-review-fixes-002` (from main 86b417c == origin/main). Track: DEV TRACK.
+Authority: owner prompt in the Cowork Manager session (2026-10-06). Staging, commit, push, merge, deployment, `erp_local`, operational migrations, real data and live AI settings: NOT authorized and not touched. Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
+
+## What
+
+Per-finding comparison with main and what was adopted: [2026-10-03-erp-review-fixes.md](../decisions/2026-10-03-erp-review-fixes.md) (last section). Files, DB impact, not-adopted items: [erp-review-fix-002-implementation.md](erp-review-fix-002-implementation.md).
+
+- Receipt `Idempotency-Key` (optional; no-key clients unchanged and still not retry-safe; not supplier-bill de-duplication). One additive migration `202610030001_inventory_receipt_idempotency`.
+- AI provider redirects rejected (`redirect: 'error'`).
+- Standalone purchase date = Asia/Karachi; year 0000 rejected.
+- Item frontend: edit by id via `GET /items/:id`; list uses backend search + `X-Result-Truncated` notice; session cache removed; 403 → no-access message.
+- Codex branch `codex/erp-review-fixes` and its worktree: read only, unchanged.
+
+## Verification (cloud sandbox, Node v24.21.0, disposable PostgreSQL 16 `erp_test`, isolated schemas)
+
+| Check | Backend | Frontend |
+|---|---|---|
+| typecheck / lint / build | PASS / PASS / PASS | PASS / PASS / PASS |
+| unit / vitest | 16 files, 587/587 | 21 files, 240/240 |
+| integration (real PostgreSQL) | 8 files, 122/122 | — |
+| other | redirect tests fail when the fix is removed (7 failures, mutation check) | `itp-erp:dev-identity` absent from `dist` |
+
+Baseline main 86b417c on the same PostgreSQL: integration 118/118. Owner's Windows/Docker PostgreSQL 17 (2026-10-06): integration 8 files, 122/122 passed. Not run: live browser demo (real login absent).
+
+## Independent review (ERP-REVIEW-FIX-002-QA)
+
+Dedicated QA/Testing subagent, own clean clones, no implementation involvement: **PASS** (0 BLOCKER / 0 MAJOR, 2 MINOR + 4 NOTE). Probed replay/conflict/concurrency/cross-branch/cross-user/role-on-replay/header edge cases over HTTP on real PostgreSQL, redirect mutation test, Karachi boundary, item-search race. MINOR-1 (edit Retry test), MINOR-2 (STAFF 403 message), NOTE-1..3 fixed; focused re-review **PASS** (re-review MINOR-A = this entry; NOTE-A fixed; NOTE-B: `ItemTable` "View only" label now unreachable for STAFF — left for a future UI cleanup).
+
+## Remaining risks / open
+
+- Clients without `Idempotency-Key` (all today; no receiving UI yet) can still create duplicate receipts on a blind retry — future receiving UI must send and keep a key.
+- Real login (ADR-0005 password/lockout/2FA decisions) still pending; fail-closed auth unchanged.
+- Codex's ARCHITECTURE.md / MODULE-BOUNDARIES.md / root README reconciliation not adopted (possible separate docs task).
+
+## Next recommended action
+
+1. Owner creates the branch/worktree on Windows and applies the candidate (commands given by the Manager), runs `npm run test:integration` on local Docker PostgreSQL 17.
+2. Owner approval → commit + push `fix/erp-review-fixes-002` → controlled merge → post-merge verification.
+3. UI-STOCK-003 (Opening stock dialog + item picker) in a new chat, from main after this merge.
+
+---
+
+## Previous handoff — MERGE-002 (INV-ITEM-LIST-001 + UI-STOCK-002 merged to main)
 
 Date: 2026-10-06. Branch: main. Tracks: DEV TRACK (INV-ITEM-LIST-001, backend) + PARALLEL TRACK (UI-STOCK-002, frontend + docs incl. the UI-STOCK-001 design record).
 Authority: explicit owner approval in the Cowork Manager session ("dono branches main mein merge kr do"), after INV-ITEM-LIST-REVIEW-001 (PASS, re-verification PASS) and UI-STOCK-002-REVIEW-001 (PASS, re-review PASS), and owner push of both branches (origin == local: `feat/inv-item-list-001` 7ef68de, `feat/ui-stock-002-stock-screens` a137886, confirmed with `git ls-remote`). Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
