@@ -1,4 +1,15 @@
-# Current Handoff — ERP-REVIEW-FIX-002 (Codex review fixes adapted onto main — implemented, independently reviewed, NOT committed/merged)
+# Current Handoff — ERP-REVIEW-FIX-002 merged to main (bd121ce)
+
+Date: 2026-10-06. Branch: main. Track: DEV TRACK.
+
+- ERP-REVIEW-FIX-002 (bd121ce) was fast-forward merged to main and pushed on 2026-10-06 with owner approval in the Cowork Manager chat.
+- Post-merge on owner Windows: backend typecheck/lint/build clean, unit 587/587; frontend typecheck/lint/build clean, 240/240.
+- Integration 122/122 was run on the identical tree in the fix worktree on owner Docker PostgreSQL 17 (not re-run on main after the fast-forward).
+- Branch `fix/erp-review-fixes-002` and its worktree are kept.
+
+---
+
+## Previous handoff — ERP-REVIEW-FIX-002 (Codex review fixes adapted onto main — implemented, independently reviewed, NOT committed/merged)
 
 Date: 2026-10-06. Branch: `fix/erp-review-fixes-002` (from main 86b417c == origin/main). Track: DEV TRACK.
 Authority: owner prompt in the Cowork Manager session (2026-10-06). Staging, commit, push, merge, deployment, `erp_local`, operational migrations, real data and live AI settings: NOT authorized and not touched. Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
@@ -50,8 +61,8 @@ Authority: owner task UI-STOCK-003 (next action 3 of MERGE-002). Same-provider r
 ## What was done
 
 - G4 Opening stock dialog on `/stock/ledger` per Figma frame `116:11606`: active locations, item picker on `GET /api/inventory/items` (search, `active=true`, `limit=50`, `X-Result-Truncated` → "type more" hint), quantity in base unit, `POST /api/inventory/stock/opening`, server errors mapped inline/top. Button enabled (disabled state + explanation removed); after save balances re-read + "Opening stock saved — …" status. Mobile unchanged (no Opening stock, G7). Gap G-1 closed.
-- Stale `frontend/src/features/items/api.ts` comment fixed (INV-ITEM-LIST-001 NOTE-1); `listItemsPage` / `listItems(query)` use the real strict query.
-- Shared, backwards compatible: `apiClient.getWithHeaders`, `Modal size="xl"` (520 px).
+- Item picker uses main's `listItems({ search, active: true, limit: 50 })`; `active` / `limit` were added to `ItemListQuery` additively (sent only when set). `apiClient.getWithHeaders` is main's (ERP-REVIEW-FIX-002), not a change of this branch. (Updated 2026-10-07 after merging main bd121ce into the branch — merge 666d1d5; resolution in [ui-stock-003-implementation.md](ui-stock-003-implementation.md#merge-of-main-bd121ce).)
+- Shared, backwards compatible: `Modal size="xl"` (520 px).
 - Details, error table, deviations: [ui-stock-003-implementation.md](ui-stock-003-implementation.md). Dated G-1 status line appended to the UI-STOCK-001 design record.
 
 ## Commits
@@ -70,10 +81,14 @@ Authority: owner task UI-STOCK-003 (next action 3 of MERGE-002). Same-provider r
 
 QA/Testing subagent, own clone `Ideal-Tasty-Point-ERP-qa-ui-stock-003`, own runs. On 0ece37c: **PASS**, 0 BLOCKER / 0 MAJOR / 4 MINOR (3 test gaps, 1 search > 100 chars edge case) + NOTEs; all 4 MINOR fixed in db70d0f. Focused re-review of db70d0f: **PASS**, no new findings; mutations M5, M5b, M7, M8 caught. Accepted limitation: the Enter/Esc guards inside the native dialog cannot be tested in jsdom (mutation M4 survives vitest) — covered by the Chromium check only. Remaining NOTEs: Retry in the picker not reachable by Tab (reopening the list retries); `aria-selected` marks the chosen item.
 
+## Merge of main (bd121ce)
+
+2026-10-07, merge commit 666d1d5 on the branch (owner-approved; local, not pushed). Conflicts: `frontend/src/lib/api-client.ts` → main's version; `frontend/src/features/items/api.ts` → main's `listItems` / `getItem` + optional `active` / `limit`, `listItemsPage` removed; this file → both entries kept. Picker and tests moved to `listItems`; branch `features/items/api.test.ts` folded into main's `features/items/__tests__/api.test.ts`. Backend identical to main. Details: [ui-stock-003-implementation.md](ui-stock-003-implementation.md#merge-of-main-bd121ce).
+
 ## Deviations / open items
 
 - Frame's "Not available yet" banner and the D-1 hint removed (gap notes); Save enabled; quantity label shows the unit once an item is chosen. No Dark twin of G4 in Figma (checked with Dark tokens / G3 Dark style).
-- Pre-existing, out of scope: Item list page (`/items`) still shows at most the server default of 200 items without a truncation hint.
+- Item list page (`/items`): truncation notice now comes from main (ERP-REVIEW-FIX-002); not changed by this branch.
 - No contract gap found.
 
 ## Next recommended action
