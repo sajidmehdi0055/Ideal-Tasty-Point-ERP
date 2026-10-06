@@ -1,4 +1,44 @@
-# Current Handoff — MERGE-002 (INV-ITEM-LIST-001 + UI-STOCK-002 merged to main)
+# Current Handoff — UI-STOCK-003 (Opening stock dialog G4 — frontend implemented, not merged)
+
+Date: 2026-10-06. Branch: `feat/ui-stock-003-opening-stock` (from main 86b417c == origin/main, checked with `git ls-remote`), worktree `Ideal-Tasty-Point-ERP-ui-stock-003`. Track: PARALLEL TRACK — frontend only; no backend, API, migration, auth or dependency change.
+Authority: owner task UI-STOCK-003 (next action 3 of MERGE-002). Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
+
+## What was done
+
+- G4 Opening stock dialog on `/stock/ledger` per Figma frame `116:11606`: active locations, item picker on `GET /api/inventory/items` (search, `active=true`, `limit=50`, `X-Result-Truncated` → "type more" hint), quantity in base unit, `POST /api/inventory/stock/opening`, server errors mapped inline/top. Button enabled (disabled state + explanation removed); after save balances re-read + "Opening stock saved — …" status. Mobile unchanged (no Opening stock, G7). Gap G-1 closed.
+- Stale `frontend/src/features/items/api.ts` comment fixed (INV-ITEM-LIST-001 NOTE-1); `listItemsPage` / `listItems(query)` use the real strict query.
+- Shared, backwards compatible: `apiClient.getWithHeaders`, `Modal size="xl"` (520 px).
+- Details, error table, deviations: [ui-stock-003-implementation.md](ui-stock-003-implementation.md). Dated G-1 status line appended to the UI-STOCK-001 design record.
+
+## Commits
+
+| Commit | Content |
+|---|---|
+| 0ece37c | feat: dialog, picker, api, tests, implementation note |
+| db70d0f | fix: review MINOR 1–4 (search term ≤ 100 chars; tests; docs) |
+| (this commit) | docs: this handoff record |
+
+## Verification (owner's Windows machine, Node v24.18.1)
+
+`npm ci` OK · typecheck PASS · lint PASS · vitest **22 files / 246 tests** (main baseline 20 / 222) · build OK · `itp-erp:dev-identity` in dist: none · `git diff main -- backend package-lock.json frontend/package.json frontend/package-lock.json`: empty. Visual: Playwright/Chromium (playwright-core in the session scratchpad only) on the Vite dev server with mocked API — Light + Dark at 1440 / 820 px (form, open picker with truncation hint, 409 inline), no horizontal overflow; Esc/Enter behaviour inside the dialog checked in Chromium.
+
+## Independent review (UI-STOCK-003-REVIEW-001)
+
+QA/Testing subagent, own clone `Ideal-Tasty-Point-ERP-qa-ui-stock-003`, own runs. On 0ece37c: **PASS**, 0 BLOCKER / 0 MAJOR / 4 MINOR (3 test gaps, 1 search > 100 chars edge case) + NOTEs; all 4 MINOR fixed in db70d0f. Focused re-review of db70d0f: **PASS**, no new findings; mutations M5, M5b, M7, M8 caught. Accepted limitation: the Enter/Esc guards inside the native dialog cannot be tested in jsdom (mutation M4 survives vitest) — covered by the Chromium check only. Remaining NOTEs: Retry in the picker not reachable by Tab (reopening the list retries); `aria-selected` marks the chosen item.
+
+## Deviations / open items
+
+- Frame's "Not available yet" banner and the D-1 hint removed (gap notes); Save enabled; quantity label shows the unit once an item is chosen. No Dark twin of G4 in Figma (checked with Dark tokens / G3 Dark style).
+- Pre-existing, out of scope: Item list page (`/items`) still shows at most the server default of 200 items without a truncation hint.
+- No contract gap found.
+
+## Next recommended action
+
+1. Owner approval → controlled merge of `feat/ui-stock-003-opening-stock` into main → post-merge verification.
+
+---
+
+## Previous handoff — MERGE-002 (INV-ITEM-LIST-001 + UI-STOCK-002 merged to main)
 
 Date: 2026-10-06. Branch: main. Tracks: DEV TRACK (INV-ITEM-LIST-001, backend) + PARALLEL TRACK (UI-STOCK-002, frontend + docs incl. the UI-STOCK-001 design record).
 Authority: explicit owner approval in the Cowork Manager session ("dono branches main mein merge kr do"), after INV-ITEM-LIST-REVIEW-001 (PASS, re-verification PASS) and UI-STOCK-002-REVIEW-001 (PASS, re-review PASS), and owner push of both branches (origin == local: `feat/inv-item-list-001` 7ef68de, `feat/ui-stock-002-stock-screens` a137886, confirmed with `git ls-remote`). Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
