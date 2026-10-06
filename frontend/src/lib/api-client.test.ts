@@ -21,6 +21,16 @@ describe('apiClient', () => {
     await expect(apiClient.post('/api/x', { a: 1 })).resolves.toEqual({ ok: true });
   });
 
+  it('getWithHeaders returns the parsed body and the response headers', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('[1]', { status: 200, headers: { 'X-Result-Truncated': 'true' } })),
+    );
+    const result = await apiClient.getWithHeaders<number[]>('/api/x');
+    expect(result.data).toEqual([1]);
+    expect(result.headers.get('x-result-truncated')).toBe('true');
+  });
+
   it('throws an ApiError carrying the server status/code/message', async () => {
     vi.stubGlobal(
       'fetch',

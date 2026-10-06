@@ -29,6 +29,20 @@ describe('items api (INV-ITEM-LIST-001 contract)', () => {
     expect(fetchMock.mock.calls[0]![0]).toBe('/api/inventory/items');
   });
 
+  it('sends active and limit only when provided, alongside a trimmed search (item picker)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse([], { 'X-Result-Truncated': 'true' }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(listItems({ search: '  oil ', active: true, limit: 50 })).resolves.toEqual({ items: [], truncated: true });
+    expect(fetchMock.mock.calls[0]![0]).toBe('/api/inventory/items?search=oil&active=true&limit=50');
+  });
+
+  it('omits a blank search but still sends active', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse([]));
+    vi.stubGlobal('fetch', fetchMock);
+    await listItems({ search: '   ', active: true });
+    expect(fetchMock.mock.calls[0]![0]).toBe('/api/inventory/items?active=true');
+  });
+
   it('surfaces list errors instead of an empty list', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ error: 'FORBIDDEN', message: 'no' }, {}, 403)));
     await expect(listItems()).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' });

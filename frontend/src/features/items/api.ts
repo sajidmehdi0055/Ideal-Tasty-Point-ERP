@@ -9,6 +9,9 @@ export const ITEM_LIST_TRUNCATED_HEADER = 'X-Result-Truncated';
 export interface ItemListQuery {
   /** Case-insensitive match on item name or code, done by the backend (max 100 characters). */
   search?: string;
+  /** Optional, sent only when set: the stock item picker needs active-only + a smaller page (backend supports both, INV-ITEM-LIST-001). */
+  active?: boolean;
+  limit?: number;
 }
 
 export interface ItemListResult {
@@ -25,11 +28,13 @@ export function updateItem(id: string, patch: Partial<ItemInput>): Promise<Item>
   return apiClient.patch<Item>(`${BASE_PATH}/${id}`, patch);
 }
 
-/** Branch-scoped item list from the backend (OWNER/MANAGER). Uses the backend's default limit. */
+/** Branch-scoped item list from the backend (OWNER/MANAGER). Uses the backend's default limit unless `limit` is set. */
 export async function listItems(query: ItemListQuery = {}): Promise<ItemListResult> {
   const params = new URLSearchParams();
   const search = query.search?.trim();
   if (search) params.set('search', search);
+  if (query.active !== undefined) params.set('active', String(query.active));
+  if (query.limit !== undefined) params.set('limit', String(query.limit));
   const qs = params.toString();
   const { data, headers } = await apiClient.getWithHeaders<Item[]>(qs ? `${BASE_PATH}?${qs}` : BASE_PATH);
   return { items: data, truncated: headers.get(ITEM_LIST_TRUNCATED_HEADER) === 'true' };

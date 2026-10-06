@@ -97,11 +97,12 @@ describe('StockLedgerPage (UI-STOCK-002, desktop)', () => {
     expect(options.map(option => option.textContent)).toContain('Old Store (inactive)');
   });
 
-  it('keeps Opening stock disabled with its explanation until the item search exists (G4 / G-1)', async () => {
+  it('enables Opening stock now that the item search exists — no "not available" explanation (G4, G-1 closed)', async () => {
     renderPage();
     const button = await screen.findByRole('button', { name: 'Opening stock' });
-    expect(button).toBeDisabled();
-    expect(button).toHaveAccessibleDescription('Opening stock needs an item search, which is not available yet.');
+    expect(button).toBeEnabled();
+    expect(button).not.toHaveAttribute('aria-describedby');
+    expect(screen.queryByText(/not available yet/i)).not.toBeInTheDocument();
   });
 
   it('History opens Movements for that item across all locations, as in the G2 frame', async () => {
@@ -163,7 +164,7 @@ describe('StockLedgerPage (UI-STOCK-002, desktop)', () => {
     renderPage();
     expect(await screen.findByText('No stock recorded yet')).toBeInTheDocument();
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Opening stock' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Opening stock' })).toBeEnabled();
   });
 
   it('shows the access-denied state for other roles, and a 401 read as "not signed in"', async () => {

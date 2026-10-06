@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 
+const SIZE_CLASS = { md: 'max-w-md', lg: 'max-w-[480px]', xl: 'max-w-[520px]' } as const;
+
 interface ModalProps {
   open: boolean;
   title: string;
@@ -8,8 +10,8 @@ interface ModalProps {
   footer?: ReactNode;
   /** Optional icon before the title (e.g. a warning or power icon). */
   icon?: ReactNode;
-  /** `md` = 448px (default), `lg` = 480px (stock dialogs, UI-STOCK-001). */
-  size?: 'md' | 'lg';
+  /** `md` = 448px (default), `lg` = 480px (stock dialogs, UI-STOCK-001), `xl` = 520px (Opening stock, G4). */
+  size?: 'md' | 'lg' | 'xl';
   /**
    * `false` while a write is in flight: Esc, the backdrop and ✕ are ignored so
    * the result (or error) of the request is not lost. Defaults to `true`.
@@ -43,7 +45,7 @@ export function Modal({ open, title, onClose, children, footer, icon, size = 'md
         if (dismissible && event.target === dialogRef.current) onClose();
       }}
       aria-labelledby={titleId}
-      className={`m-auto w-full ${size === 'lg' ? 'max-w-[480px]' : 'max-w-md'} rounded-card border border-line bg-canvas p-0 shadow-modal backdrop:bg-overlay`}
+      className={`m-auto w-full ${SIZE_CLASS[size]} rounded-card border border-line bg-canvas p-0 shadow-modal backdrop:bg-overlay`}
     >
       <div onClick={event => event.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-line px-5 py-4">

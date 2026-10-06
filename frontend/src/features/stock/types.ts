@@ -74,3 +74,10 @@ export interface StockAdjustmentInput {
   quantity_delta: string;
   reason: string;
 }
+
+/** `POST /api/inventory/stock/opening` — quantity is a positive decimal string in the item's Base UOM. */
+export interface OpeningStockInput {
+  item_id: string;
+  location_id: string;
+  quantity: string;
+}
