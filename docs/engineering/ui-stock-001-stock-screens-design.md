@@ -54,3 +54,7 @@ Dark twins (same frames with the `ITP / Theme` Dark mode): L1 117:12279, L2 117:
 
 1. DEV TRACK: item list/search endpoint (D-1) in its own branch, chat and review.
 2. UI-STOCK-002: frontend implementation of these screens in its own branch/worktree; Opening stock stays disabled until D-1 is merged.
+
+## Status update (2026-10-06, UI-STOCK-003)
+
+G-1 is closed: the item list/search endpoint (INV-ITEM-LIST-001) is on main, and G4 Opening stock is implemented on `feat/ui-stock-003-opening-stock` ([ui-stock-003-implementation.md](ui-stock-003-implementation.md)). The approved design above is unchanged; the "blocked" wording for G4 / G-1 records the state at approval time.

@@ -48,7 +48,8 @@ export function ItemPicker({ value, onChange, error, disabled = false }: ItemPic
 
   // While an item is chosen the input shows its label; opening the list again
   // then shows every item rather than searching for that label.
-  const term = value ? '' : text.trim();
+  // A picked label set by code can exceed `maxLength`; never send more than the server accepts.
+  const term = value ? '' : text.trim().slice(0, SEARCH_MAX_LENGTH);
   // Results belong to one search term (and retry); anything else is still loading.
   const requestKey = `${retryToken}:${term}`;
   const results: Results = answer?.key === requestKey ? answer.results : { status: 'loading' };

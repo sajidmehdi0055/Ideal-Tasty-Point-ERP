@@ -91,7 +91,13 @@ describe('Opening stock dialog (UI-STOCK-003, G4)', () => {
   });
 
   it('searches active items on the server (search, active=true, limit) and picks one with the keyboard', async () => {
+    vi.mocked(stockApi.createOpening).mockResolvedValue(
+      movement('new', OIL.id, FREEZER_2, 'OPENING', '5.000000', null, '2026-10-05T08:00:00Z'),
+    );
     const dialog = await openDialog();
+    // Location and quantity are filled, so a form submit would really save — Enter in the picker must not.
+    await userEvent.selectOptions(within(dialog).getByRole('combobox', { name: 'Location' }), FREEZER_2.id);
+    await userEvent.type(within(dialog).getByLabelText('Quantity (base unit)'), '5');
     const input = within(dialog).getByRole('combobox', { name: 'Item' });
     await userEvent.click(input);
     expect(input).toHaveAttribute('aria-expanded', 'true');
@@ -115,6 +121,40 @@ describe('Opening stock dialog (UI-STOCK-003, G4)', () => {
     expect(input).toHaveAttribute('aria-expanded', 'false');
     expect(within(dialog).getByLabelText('Quantity (LITER)')).toBeInTheDocument();
     expect(stockApi.createOpening).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Opening stock' })).toBeInTheDocument();
+  });
+
+  it('ignores a slower answer for an older search term (stale response)', async () => {
+    let resolveOld: (page: itemsApi.ItemListPage) => void = () => undefined;
+    vi.mocked(itemsApi.listItemsPage).mockImplementation(query => {
+      if (query?.search === 'r') return new Promise(done => (resolveOld = done));
+      return Promise.resolve({ items: [OIL], truncated: false });
+    });
+    const dialog = await openDialog();
+    const input = within(dialog).getByRole('combobox', { name: 'Item' });
+    await userEvent.type(input, 'r');
+    await waitFor(() => expect(itemsApi.listItemsPage).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'r' })));
+    await userEvent.type(input, 'oil');
+    expect(await within(dialog).findByRole('option', { name: /Cooking Oil/ })).toBeInTheDocument();
+    resolveOld({ items: [RICE], truncated: true });
+    await new Promise(done => setTimeout(done, 50));
+    expect(within(dialog).queryByRole('option', { name: /Basmati Rice/ })).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/Showing the first/)).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('option', { name: /Cooking Oil/ })).toBeInTheDocument();
+  });
+
+  it('never sends a search term longer than the server limit (100), even from a long picked label', async () => {
+    const longItem = item('item-long', 'L'.repeat(120), 'LG-001', 'KG');
+    vi.mocked(itemsApi.listItemsPage).mockResolvedValue({ items: [longItem], truncated: false });
+    const dialog = await openDialog();
+    const input = within(dialog).getByRole('combobox', { name: 'Item' });
+    await userEvent.click(input);
+    await userEvent.click(await within(dialog).findByRole('option', { name: /LG-001/ }));
+    await userEvent.type(input, '{Backspace}');
+    await waitFor(() => expect(vi.mocked(itemsApi.listItemsPage).mock.calls.length).toBeGreaterThan(1));
+    for (const [query] of vi.mocked(itemsApi.listItemsPage).mock.calls) {
+      expect((query?.search ?? '').length).toBeLessThanOrEqual(100);
+    }
   });
 
   it('asks the user to refine the search when the server truncated the list (X-Result-Truncated)', async () => {

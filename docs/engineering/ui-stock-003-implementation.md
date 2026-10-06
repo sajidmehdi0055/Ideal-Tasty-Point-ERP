@@ -15,7 +15,7 @@ Design: [ui-stock-001-stock-screens-design.md](ui-stock-001-stock-screens-design
 | `frontend/src/features/items/api.ts` | Stale "expected to 404" comment replaced (review NOTE-1 of INV-ITEM-LIST-001). `listItemsPage(query)` → `{ items, truncated }` with the strict query (`search`, `active`, `limit`); `listItems(query = {})` keeps its old call shape for the Item list page. |
 | `frontend/src/lib/api-client.ts` | `apiClient.getWithHeaders()` — same request/error path, also returns response headers (needed for `X-Result-Truncated`). Existing methods unchanged. |
 | `frontend/src/design-system/components/Modal.tsx` | `size="xl"` = 520 px (the G4 frame's dialog width); `md` / `lg` unchanged. |
-| Tests | New `features/stock/__tests__/OpeningStockDialog.test.tsx` (18 tests: form/location list, server search + debounce + keyboard pick, truncated hint, empty + error/Retry, Esc, client validation, happy path + status + re-read, 8 server errors, pair-error reset, not dismissible while saving, theme-token-only classes); `StockLedgerPage.test.tsx` (button now enabled); `api-client.test.ts` (+1 header test). |
+| Tests | New `features/stock/__tests__/OpeningStockDialog.test.tsx` (20 tests: form/location list, server search + debounce + keyboard pick (Enter with a complete form does not save), stale-answer guard, search term ≤ 100 chars, truncated hint, empty + error/Retry, Esc, client validation, happy path + status + re-read, 8 server errors, pair-error reset, not dismissible while saving, theme-token-only classes); `StockLedgerPage.test.tsx` (button now enabled); `api-client.test.ts` (+1 header test); new `features/items/api.test.ts` (query string + `X-Result-Truncated`, 3 tests). |
 
 ## Error → UI (from `pg-stock-repository.ts` / `stock-service.ts` / `app.ts` error handler)
 
@@ -43,3 +43,12 @@ Changing the location or item clears a pair error. While saving, the dialog cann
 ## Visual check
 
 Playwright (playwright-core in the session scratchpad, not a project dependency) + Chromium on the Vite dev server with mocked `/api` responses: Light and Dark at 1440 and 820 px — form, open picker with truncation hint, 409 STOCK_HISTORY_EXISTS inline. No horizontal page overflow at either width. Mobile (390 px) not re-checked: no Opening stock there by design (existing test).
+
+Keyboard in a real browser (Playwright/Chromium, review MINOR-3): with the item list open, Esc closes only the list and the dialog stays open; Enter on a highlighted option picks it without saving even when location and quantity are filled; Enter with the list closed submits the form as usual. jsdom cannot show either (no native `<dialog>` cancel on Esc; user-event's implicit submit ignores a submit button linked with `form=`), so these two are covered by this browser check, not by vitest.
+
+## Review fixes (UI-STOCK-003-REVIEW-001)
+
+- MINOR-1: the Enter test now fills location and quantity first, so a form submit would really save.
+- MINOR-2: `features/items/api.test.ts` covers the exact query string and the truncation header.
+- MINOR-3: stale-answer test with a delayed older search; Esc/Enter checked in Chromium (above).
+- MINOR-4: the search term is cut to the server's 100-character limit (a long picked label edited by one character no longer causes a 400).
