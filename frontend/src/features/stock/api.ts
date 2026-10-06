@@ -1,5 +1,6 @@
 import { apiClient } from '../../lib/api-client';
 import type {
+  OpeningStockInput,
   StockAdjustmentInput,
   StockBalance,
   StockLocation,
@@ -43,4 +44,9 @@ export function listMovements(query: StockQuery = {}): Promise<StockMovement[]> 
 
 export function createAdjustment(input: StockAdjustmentInput): Promise<StockMovement> {
   return apiClient.post<StockMovement>(`${STOCK_PATH}/adjustments`, input);
+}
+
+/** Opening stock must be the first entry for an item + location (ADR-0008 D-03, S-05 O-07). */
+export function createOpening(input: OpeningStockInput): Promise<StockMovement> {
+  return apiClient.post<StockMovement>(`${STOCK_PATH}/opening`, input);
 }

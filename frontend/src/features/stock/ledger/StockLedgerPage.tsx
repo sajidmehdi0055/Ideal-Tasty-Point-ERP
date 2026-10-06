@@ -11,6 +11,7 @@ import type { StockBalance, StockLocation, StockMovement } from '../types';
 import { AdjustStockDialog } from './AdjustStockDialog';
 import { BalancesView } from './BalancesView';
 import { MovementsView, type ItemFilter } from './MovementsView';
+import { OpeningStockDialog, type OpeningSaved } from './OpeningStockDialog';
 
 type Tab = 'balances' | 'movements';
 
@@ -38,7 +39,6 @@ export function StockLedgerPage() {
 function StockLedgerContent() {
   const isWide = useMediaQuery('(min-width: 768px)');
   const tabsId = useId();
-  const openingNoteId = useId();
   const [locationsState, setLocationsState] = useState<LocationsState>({ status: 'loading' });
   const [locationsToken, setLocationsToken] = useState(0);
   const [tab, setTab] = useState<Tab>('balances');
@@ -49,6 +49,7 @@ function StockLedgerContent() {
   const [movementItem, setMovementItem] = useState<ItemFilter | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [adjusting, setAdjusting] = useState<StockBalance | null>(null);
+  const [opening, setOpening] = useState(false);
   const [savedNote, setSavedNote] = useState<string>();
 
   useEffect(() => {
@@ -92,6 +93,16 @@ function StockLedgerContent() {
       `Adjustment saved — ${balance.item_name} at ${labelFor(balance)}: ${formatQuantity(movement.quantity_delta, {
         signed: true,
       })} ${balance.base_uom} (${formatDateTime(movement.created_at)}).`,
+    );
+  }
+
+  function handleOpeningSaved({ movement, item, locationLabel }: OpeningSaved) {
+    setOpening(false);
+    setReloadToken(token => token + 1);
+    setSavedNote(
+      `Opening stock saved — ${item.item_name} at ${locationLabel}: ${formatQuantity(movement.quantity_delta)} ${
+        item.base_uom
+      } (${formatDateTime(movement.created_at)}).`,
     );
   }
 
@@ -148,18 +159,19 @@ function StockLedgerContent() {
     </div>
   );
 
-  // G4 / G-1: Opening stock needs an item picker, and there is no item list /
-  // search endpoint on main yet (owner decision D-1 asked the DEV TRACK for
-  // one). Until it is merged the button stays disabled with this explanation.
+  // G4: the item picker uses the item list/search endpoint (D-1,
+  // INV-ITEM-LIST-001), so gap G-1 is closed. Not shown on mobile (G7).
   const openingStock = (
-    <div className="flex items-center gap-3">
-      <p id={openingNoteId} className="max-w-[260px] text-right text-xs text-ink-muted">
-        Opening stock needs an item search, which is not available yet.
-      </p>
-      <Button variant="secondary" disabled aria-describedby={openingNoteId} className="h-9 shrink-0 font-semibold">
-        Opening stock
-      </Button>
-    </div>
+    <Button
+      variant="secondary"
+      onClick={() => {
+        setSavedNote(undefined);
+        setOpening(true);
+      }}
+      className="h-9 shrink-0 font-semibold"
+    >
+      Opening stock
+    </Button>
   );
 
   const panel =
@@ -222,6 +234,9 @@ function StockLedgerContent() {
           onSaved={movement => handleSaved(adjusting, movement)}
           onClose={() => setAdjusting(null)}
         />
+      ) : null}
+      {opening ? (
+        <OpeningStockDialog locations={locations} onSaved={handleOpeningSaved} onClose={() => setOpening(false)} />
       ) : null}
     </>
   );
