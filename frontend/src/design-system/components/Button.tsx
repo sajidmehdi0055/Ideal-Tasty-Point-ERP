@@ -1,14 +1,17 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react';
 import { Spinner } from './Spinner';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'dark';
-export type ButtonSize = 'sm' | 'md';
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'danger-text' | 'ghost' | 'dark';
+/** `xs` = Button/Small in the Direction A Figma (30px tall; row actions such as "Adjust"). */
+export type ButtonSize = 'xs' | 'sm' | 'md';
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary: 'bg-action text-on-action hover:bg-action-hover disabled:bg-action-disabled',
-  secondary: 'bg-canvas text-ink border border-line hover:bg-canvas-muted disabled:text-ink-muted',
+  secondary: 'bg-canvas text-ink border border-line-strong hover:bg-canvas-hover disabled:text-ink-muted',
   danger: 'bg-danger-solid text-white hover:bg-danger-solid-hover disabled:bg-danger-50 disabled:text-danger-600',
-  ghost: 'bg-transparent text-ink hover:bg-canvas-muted disabled:text-ink-muted',
+  // Text-only danger action (e.g. "Deactivate" in a row): no fill until hover.
+  'danger-text': 'bg-transparent text-danger-600 hover:bg-danger-50 hover:text-danger-700 disabled:text-ink-muted',
+  ghost: 'bg-transparent text-ink hover:bg-canvas-hover disabled:text-ink-muted',
   // Kept as an alias of `primary`: ERP Shell v2 (owner-approved 2026-09-27)
   // made Charcoal/Slate the single primary action colour everywhere, so the
   // separate slate variant introduced for UI-UOM-001 is no longer distinct.
@@ -16,6 +19,7 @@ const variantClasses: Record<ButtonVariant, string> = {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
+  xs: 'h-[30px] px-2.5 text-[13px] gap-1',
   sm: 'h-8 px-3 text-sm gap-1.5',
   md: 'h-10 px-4 text-sm gap-2',
 };
@@ -34,6 +38,7 @@ interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'chi
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
+  ref?: Ref<HTMLButtonElement>;
   children: ReactNode;
 }
 
