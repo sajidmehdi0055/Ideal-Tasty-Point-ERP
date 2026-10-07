@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { DevSessionProvider } from '../../../lib/session';
 import { DEV_IDENTITY_STORAGE_KEY } from '../../../lib/dev-session';
 import { ApiError } from '../../../lib/api-client';
+import { ToastProvider } from '../../../design-system/components';
 import { ItemFormPage } from '../ItemFormPage';
 import * as itemsApi from '../api';
 import type { Item } from '../types';
@@ -27,13 +28,15 @@ const item: Item = {
 function renderAt(path: string, state?: unknown) {
   return render(
     <DevSessionProvider>
-      <MemoryRouter initialEntries={[{ pathname: path, state }]}>
-        <Routes>
-          <Route path="/items/new" element={<ItemFormPage />} />
-          <Route path="/items/:id/edit" element={<ItemFormPage />} />
-          <Route path="/items" element={<p>Back on the item list</p>} />
-        </Routes>
-      </MemoryRouter>
+      <ToastProvider>
+        <MemoryRouter initialEntries={[{ pathname: path, state }]}>
+          <Routes>
+            <Route path="/items/new" element={<ItemFormPage />} />
+            <Route path="/items/:id/edit" element={<ItemFormPage />} />
+            <Route path="/items" element={<p>Back on the item list</p>} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
     </DevSessionProvider>,
   );
 }
@@ -45,7 +48,7 @@ describe('ItemFormPage', () => {
     vi.clearAllMocks();
   });
 
-  it('creates an item and returns to the list with a success message', async () => {
+  it('creates an item and returns to the list with a success toast', async () => {
     vi.mocked(itemsApi.createItem).mockResolvedValue(item);
     renderAt('/items/new');
 
@@ -56,6 +59,9 @@ describe('ItemFormPage', () => {
 
     await waitFor(() => expect(itemsApi.createItem).toHaveBeenCalledTimes(1));
     expect(await screen.findByText('Back on the item list')).toBeInTheDocument();
+    const toast = screen.getByRole('status');
+    expect(toast).toHaveTextContent('Item created');
+    expect(toast).toHaveTextContent('Flour was added as ITM-000001.');
   });
 
   it('surfaces a 401 honestly instead of pretending the create succeeded', async () => {
@@ -159,6 +165,9 @@ describe('ItemFormPage', () => {
     await waitFor(() =>
       expect(itemsApi.updateItem).toHaveBeenCalledWith('1', expect.objectContaining({ item_name: 'Fine Flour' })),
     );
+    expect(await screen.findByText('Back on the item list')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Item updated');
+    expect(screen.getByRole('status')).toHaveTextContent('Fine Flour (ITM-000001) was saved.');
   });
 
   it("never shows a superseded id's data once its late response resolves after a newer id has already loaded", async () => {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { DevSessionProvider } from '../../../lib/session';
@@ -55,5 +55,25 @@ describe('CatalogSettingsPage', () => {
 
     await userEvent.click(screen.getByRole('tab', { name: /brands/i }));
     expect(screen.getByText(/pending frontend integration|isn't wired up yet/i)).toBeInTheDocument();
+  });
+
+  it('marks Brands and Pack Variants as Pending (UOM Master is not), and they offer no list or actions', async () => {
+    vi.mocked(uomApi.listUoms).mockResolvedValue([]);
+    renderPage();
+
+    expect(within(screen.getByRole('tab', { name: /brands/i })).getByText('Pending')).toBeInTheDocument();
+    expect(within(screen.getByRole('tab', { name: /pack variants/i })).getByText('Pending')).toBeInTheDocument();
+    expect(within(screen.getByRole('tab', { name: /uom master/i })).queryByText('Pending')).not.toBeInTheDocument();
+    await screen.findByText('No UOMs yet');
+
+    await userEvent.click(screen.getByRole('tab', { name: /pack variants/i }));
+    expect(screen.getByRole('tab', { name: /pack variants/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: /pack variants/i })).toHaveFocus();
+    expect(screen.getByText(/pack variant's backend .* isn't wired up yet/i)).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /new/i })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('tab', { name: /uom master/i }));
+    expect(await screen.findByText('No UOMs yet')).toBeInTheDocument();
   });
 });

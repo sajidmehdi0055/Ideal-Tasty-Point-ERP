@@ -1,67 +1,60 @@
-import {
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableHeaderCell,
-  TableCell,
-  StatusBadge,
-  getButtonClassName,
-} from '../../../design-system/components';
+import { ActiveStatusBadge, Badge, Button } from '../../../design-system/components';
+import { DataCell, DataRow, DataTable, type ColumnDef, type TableSettings } from '../../../design-system/data-table';
 import { UNIT_TYPE_LABELS, type Uom } from './types';
+
+/** UOM Master columns (screenId 'uom'). Unit and Actions can never be hidden. */
+export const UOM_COLUMNS: readonly ColumnDef[] = [
+  { id: 'unit', label: 'Unit', required: true, minWidth: 160 },
+  { id: 'unit_type', label: 'Unit type', minWidth: 120, defaultWidth: 200 },
+  { id: 'status', label: 'Status', minWidth: 100, defaultWidth: 160 },
+  { id: 'actions', label: 'Actions', required: true, minWidth: 180, defaultWidth: 200, align: 'right', resizable: false },
+];
 
 interface UomTableProps {
   uoms: Uom[];
+  settings: TableSettings;
   onEdit: (uom: Uom) => void;
   onToggleActive: (uom: Uom) => void;
   togglingId?: string | undefined;
 }
 
-export function UomTable({ uoms, onEdit, onToggleActive, togglingId }: UomTableProps) {
+export function UomTable({ uoms, settings, onEdit, onToggleActive, togglingId }: UomTableProps) {
+  const show = settings.isVisible;
   return (
-    <Table>
-      <TableHead>
-        <TableRow>
-          <TableHeaderCell>Name</TableHeaderCell>
-          <TableHeaderCell>Unit type</TableHeaderCell>
-          <TableHeaderCell>Status</TableHeaderCell>
-          <TableHeaderCell>
-            <span className="sr-only">Actions</span>
-          </TableHeaderCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {uoms.map(uom => (
-          <TableRow key={uom.id} className="hover:bg-canvas-muted">
-            <TableCell className="font-medium">{uom.name}</TableCell>
-            <TableCell>
-              <StatusBadge label={UNIT_TYPE_LABELS[uom.unit_type]} tone="neutral" />
-            </TableCell>
-            <TableCell>
-              <StatusBadge label={uom.active ? 'Active' : 'Inactive'} tone={uom.active ? 'success' : 'neutral'} />
-            </TableCell>
-            <TableCell className="text-right">
-              <div className="flex justify-end gap-1">
-                <button
-                  type="button"
-                  onClick={() => onEdit(uom)}
-                  className={getButtonClassName({ variant: 'ghost', size: 'sm' })}
-                >
+    <DataTable settings={settings} ariaLabel="Units of measure" maxHeight="calc(100vh - 340px)">
+      {uoms.map(uom => (
+        <DataRow key={uom.id}>
+          {/* Stored UOM names are shown exactly as saved (no display-label mapping here). */}
+          {show('unit') ? <DataCell className="font-medium">{uom.name}</DataCell> : null}
+          {show('unit_type') ? (
+            <DataCell>
+              <Badge>{UNIT_TYPE_LABELS[uom.unit_type]}</Badge>
+            </DataCell>
+          ) : null}
+          {show('status') ? (
+            <DataCell>
+              <ActiveStatusBadge active={uom.active} />
+            </DataCell>
+          ) : null}
+          {show('actions') ? (
+            <DataCell align="right">
+              <div className="flex justify-end gap-1.5">
+                <Button size="xs" variant="secondary" onClick={() => onEdit(uom)}>
                   Edit
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  size="xs"
+                  variant={uom.active ? 'danger-text' : 'ghost'}
                   onClick={() => onToggleActive(uom)}
                   disabled={togglingId === uom.id}
-                  className={getButtonClassName({ variant: 'ghost', size: 'sm' })}
                 >
                   {uom.active ? 'Deactivate' : 'Activate'}
-                </button>
+                </Button>
               </div>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+            </DataCell>
+          ) : null}
+        </DataRow>
+      ))}
+    </DataTable>
   );
 }

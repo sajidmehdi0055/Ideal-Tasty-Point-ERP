@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Card, ErrorState, LoadingState } from '../../design-system/components';
+import { Card, ErrorState, LoadingState, NoAccessState, useToast } from '../../design-system/components';
 import { useDevSession } from '../../lib/session';
 import { ApiError } from '../../lib/api-client';
 import { createItem, getItem, updateItem } from './api';
@@ -8,7 +8,10 @@ import { ItemForm } from './components/ItemForm';
 import type { Item, ItemInput } from './types';
 import type { ItemFieldErrors } from './validation';
 
-type LoadStatus = 'idle' | 'loading' | 'loaded' | 'error';
+/** The item form stays a full page (not a dialog), capped to a readable width. */
+const FORM_WIDTH = 'w-full max-w-2xl';
+
+type LoadStatus ='idle' | 'loading' | 'loaded' | 'error';
 
 function describeItemError(error: ApiError): string {
   if (error.status === 401) {
@@ -26,6 +29,7 @@ export function ItemFormPage() {
   const mode: 'create' | 'edit' = id ? 'edit' : 'create';
   const navigate = useNavigate();
   const { canEditItems } = useDevSession();
+  const toast = useToast();
 
   const [item, setItem] = useState<Item | undefined>(undefined);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>(mode === 'edit' ? 'loading' : 'idle');
@@ -83,18 +87,17 @@ export function ItemFormPage() {
 
   if (!canEditItems) {
     return (
-      <Card>
-        <ErrorState
-          title="Not permitted"
-          message="Only Owner or Manager can create or edit items (INV-11). Switch your dev identity in the header to try this screen."
-        />
-      </Card>
+      <NoAccessState
+        title="Not permitted"
+        who="Owner or Manager"
+        message="Only Owner or Manager can create or edit items. Switch your dev identity in the header to try this screen."
+      />
     );
   }
 
   if (mode === 'edit' && loadStatus === 'loading') {
     return (
-      <Card>
+      <Card className={FORM_WIDTH}>
         <LoadingState label="Loading item…" />
       </Card>
     );
@@ -102,7 +105,7 @@ export function ItemFormPage() {
 
   if (mode === 'edit' && loadStatus === 'error') {
     return (
-      <Card>
+      <Card className={FORM_WIDTH}>
         <ErrorState
           message={loadError ? describeItemError(loadError) : 'Something went wrong.'}
           onRetry={() => setReloadToken(token => token + 1)}
@@ -122,11 +125,12 @@ export function ItemFormPage() {
       // was in flight. A late success must never redirect whatever the user
       // is now looking at.
       if (activeTokenRef.current !== token) return;
-      navigate('/items', {
-        state: {
-          successMessage: mode === 'create' ? `Item ${saved.item_code} created.` : `Item ${saved.item_code} updated.`,
-        },
-      });
+      toast.success(
+        mode === 'create'
+          ? { title: 'Item created', detail: `${saved.item_name} was added as ${saved.item_code}.` }
+          : { title: 'Item updated', detail: `${saved.item_name} (${saved.item_code}) was saved.` },
+      );
+      navigate('/items');
     } catch (err) {
       // Same guard for a late failure: it belongs to a superseded route and
       // must not surface as an error on the page the user has since moved to.
@@ -153,7 +157,7 @@ export function ItemFormPage() {
   }
 
   return (
-    <Card title={mode === 'create' ? 'New item' : `Edit ${item?.item_code}`}>
+    <Card title={mode === 'create' ? 'New item' : `Edit ${item?.item_code}`} className={FORM_WIDTH}>
       {mode === 'create' || (mode === 'edit' && loadStatus === 'loaded') ? (
         <ItemForm
           key={mode === 'create' ? 'create' : id}

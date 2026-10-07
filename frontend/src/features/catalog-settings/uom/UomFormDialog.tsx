@@ -36,6 +36,11 @@ export function UomFormDialog({
   const [clientErrors, setClientErrors] = useState<UomFieldErrors>({});
 
   const fieldErrors: UomFieldErrors = { ...clientErrors, ...serverFieldErrors };
+  // Unsaved changes → Esc / ✕ / backdrop / Cancel ask "Discard unsaved changes?" first.
+  const dirty =
+    values.name !== (initialValues?.name ?? '') ||
+    values.unit_type !== (initialValues?.unit_type ?? '') ||
+    active !== (initialValues?.active ?? true);
 
   function handleChange(field: keyof typeof values) {
     return (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -57,16 +62,19 @@ export function UomFormDialog({
       open={open}
       title={mode === 'create' ? 'New unit' : 'Edit unit'}
       onClose={onClose}
-      footer={
+      size="small"
+      dirty={dirty}
+      dismissible={!submitting}
+      footer={({ requestClose }) => (
         <>
-          <Button type="button" variant="secondary" onClick={onClose} disabled={submitting}>
+          <Button type="button" variant="secondary" onClick={requestClose} disabled={submitting}>
             Cancel
           </Button>
-          <Button type="submit" variant="dark" loading={submitting} form="uom-form">
+          <Button type="submit" variant="primary" loading={submitting} form="uom-form">
             {mode === 'create' ? 'Create unit' : 'Save changes'}
           </Button>
         </>
-      }
+      )}
     >
       <form id="uom-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         {serverError ? (
@@ -116,7 +124,7 @@ export function UomFormDialog({
                 }`}
               >
                 <span
-                  className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                  className={`absolute top-0.5 h-4 w-4 rounded-full bg-canvas shadow-card transition-transform ${
                     active ? 'translate-x-4' : 'translate-x-0.5'
                   }`}
                 />
