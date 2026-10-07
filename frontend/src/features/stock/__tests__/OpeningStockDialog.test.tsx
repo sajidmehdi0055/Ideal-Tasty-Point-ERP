@@ -111,7 +111,8 @@ describe('Opening stock dialog (UI-STOCK-003, G4)', () => {
     // Debounced: one request for the typed term, not one per keystroke.
     expect(vi.mocked(itemsApi.listItems).mock.calls.map(([query]) => query?.search)).toEqual(['', 'oil']);
     const option = await within(dialog).findByRole('option', { name: /Cooking Oil/ });
-    expect(option).toHaveTextContent('CO-001 · L');
+    expect(option).toHaveTextContent(/CO-001 · L$/);
+    expect(option).not.toHaveTextContent('LITER');
     expect(within(dialog).queryByRole('option', { name: /Basmati Rice/ })).not.toBeInTheDocument();
 
     await userEvent.keyboard('{ArrowDown}');

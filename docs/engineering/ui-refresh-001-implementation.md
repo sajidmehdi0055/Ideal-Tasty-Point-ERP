@@ -76,7 +76,7 @@ At 1024 px the default column widths (Items, Locations, Movements) were wider th
 
 ## Owner decisions (2026-10-08)
 
-- **Units in the Adjust / Opening stock dialogs:** use the display label (L, kg, pcs) per the format rule, not the stored code that Figma R2 draws. Done in a follow-up commit. It covers the dialog summary, preview, quantity label/hint, the NEGATIVE_BALANCE message, the Opening item-picker options, and also the Movements "Balance now" line, which still showed the stored code. Only display text changed; requests still send the stored codes as before.
+- **Units in the Adjust / Opening stock dialogs:** use the display label (L, kg, pcs) per the format rule, not the stored code that Figma R2 draws. Done in a follow-up commit. It covers the dialog summary, preview, quantity label/hint, the NEGATIVE_BALANCE message, the Opening item-picker options, and also the Movements "Balance now" line, which still showed the stored code. Only display text changed; request bodies are unchanged (no unit is sent).
 - **Dimmed inactive location rows:** approved.
 
 ## Follow-up NOTEs (deliberate deviations, not built in this slice)
