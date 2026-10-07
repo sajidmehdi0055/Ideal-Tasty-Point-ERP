@@ -1,12 +1,26 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ErrorState, LoadingState } from '../../../design-system/components';
+import { EmptyState, ErrorState, LoadingState } from '../../../design-system/components';
+import {
+  ColumnsMenu,
+  DataCell,
+  DataGroupRow,
+  DataRow,
+  DataTable,
+  DataTableToolbar,
+  DensityToggle,
+  ResultCount,
+  useTableSettings,
+  type ColumnDef,
+} from '../../../design-system/data-table';
 import { InfoIcon, XIcon } from '../../../design-system/icons';
+import { formatDateTime, formatDayGroupLabel, formatQuantity, formatTime, groupByKarachiDay } from '../../../lib/format';
 import { listBalances, listMovements } from '../api';
 import { MovementTypeTag } from '../components/Tags';
-import { describeStockError, formatDateTime } from '../format';
+import { describeStockError } from '../format';
 import { locationPath } from '../locations-tree';
-import { formatQuantity, formatQuantityValue, parseQuantity } from '../quantity';
+import { parseQuantity, toDecimalString } from '../quantity';
 import type { StockBalance, StockLocation, StockMovement } from '../types';
+import { ItemNameCode, SignedQuantity } from './cells';
 import { LocationFilter } from './LocationFilter';
 
 export interface ItemFilter {
@@ -22,6 +36,8 @@ interface MovementsViewProps {
   item: ItemFilter | null;
   onClearItem: () => void;
   reloadToken: number;
+  /** "Now" for the Today / Yesterday day labels (tests pass a fixed time). */
+  now?: Date | undefined;
 }
 
 interface ItemInfo {
@@ -35,18 +51,53 @@ type LoadState =
   | { status: 'error'; message: string }
   | { status: 'live'; key: string; movements: StockMovement[]; balances: StockBalance[] };
 
+export const MOVEMENTS_SCREEN_ID = 'stock-movements';
+
+// Two stable column sets for one screen: with the History item chip the Item
+// column is left out (G2), as before. Item and Quantity are required.
+const TIME: ColumnDef = { id: 'time', label: 'Time', minWidth: 72, defaultWidth: 88 };
+const ITEM: ColumnDef = { id: 'item', label: 'Item', required: true, minWidth: 180 };
+const LOCATION: ColumnDef = { id: 'location', label: 'Location', minWidth: 140, defaultWidth: 200 };
+const TYPE: ColumnDef = { id: 'type', label: 'Type', minWidth: 120, defaultWidth: 150 };
+const QUANTITY: ColumnDef = { id: 'quantity', label: 'Quantity', required: true, minWidth: 110, defaultWidth: 130, align: 'right' };
+const COLUMNS_WITH_ITEM: ColumnDef[] = [
+  TIME,
+  ITEM,
+  LOCATION,
+  TYPE,
+  QUANTITY,
+  { id: 'reason', label: 'Reason', minWidth: 160, defaultWidth: 260 },
+];
+const COLUMNS_FOR_ONE_ITEM: ColumnDef[] = [
+  TIME,
+  LOCATION,
+  TYPE,
+  QUANTITY,
+  // No Item column: Reason takes the spare width.
+  { id: 'reason', label: 'Reason', minWidth: 160 },
+];
+
+/** "Today · Wed 07 Oct 2026", "Yesterday · Tue 06 Oct 2026", "Mon 05 Oct 2026" (Figma R6). */
+function dayLabel(key: string, label: string): string {
+  if (label !== 'Today' && label !== 'Yesterday') return label;
+  // A "now" far from the day always yields the weekday + date form.
+  return `${label} · ${formatDayGroupLabel(key, new Date(0))}`;
+}
+
 /**
- * G2 — movements, newest first (server order). The API returns ids only, so
- * item names and base units come from the balances read with the same
- * filter (every item with a movement has a balance row there), and location
- * names from the locations list. No user / document number / running balance
- * exists in the API (G-2).
+ * Figma R6 (UI-REFRESH-001) over G2 — movements, newest first (server order),
+ * grouped by Asia/Karachi day. The API returns ids only, so item names and
+ * base units come from the balances read with the same filter (every item
+ * with a movement has a balance row there), and location names from the
+ * locations list. No user / document number / running balance exists in the
+ * API (G-2).
  */
-export function MovementsView({ isWide, locations, locationId, onLocationChange, item, onClearItem, reloadToken }: MovementsViewProps) {
+export function MovementsView({ isWide, locations, locationId, onLocationChange, item, onClearItem, reloadToken, now }: MovementsViewProps) {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [retryToken, setRetryToken] = useState(0);
   const itemId = item?.id ?? '';
   const key = `${locationId}|${itemId}`;
+  const settings = useTableSettings(MOVEMENTS_SCREEN_ID, item ? COLUMNS_FOR_ONE_ITEM : COLUMNS_WITH_ITEM);
 
   useEffect(() => {
     let ignore = false;
@@ -90,7 +141,7 @@ export function MovementsView({ isWide, locations, locationId, onLocationChange,
       total += value;
       if (value !== 0n) places += 1;
     }
-    return { text: `${formatQuantityValue(total)} ${rows[0]?.base_uom ?? ''}`, places };
+    return { text: `${formatQuantity(toDecimalString(total)).text} ${rows[0]?.base_uom ?? ''}`, places };
   }, [state, item]);
 
   const locationName = (id: string) => {
@@ -98,8 +149,10 @@ export function MovementsView({ isWide, locations, locationId, onLocationChange,
     return location ? locationPath(location, byId) : 'Unknown location';
   };
 
-  const toolbar = (
-    <div className={`flex flex-wrap items-center gap-x-3 gap-y-2 ${isWide ? 'px-4 py-3.5' : ''}`}>
+  const live = state.status === 'live' && state.key === key ? state : null;
+
+  const filters = (
+    <>
       <LocationFilter
         locations={locations}
         value={locationId}
@@ -120,42 +173,76 @@ export function MovementsView({ isWide, locations, locationId, onLocationChange,
           </button>
         </span>
       ) : null}
-      {isWide ? <div className="flex-1" /> : null}
-      {balanceNow ? (
-        <p className="text-xs text-ink-secondary">
-          Balance now: {balanceNow.text} ({balanceNow.places} {balanceNow.places === 1 ? 'location' : 'locations'})
-        </p>
-      ) : null}
+    </>
+  );
+  const balanceNowText = balanceNow ? (
+    <p className="text-xs text-ink-secondary">
+      Balance now: {balanceNow.text} ({balanceNow.places} {balanceNow.places === 1 ? 'location' : 'locations'})
+    </p>
+  ) : null;
+
+  const toolbar = isWide ? (
+    <DataTableToolbar
+      start={filters}
+      end={
+        <>
+          {balanceNowText}
+          {live ? (
+            <ResultCount>
+              {live.movements.length} {live.movements.length === 1 ? 'movement' : 'movements'}
+            </ResultCount>
+          ) : null}
+          <ColumnsMenu settings={settings} />
+          <DensityToggle settings={settings} />
+        </>
+      }
+    />
+  ) : (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      {filters}
+      {balanceNowText}
     </div>
   );
 
   let body: ReactNode;
   if (state.status === 'error') {
-    body = (
-      <div className={isWide ? 'px-4 pb-4' : ''}>
-        <ErrorState message={state.message} onRetry={() => setRetryToken(token => token + 1)} />
-      </div>
-    );
-  } else if (state.status === 'loading' || state.key !== key) {
+    body = <ErrorState message={state.message} onRetry={() => setRetryToken(token => token + 1)} />;
+  } else if (!live) {
     body = <LoadingState label="Loading movements…" />;
-  } else if (state.movements.length === 0) {
-    body = <p className="px-4 py-10 text-center text-[13px] text-ink-muted">No stock movements for this filter yet.</p>;
+  } else if (live.movements.length === 0) {
+    body = <EmptyState title="No movements yet" message="No stock movements for this filter yet." />;
   } else if (isWide) {
-    body = <MovementsTable movements={state.movements} items={items} showItem={!item} locationName={locationName} />;
+    const groups = groupByKarachiDay(live.movements, movement => movement.created_at, now);
+    body = (
+      <DataTable settings={settings} ariaLabel="Stock movements" maxHeight="calc(100vh - 360px)">
+        {groups.map(group => (
+          <MovementGroup
+            key={group.key}
+            label={dayLabel(group.key, group.label)}
+            movements={group.rows}
+            items={items}
+            locationName={locationName}
+            isVisible={settings.isVisible}
+            density={settings.density}
+          />
+        ))}
+      </DataTable>
+    );
   } else {
-    body = <MovementCards movements={state.movements} items={items} showItem={!item} locationName={locationName} />;
+    body = <MovementCards movements={live.movements} items={items} showItem={!item} locationName={locationName} />;
   }
 
   return (
     <div className={isWide ? '' : 'flex flex-col gap-3'}>
       {toolbar}
       {body}
-      {state.status === 'live' ? (
-        <p className={`flex gap-1.5 text-xs text-ink-muted ${isWide ? 'px-4 py-3' : 'px-1'}`}>
+      {live ? (
+        <p className={`flex gap-1.5 text-xs text-ink-muted ${isWide ? 'border-t border-line px-4 py-3' : 'px-1'}`}>
           <InfoIcon className="mt-px h-3.5 w-3.5 shrink-0" />
           <span>
-            Newest first. Entries are permanent — a mistake is corrected with a new Adjustment. Who made the entry and
-            the GRN / TRF number are not in the API yet (G-2).
+            Showing {live.movements.length} {live.movements.length === 1 ? 'movement' : 'movements'}, newest first ·
+            quantities in each item&apos;s base unit · times in Pakistan time (PKT). Who made the entry and the GRN / TRF
+            number are not in the API yet (G-2).
           </span>
         </p>
       ) : null}
@@ -163,79 +250,81 @@ export function MovementsView({ isWide, locations, locationId, onLocationChange,
   );
 }
 
-interface ListProps {
+function itemLabel(info: ItemInfo | undefined) {
+  return info ? `${info.name} (${info.code})` : 'Unknown item';
+}
+
+function Reason({ reason }: { reason: string | null }) {
+  return reason ? <span title={reason}>{reason}</span> : <span className="text-ink-muted">—</span>;
+}
+
+interface MovementGroupProps {
+  label: string;
+  movements: StockMovement[];
+  items: Map<string, ItemInfo>;
+  locationName: (id: string) => string;
+  isVisible: (id: string) => boolean;
+  density: 'comfortable' | 'compact';
+}
+
+function MovementGroup({ label, movements, items, locationName, isVisible, density }: MovementGroupProps) {
+  return (
+    <>
+      <DataGroupRow data-testid="movement-day">
+        <span className="font-semibold text-ink">{label}</span>
+      </DataGroupRow>
+      {movements.map(movement => {
+        const info = items.get(movement.item_id);
+        return (
+          <DataRow key={movement.id}>
+            {isVisible('time') ? (
+              <DataCell className="text-ink-secondary tabular-nums" title={formatDateTime(movement.created_at)}>
+                {formatTime(movement.created_at)}
+              </DataCell>
+            ) : null}
+            {isVisible('item') ? (
+              <DataCell>
+                {info ? <ItemNameCode name={info.name} code={info.code} density={density} /> : 'Unknown item'}
+              </DataCell>
+            ) : null}
+            {isVisible('location') ? <DataCell>{locationName(movement.location_id)}</DataCell> : null}
+            {isVisible('type') ? (
+              <DataCell>
+                <MovementTypeTag type={movement.movement_type} />
+              </DataCell>
+            ) : null}
+            {isVisible('quantity') ? (
+              <DataCell numeric>
+                <SignedQuantity value={movement.quantity_delta} unit={info?.unit} />
+              </DataCell>
+            ) : null}
+            {isVisible('reason') ? (
+              <DataCell>
+                <Reason reason={movement.reason} />
+              </DataCell>
+            ) : null}
+          </DataRow>
+        );
+      })}
+    </>
+  );
+}
+
+interface CardsProps {
   movements: StockMovement[];
   items: Map<string, ItemInfo>;
   showItem: boolean;
   locationName: (id: string) => string;
 }
 
-const HEAD = 'px-3 text-[11px] font-semibold uppercase tracking-[0.5px] text-ink-muted';
-
-function Change({ movement, unit }: { movement: StockMovement; unit: string | undefined }) {
-  const value = parseQuantity(movement.quantity_delta);
-  const negative = value !== null && value < 0n;
-  return (
-    <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
-      <span className={`text-[13px] font-semibold ${negative ? 'text-danger-700' : 'text-success-700'}`}>
-        {formatQuantity(movement.quantity_delta, { signed: true })}
-      </span>
-      {unit ? <span className="text-[11px] font-medium text-ink-muted">{unit}</span> : null}
-    </span>
-  );
-}
-
-function itemLabel(info: ItemInfo | undefined) {
-  return info ? `${info.name} (${info.code})` : 'Unknown item';
-}
-
-function MovementsTable({ movements, items, showItem, locationName }: ListProps) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[760px] border-collapse text-left">
-        <thead>
-          <tr className="h-9 border-y border-line bg-canvas-sunken">
-            <th scope="col" className={`${HEAD} w-[172px] pl-4`}>Date &amp; time</th>
-            {showItem ? <th scope="col" className={HEAD}>Item</th> : null}
-            <th scope="col" className={`${HEAD} w-[156px]`}>Type</th>
-            <th scope="col" className={`${HEAD} ${showItem ? 'w-[200px]' : 'w-[260px]'}`}>Location</th>
-            <th scope="col" className={`${HEAD} w-[124px] text-right`}>Change</th>
-            <th scope="col" className={`${HEAD} pr-4 ${showItem ? 'w-[240px]' : ''}`}>Reason</th>
-          </tr>
-        </thead>
-        <tbody>
-          {movements.map(movement => {
-            const info = items.get(movement.item_id);
-            return (
-              <tr key={movement.id} className="h-11 border-b border-line">
-                <td className="px-3 pl-4 text-[13px] text-ink-secondary">{formatDateTime(movement.created_at)}</td>
-                {showItem ? <td className="px-3 text-[13px] font-medium text-ink">{itemLabel(info)}</td> : null}
-                <td className="px-3">
-                  <MovementTypeTag type={movement.movement_type} />
-                </td>
-                <td className="px-3 text-[13px] text-ink">{locationName(movement.location_id)}</td>
-                <td className="px-3 text-right">
-                  <Change movement={movement} unit={info?.unit} />
-                </td>
-                <td className="px-3 pr-4 text-[13px] text-ink">
-                  {movement.reason ? <span className="block break-words py-2">{movement.reason}</span> : <span className="text-ink-muted">—</span>}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function MovementCards({ movements, items, showItem, locationName }: ListProps) {
+/** Mobile (< 768 px): cards as before (G7), restyled with tokens. */
+function MovementCards({ movements, items, showItem, locationName }: CardsProps) {
   return (
     <ul className="flex flex-col gap-2">
       {movements.map(movement => {
         const info = items.get(movement.item_id);
         return (
-          <li key={movement.id} className="flex flex-col gap-1.5 rounded-card border border-line bg-canvas px-4 py-3">
+          <li key={movement.id} className="flex flex-col gap-1.5 rounded-card border border-line bg-canvas px-4 py-3 shadow-card">
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs text-ink-secondary">{formatDateTime(movement.created_at)}</span>
               <MovementTypeTag type={movement.movement_type} />
@@ -243,7 +332,7 @@ function MovementCards({ movements, items, showItem, locationName }: ListProps) 
             {showItem ? <span className="text-[15px] font-semibold text-ink">{itemLabel(info)}</span> : null}
             <div className="flex items-center justify-between gap-2">
               <span className="text-[13px] text-ink">{locationName(movement.location_id)}</span>
-              <Change movement={movement} unit={info?.unit} />
+              <SignedQuantity value={movement.quantity_delta} unit={info?.unit} />
             </div>
             {movement.reason ? <p className="break-words text-[13px] text-ink-secondary">{movement.reason}</p> : null}
           </li>
@@ -252,3 +341,4 @@ function MovementCards({ movements, items, showItem, locationName }: ListProps) 
     </ul>
   );
 }
+

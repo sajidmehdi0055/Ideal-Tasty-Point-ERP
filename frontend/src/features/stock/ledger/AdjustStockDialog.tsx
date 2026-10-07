@@ -137,20 +137,21 @@ export function AdjustStockDialog({ balance, locationLabel, onSaved, onClose }: 
   return (
     <Modal
       open
-      size="lg"
+      size="small"
       title="Adjust stock"
       onClose={onClose}
       dismissible={!submitting}
-      footer={
+      dirty={direction !== null || quantity.trim() !== '' || reason.trim() !== ''}
+      footer={({ requestClose }) => (
         <>
-          <Button variant="secondary" onClick={onClose} disabled={submitting}>
+          <Button variant="secondary" onClick={requestClose} disabled={submitting}>
             Cancel
           </Button>
           <Button type="submit" form="stock-adjust-form" loading={submitting} className="font-semibold">
             Save adjustment
           </Button>
         </>
-      }
+      )}
     >
       <form id="stock-adjust-form" noValidate onSubmit={event => void handleSubmit(event)} className="flex flex-col gap-4">
         <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-1 rounded-control bg-canvas-sunken px-3 py-2.5 text-xs">

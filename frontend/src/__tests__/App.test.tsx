@@ -64,6 +64,6 @@ describe('App routing (UI-UOM-001)', () => {
     window.history.pushState({}, '', '/stock/ledger');
     render(<App />);
     expect(await screen.findByRole('tab', { name: 'Balances' })).toHaveAttribute('aria-selected', 'true');
-    expect(await screen.findByText('No stock recorded yet')).toBeInTheDocument();
+    expect(await screen.findByText('No stock in the ledger yet')).toBeInTheDocument();
   });
 });

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../../lib/api-client';
-import { createAdjustment, listBalances, listMovements, updateLocation } from '../api';
+import { createAdjustment, listBalances, listMovements, listTransfers, updateLocation } from '../api';
 import { codeSuffix, describeStockError, formatDateTime } from '../format';
 import { locationPath, orderLocationTree } from '../locations-tree';
 import {
@@ -153,5 +153,13 @@ describe('stock api', () => {
     });
     expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/inventory/locations/a%2Fb');
     expect(fetchMock.mock.calls[1]?.[1].method).toBe('PATCH');
+  });
+
+  it('reads transfers in transit with only the status filter (strict server query)', async () => {
+    const fetchMock = stubFetch([]);
+    await expect(listTransfers({ status: 'SENT' })).resolves.toEqual([]);
+    await listTransfers();
+    expect(fetchMock.mock.calls.map(call => call[0])).toEqual(['/api/inventory/transfers?status=SENT', '/api/inventory/transfers']);
+    expect(fetchMock.mock.calls[0]?.[1]?.method ?? 'GET').toBe('GET');
   });
 });

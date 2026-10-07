@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { ToastProvider } from '../../../design-system/components';
 import { DevSessionProvider, type DevRole } from '../../../lib/session';
 import { DEV_IDENTITY_STORAGE_KEY } from '../../../lib/dev-session';
 import type { StockBalance, StockLocation, StockMovement } from '../types';
@@ -72,5 +73,16 @@ export function renderWithSession(ui: ReactNode) {
     <DevSessionProvider>
       <MemoryRouter>{ui}</MemoryRouter>
     </DevSessionProvider>,
+  );
+}
+
+/** Like renderWithSession, plus a ToastProvider so success toasts can be asserted (UI-REFRESH-001). */
+export function renderWithProviders(ui: ReactNode) {
+  return render(
+    <ToastProvider>
+      <DevSessionProvider>
+        <MemoryRouter>{ui}</MemoryRouter>
+      </DevSessionProvider>
+    </ToastProvider>,
   );
 }

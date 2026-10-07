@@ -128,20 +128,21 @@ export function OpeningStockDialog({ locations, onSaved, onClose }: OpeningStock
   return (
     <Modal
       open
-      size="xl"
+      size="medium"
       title="Opening stock"
       onClose={onClose}
       dismissible={!submitting}
-      footer={
+      dirty={locationId !== '' || item !== null || quantity.trim() !== ''}
+      footer={({ requestClose }) => (
         <>
-          <Button variant="secondary" onClick={onClose} disabled={submitting}>
+          <Button variant="secondary" onClick={requestClose} disabled={submitting}>
             Cancel
           </Button>
           <Button type="submit" form="stock-opening-form" loading={submitting} className="font-semibold">
             Save opening stock
           </Button>
         </>
-      }
+      )}
     >
       <form id="stock-opening-form" noValidate onSubmit={event => void handleSubmit(event)} className="flex flex-col gap-4">
         {formError ? (

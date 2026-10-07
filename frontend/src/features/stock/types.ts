@@ -81,3 +81,22 @@ export interface OpeningStockInput {
   location_id: string;
   quantity: string;
 }
+
+// Stock transfers (S-07, ADR-0011) — only the list summary is read here, for
+// the Stock Ledger "Transfers in transit" tile. Mirrors StockTransferSummary in
+// backend/src/inventory/domain/stock-transfer.ts.
+export const STOCK_TRANSFER_STATUSES = ['SENT', 'RECEIVED', 'CANCELLED'] as const;
+export type StockTransferStatus = (typeof STOCK_TRANSFER_STATUSES)[number];
+
+export interface StockTransferSummary {
+  id: string;
+  transfer_number: string;
+  from_location_id: string;
+  from_location_name: string;
+  to_location_id: string;
+  to_location_name: string;
+  status: StockTransferStatus;
+  line_count: number;
+  created_at: string;
+  updated_at: string;
+}

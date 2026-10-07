@@ -5,7 +5,7 @@ import { ApiError } from '../../../lib/api-client';
 import { stubMatchMedia } from '../../../test/media';
 import * as stockApi from '../api';
 import { StockLedgerPage } from '../ledger/StockLedgerPage';
-import type { StockQuery } from '../types';
+import type { StockMovement, StockQuery, StockTransferSummary } from '../types';
 import {
   BALANCES,
   CHICKEN_F1,
@@ -16,7 +16,7 @@ import {
   OIL_LOWER,
   OIL_MAIN,
   movement,
-  renderWithSession,
+  renderWithProviders,
   setRole,
 } from './fixtures';
 
@@ -37,8 +37,8 @@ function filterBy<T extends { item_id: string; location_id: string }>(rows: T[],
   );
 }
 
-function renderPage() {
-  return renderWithSession(<StockLedgerPage />);
+function renderPage(now?: Date) {
+  return renderWithProviders(<StockLedgerPage now={now} />);
 }
 
 describe('StockLedgerPage (UI-STOCK-002, desktop)', () => {
@@ -59,18 +59,24 @@ describe('StockLedgerPage (UI-STOCK-002, desktop)', () => {
     renderPage();
     expect(await screen.findByRole('tab', { name: 'Balances' })).toHaveAttribute('aria-selected', 'true');
     await screen.findByRole('table');
-    const groups = screen.getAllByRole('columnheader').filter(cell => cell.getAttribute('scope') === 'colgroup');
+    // Location group rows: icon, name/path, type badge, "N items" (freezers indented under their store).
+    const groups = screen.getAllByTestId('balance-group');
     expect(groups.map(group => group.textContent)).toEqual([
-      'Lower Kitchen· 1 item',
-      'Main Store· 2 items',
-      'Main Store › Freezer 1· 1 item',
+      'Lower KitchenKitchen1 item',
+      'Main StoreStore2 items',
+      'Main Store › Freezer 1Freezer1 item',
     ]);
+    expect(within(groups[2]!).getByText('Freezer').className).toContain('bg-info-50');
+    expect(within(groups[2]!).getByText('Main Store › Freezer 1').parentElement).toHaveClass('pl-6');
+    expect(within(groups[1]!).getByText('Main Store').parentElement).not.toHaveClass('pl-6');
     expect(screen.queryByText('Sugar')).not.toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Hide zero balances' })).toBeChecked();
     expect(screen.getByText(/4 balances shown · 1 zero balance hidden\./)).toBeInTheDocument();
     expect(screen.getByText(/quantity only — no value or cost \(ADR-0008\)/i)).toBeInTheDocument();
-    expect(screen.getAllByText('LITER')).toHaveLength(2);
+    // Unit label after the number (LITER → "L", KG → "kg").
+    expect(screen.getAllByText('L')).toHaveLength(2);
     expect(screen.getByText('38.5')).toBeInTheDocument();
+    expect(screen.getByText('38.5').nextElementSibling).toHaveTextContent('kg');
   });
 
   it('shows zero balances when unticked and filters by item name or code on the client', async () => {
@@ -119,9 +125,13 @@ describe('StockLedgerPage (UI-STOCK-002, desktop)', () => {
 
     const table = await screen.findByRole('table');
     expect(within(table).queryByRole('columnheader', { name: 'Item' })).not.toBeInTheDocument();
-    const rows = within(table).getAllByRole('row').slice(1);
+    // Movement rows only (day group rows are separate, see the day-grouping test).
+    const rows = within(table)
+      .getAllByRole('row')
+      .slice(1)
+      .filter(row => row.getAttribute('data-testid') !== 'movement-day');
     expect(rows).toHaveLength(5);
-    expect(within(rows[0]!).getByText('03 Oct 2026, 10:12')).toBeInTheDocument();
+    expect(within(rows[0]!).getByText('10:12')).toHaveAttribute('title', '03 Oct 2026, 10:12');
     expect(within(rows[0]!).getByText('Transfer in')).toBeInTheDocument();
     expect(within(rows[0]!).getByText('Lower Kitchen')).toBeInTheDocument();
     expect(within(rows[1]!).getByText('\u221210')).toHaveClass('text-danger-700');
@@ -145,7 +155,8 @@ describe('StockLedgerPage (UI-STOCK-002, desktop)', () => {
     const table = await screen.findByRole('table');
     await within(table).findByText('Transfer return');
     expect(within(table).getByRole('columnheader', { name: 'Item' })).toBeInTheDocument();
-    expect(within(table).getAllByText('Cooking Oil (CO-001)')).toHaveLength(5);
+    expect(within(table).getAllByText('Cooking Oil')).toHaveLength(5);
+    expect(within(table).getAllByText('CO-001')).toHaveLength(5);
     expect(within(table).getByText('Main Store › Freezer 1')).toBeInTheDocument();
     expect(screen.queryByText(/balance now/i)).not.toBeInTheDocument();
   });
@@ -162,9 +173,13 @@ describe('StockLedgerPage (UI-STOCK-002, desktop)', () => {
   it('shows the empty state when no stock exists at all (G6)', async () => {
     vi.mocked(stockApi.listBalances).mockResolvedValue([]);
     renderPage();
-    expect(await screen.findByText('No stock recorded yet')).toBeInTheDocument();
+    expect(await screen.findByText('No stock in the ledger yet')).toBeInTheDocument();
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Opening stock' })).toBeEnabled();
+    // What to do next: add opening stock (opens the dialog) or manage locations.
+    expect(screen.getByRole('link', { name: 'Manage locations' })).toHaveAttribute('href', '/stock/locations');
+    await userEvent.click(screen.getByRole('button', { name: 'Add opening stock' }));
+    expect(screen.getByRole('dialog', { name: 'Opening stock' })).toBeInTheDocument();
   });
 
   it('shows the access-denied state for other roles, and a 401 read as "not signed in"', async () => {
@@ -291,9 +306,10 @@ describe('Adjust stock dialog (G3 / G5)', () => {
       reason: 'Spilled tin',
     });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Adjustment saved — Cooking Oil at Main Store: −2.5 LITER (05 Oct 2026, 13:00).',
-    );
+    // Success feedback is a toast (Figma R5): what happened + record and change, no codes.
+    const toast = screen.getByRole('status');
+    expect(toast).toHaveTextContent('Adjustment saved');
+    expect(toast).toHaveTextContent('Cooking Oil · Main Store · 72 → 69.5 L');
     await waitFor(() => expect(stockApi.listBalances).toHaveBeenCalledTimes(2));
   });
 
@@ -368,5 +384,235 @@ describe('StockLedgerPage (UI-STOCK-002, mobile G7)', () => {
     expect(await screen.findByText('Transfer in')).toBeInTheDocument();
     expect(screen.getByText('+10')).toBeInTheDocument();
     expect(OIL_MAIN.location_id).toBe(MAIN.id);
+  });
+});
+
+describe('Stock Ledger — Direction A refresh (UI-REFRESH-001)', () => {
+  const transfer = (id: string): StockTransferSummary => ({
+    id,
+    transfer_number: `TRF-${id}`,
+    from_location_id: MAIN.id,
+    from_location_name: MAIN.name,
+    to_location_id: LOWER.id,
+    to_location_name: LOWER.name,
+    status: 'SENT',
+    line_count: 1,
+    created_at: '2026-10-06T05:00:00Z',
+    updated_at: '2026-10-06T05:00:00Z',
+  });
+
+  beforeEach(() => {
+    stubMatchMedia({ wide: true, hover: true });
+    vi.mocked(stockApi.listLocations).mockResolvedValue(LOCATIONS);
+    vi.mocked(stockApi.listBalances).mockImplementation(async query => filterBy(BALANCES, query));
+    vi.mocked(stockApi.listMovements).mockImplementation(async query => filterBy(MOVEMENTS, query));
+    vi.mocked(stockApi.listTransfers).mockResolvedValue([transfer('1'), transfer('2')]);
+  });
+
+  afterEach(() => {
+    window.localStorage.clear();
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
+  });
+
+  function tile(label: string) {
+    const summary = screen.getByLabelText('Stock summary');
+    return within(summary).getByText(label).parentElement!;
+  }
+
+  it('shows the page intro and summary tiles computed from the loaded data', async () => {
+    renderPage();
+    await screen.findByRole('table');
+    expect(screen.getByRole('heading', { name: 'Balances by location' })).toBeInTheDocument();
+    expect(screen.getByText(/Current quantity of every item at every store, kitchen and freezer/)).toBeInTheDocument();
+    // 3 distinct items above zero (Cooking Oil counts once) at 3 locations; Sugar is the zero balance.
+    expect(tile('Items in stock')).toHaveTextContent('Items in stock3across 3 locations');
+    // Active locations only: Main Store, Freezer 1, Freezer 2, Lower Kitchen.
+    expect(tile('Locations')).toHaveTextContent('Locations41 store · 1 kitchen · 2 freezers');
+    expect(tile('Zero balances')).toHaveTextContent('Zero balances1hidden by filter');
+    await waitFor(() =>
+      expect(tile('Transfers in transit')).toHaveTextContent('Transfers in transit2not counted until received'),
+    );
+    expect(stockApi.listTransfers).toHaveBeenCalledWith({ status: 'SENT' });
+    expect(stockApi.listTransfers).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Hide zero balances' }));
+    expect(tile('Zero balances')).toHaveTextContent('Zero balances1shown in the list');
+    expect(screen.getByText('5 balances')).toBeInTheDocument();
+  });
+
+  it('shows "—" for transfers in transit when that read fails, without breaking the page', async () => {
+    vi.mocked(stockApi.listTransfers).mockRejectedValue(new ApiError(500, 'INTERNAL_ERROR', 'x'));
+    renderPage();
+    await screen.findByRole('table');
+    await waitFor(() =>
+      expect(tile('Transfers in transit')).toHaveTextContent('Transfers in transit—Could not load transfers'),
+    );
+    expect(screen.getByText('Basmati Rice')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows the result count, and the "/" shortcut focuses the balances search', async () => {
+    renderPage();
+    await screen.findByRole('table');
+    expect(screen.getByText('4 balances · 1 zero hidden')).toBeInTheDocument();
+    const search = screen.getByRole('searchbox', { name: 'Search item name or code' });
+    expect(search).not.toHaveFocus();
+    await userEvent.keyboard('/');
+    expect(search).toHaveFocus();
+    expect(search).toHaveValue('');
+  });
+
+  it('row actions: History icon button with a "History" tooltip, and an Adjust button', async () => {
+    renderPage();
+    await screen.findByRole('table');
+    const history = screen.getByRole('button', { name: 'History of Basmati Rice at Main Store' });
+    expect(history).toHaveAccessibleDescription('History');
+    expect(screen.getByRole('button', { name: 'Adjust Basmati Rice at Main Store' })).toHaveTextContent('Adjust');
+  });
+
+  it('Compact density puts the item code on the name line; Comfortable stacks it', async () => {
+    renderPage();
+    await screen.findByRole('table');
+    expect(screen.getByText('RC-001').parentElement).toHaveAttribute('data-item-layout', 'stacked');
+    await userEvent.click(screen.getByRole('button', { name: 'Compact' }));
+    expect(screen.getByText('RC-001').parentElement).toHaveAttribute('data-item-layout', 'inline');
+    expect(screen.getByRole('table')).toHaveAttribute('data-density', 'compact');
+  });
+
+  it('required columns cannot be hidden on Balances (Item, Quantity, Actions) or Movements (Item, Quantity)', async () => {
+    renderPage();
+    await screen.findByRole('table');
+    await userEvent.click(screen.getByRole('button', { name: /^Columns/ }));
+    let menu = screen.getByRole('dialog', { name: 'Show columns' });
+    for (const name of ['Item', 'Quantity', 'Actions']) {
+      expect(within(menu).getByRole('checkbox', { name: new RegExp(`^${name}`) })).toBeDisabled();
+    }
+    await userEvent.keyboard('{Escape}');
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Movements' }));
+    const table = await screen.findByRole('table', { name: 'Stock movements' });
+    await userEvent.click(screen.getByRole('button', { name: /^Columns/ }));
+    menu = screen.getByRole('dialog', { name: 'Show columns' });
+    expect(within(menu).getByRole('checkbox', { name: /^Item/ })).toBeDisabled();
+    expect(within(menu).getByRole('checkbox', { name: /^Quantity/ })).toBeDisabled();
+    const time = within(menu).getByRole('checkbox', { name: /^Time/ });
+    expect(time).toBeEnabled();
+    await userEvent.click(time);
+    expect(within(table).queryByRole('columnheader', { name: 'Time' })).not.toBeInTheDocument();
+    expect(within(table).getByRole('columnheader', { name: 'Item' })).toBeInTheDocument();
+    expect(within(table).getByRole('columnheader', { name: 'Quantity' })).toBeInTheDocument();
+  });
+
+  it('groups movements by Asia/Karachi day: Today / Yesterday / older, split at Karachi midnight', async () => {
+    const now = new Date('2026-10-07T10:00:00Z'); // 15:00 in Karachi, Wed 07 Oct
+    vi.mocked(stockApi.listMovements).mockResolvedValue([
+      movement('a', 'item-oil', MAIN, 'ADJUSTMENT', '-2.500000', 'Spilled tin', '2026-10-07T09:32:00Z'), // 14:32 PKT
+      movement('b', 'item-oil', MAIN, 'RECEIPT', '1000.000000', null, '2026-10-06T19:00:00Z'), // 00:00 PKT 07 Oct
+      movement('c', 'item-oil', MAIN, 'TRANSFER_OUT', '-6.000000', null, '2026-10-06T18:59:00Z'), // 23:59 PKT 06 Oct
+      movement('d', 'item-oil', MAIN, 'OPENING', '52.500000', null, '2026-10-05T05:00:00Z'), // 10:00 PKT 05 Oct
+    ]);
+    renderPage(now);
+    await screen.findByRole('table');
+    await userEvent.click(screen.getByRole('tab', { name: 'Movements' }));
+    const table = await screen.findByRole('table', { name: 'Stock movements' });
+    await within(table).findByText('14:32');
+    const rows = within(table).getAllByRole('row').slice(1);
+    const summary = rows.map(row =>
+      row.getAttribute('data-testid') === 'movement-day'
+        ? `# ${row.textContent}`
+        : within(row).getAllByRole('cell')[0]!.textContent,
+    );
+    expect(summary).toEqual([
+      '# Today · Wed 07 Oct 2026',
+      '14:32',
+      '00:00',
+      '# Yesterday · Tue 06 Oct 2026',
+      '23:59',
+      '# Mon 05 Oct 2026',
+      '10:00',
+    ]);
+    // Thousands separator, and the sign is always shown.
+    expect(within(table).getByText('+1,000')).toHaveClass('text-success-700');
+  });
+
+  it('shows signed, coloured quantities with the unit after, and type badges with the approved tones', async () => {
+    vi.mocked(stockApi.listMovements).mockResolvedValue([
+      ...MOVEMENTS,
+      movement('m7', 'item-oil', MAIN, 'WRITE_OFF' as StockMovement['movement_type'], '-1.000000', null, '2026-09-24T04:00:00Z'),
+    ]);
+    renderPage();
+    await screen.findByRole('table');
+    await userEvent.click(screen.getByRole('tab', { name: 'Movements' }));
+    const table = await screen.findByRole('table', { name: 'Stock movements' });
+    await within(table).findByText('Transfer return');
+
+    const plus = within(table).getByText('+32');
+    expect(plus).toHaveClass('text-success-700');
+    expect(plus.nextElementSibling).toHaveTextContent('L');
+    expect(within(table).getByText('−2.5')).toHaveClass('text-danger-700');
+
+    const tones: [string, string][] = [
+      ['Opening', 'bg-neutral-50'],
+      ['Receipt', 'bg-success-50'],
+      ['Transfer in', 'bg-info-50'],
+      ['Transfer out', 'bg-neutral-50'],
+      ['Adjustment', 'bg-warning-50'],
+      ['Transfer return', 'bg-neutral-50'],
+      ['WRITE_OFF', 'bg-neutral-50'],
+    ];
+    for (const [label, tone] of tones) {
+      expect(within(table).getByText(label)).toHaveClass(tone);
+    }
+  });
+
+  it('Adjust is a small (440px) dialog with an unsaved-changes guard on Cancel', async () => {
+    renderPage();
+    await screen.findByRole('table');
+    await userEvent.click(screen.getByRole('button', { name: 'Adjust Cooking Oil at Main Store' }));
+    let dialog = screen.getByRole('dialog', { name: 'Adjust stock' });
+    expect(dialog).toHaveAttribute('data-size', 'small');
+    expect(dialog).toHaveClass('md:max-w-[440px]');
+    // Nothing typed: Cancel closes straight away.
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog', { name: 'Adjust stock' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Adjust Cooking Oil at Main Store' }));
+    dialog = screen.getByRole('dialog', { name: 'Adjust stock' });
+    await userEvent.type(within(dialog).getByLabelText('Reason (required)'), 'Recount');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(within(dialog).getByText('Discard unsaved changes?')).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Keep editing' }));
+    expect(within(dialog).getByLabelText('Reason (required)')).toHaveValue('Recount');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Discard' }));
+    expect(screen.queryByRole('dialog', { name: 'Adjust stock' })).not.toBeInTheDocument();
+    expect(stockApi.createAdjustment).not.toHaveBeenCalled();
+  });
+
+  it('shows a loading skeleton while the ledger loads', () => {
+    vi.mocked(stockApi.listLocations).mockReturnValue(new Promise(() => undefined));
+    renderPage();
+    expect(screen.getAllByTestId('skeleton-row').length).toBeGreaterThan(0);
+    expect(screen.getByText('Loading stock ledger…')).toBeInTheDocument();
+  });
+
+  it('shows a plain error with "your data is safe", and Try again re-reads', async () => {
+    vi.mocked(stockApi.listLocations).mockRejectedValueOnce(new ApiError(500, 'INTERNAL_ERROR', 'The server did not answer.'));
+    renderPage();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('The server did not answer.');
+    expect(alert).toHaveTextContent('Your data is safe — nothing was changed.');
+    await userEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('table')).toBeInTheDocument();
+    expect(stockApi.listLocations).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows the no-access state (Owner and Manager only) without any API call', () => {
+    setRole('STAFF');
+    renderPage();
+    expect(screen.getByText('Only Owner and Manager can see this page. Ask the owner for access.')).toBeInTheDocument();
+    expect(stockApi.listLocations).not.toHaveBeenCalled();
+    expect(stockApi.listTransfers).not.toHaveBeenCalled();
   });
 });

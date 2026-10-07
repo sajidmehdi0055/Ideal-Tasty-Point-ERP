@@ -8,10 +8,13 @@ import type {
   StockLocationPatch,
   StockMovement,
   StockQuery,
+  StockTransferStatus,
+  StockTransferSummary,
 } from './types';
 
 const LOCATIONS_PATH = '/api/inventory/locations';
 const STOCK_PATH = '/api/inventory/stock';
+const TRANSFERS_PATH = '/api/inventory/transfers';
 
 export function listLocations(): Promise<StockLocation[]> {
   return apiClient.get<StockLocation[]>(LOCATIONS_PATH);
@@ -49,4 +52,13 @@ export function createAdjustment(input: StockAdjustmentInput): Promise<StockMove
 /** Opening stock must be the first entry for an item + location (ADR-0008 D-03, S-05 O-07). */
 export function createOpening(input: OpeningStockInput): Promise<StockMovement> {
   return apiClient.post<StockMovement>(`${STOCK_PATH}/opening`, input);
+}
+
+/**
+ * `GET /api/inventory/transfers?status=…` — array of transfer summaries
+ * (Owner/Manager, ADR-0011). The server query schema is strict: only `status` is sent.
+ */
+export function listTransfers(query: { status?: StockTransferStatus } = {}): Promise<StockTransferSummary[]> {
+  const suffix = query.status ? `?status=${encodeURIComponent(query.status)}` : '';
+  return apiClient.get<StockTransferSummary[]>(`${TRANSFERS_PATH}${suffix}`);
 }

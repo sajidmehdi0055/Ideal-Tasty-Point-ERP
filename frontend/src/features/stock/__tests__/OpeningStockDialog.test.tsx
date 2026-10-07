@@ -8,7 +8,7 @@ import type { Item } from '../../items/types';
 import * as stockApi from '../api';
 import { ITEM_PICKER_LIMIT } from '../ledger/ItemPicker';
 import { StockLedgerPage } from '../ledger/StockLedgerPage';
-import { BALANCES, FREEZER_2, LOCATIONS, movement, renderWithSession } from './fixtures';
+import { BALANCES, FREEZER_2, LOCATIONS, movement, renderWithProviders } from './fixtures';
 
 vi.mock('../api');
 vi.mock('../../items/api');
@@ -33,7 +33,7 @@ const RICE = item('item-rice', 'Basmati Rice', 'RC-001', 'KG');
 const ITEMS = [RICE, OIL];
 
 async function openDialog() {
-  renderWithSession(<StockLedgerPage />);
+  renderWithProviders(<StockLedgerPage />);
   await screen.findByRole('table');
   await userEvent.click(screen.getByRole('button', { name: 'Opening stock' }));
   return screen.getByRole('dialog', { name: 'Opening stock' });
@@ -216,9 +216,10 @@ describe('Opening stock dialog (UI-STOCK-003, G4)', () => {
 
     expect(stockApi.createOpening).toHaveBeenCalledWith({ item_id: OIL.id, location_id: FREEZER_2.id, quantity: '12.5' });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Opening stock saved — Cooking Oil at Main Store › Freezer 2: 12.5 LITER (05 Oct 2026, 13:00).',
-    );
+    // Success toast (Figma R5): what happened + record and change, no codes.
+    const toast = screen.getByRole('status');
+    expect(toast).toHaveTextContent('Opening stock saved');
+    expect(toast).toHaveTextContent('Cooking Oil · Main Store › Freezer 2 · +12.5 L');
     await waitFor(() => expect(stockApi.listBalances).toHaveBeenCalledTimes(2));
   });
 
@@ -325,5 +326,38 @@ describe('Opening stock dialog (UI-STOCK-003, G4)', () => {
       .filter(className => forbidden.test(className));
     expect(offenders).toEqual([]);
     expect([...dialog.querySelectorAll('[style]')]).toEqual([]);
+  });
+});
+
+describe('Opening stock dialog — Direction A refresh (UI-REFRESH-001)', () => {
+  beforeEach(() => {
+    stubMatchMedia({ wide: true, hover: true });
+    vi.mocked(stockApi.listLocations).mockResolvedValue(LOCATIONS);
+    vi.mocked(stockApi.listBalances).mockResolvedValue(BALANCES);
+    vi.mocked(stockApi.listMovements).mockResolvedValue([]);
+    vi.mocked(itemsApi.listItems).mockResolvedValue({ items: ITEMS, truncated: false });
+  });
+
+  afterEach(() => {
+    window.localStorage.clear();
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
+  });
+
+  it('is a medium (640px) dialog; Cancel asks before discarding a filled form', async () => {
+    let dialog = await openDialog();
+    expect(dialog).toHaveAttribute('data-size', 'medium');
+    expect(dialog).toHaveClass('md:max-w-[640px]');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog', { name: 'Opening stock' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Opening stock' }));
+    dialog = screen.getByRole('dialog', { name: 'Opening stock' });
+    await userEvent.selectOptions(within(dialog).getByRole('combobox', { name: 'Location' }), FREEZER_2.id);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(within(dialog).getByText('Discard unsaved changes?')).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Discard' }));
+    expect(screen.queryByRole('dialog', { name: 'Opening stock' })).not.toBeInTheDocument();
+    expect(stockApi.createOpening).not.toHaveBeenCalled();
   });
 });

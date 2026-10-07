@@ -1,3 +1,4 @@
+import { Badge, type BadgeTone } from '../../../design-system/components';
 import { LOCATION_TYPE_LABELS, type LocationType, type MovementType } from '../types';
 
 type TagTone = 'neutral' | 'info' | 'success' | 'warning';
@@ -22,6 +23,11 @@ export function LocationTypeTag({ type }: { type: LocationType }) {
   return <Tag label={LOCATION_TYPE_LABELS[type]} tone={type === 'FREEZER' ? 'info' : 'neutral'} />;
 }
 
+/** Direction A (UI-REFRESH-001): location type as a shared Badge — Store / Kitchen neutral, Freezer info. */
+export function LocationTypeBadge({ type }: { type: LocationType }) {
+  return <Badge tone={type === 'FREEZER' ? 'info' : 'neutral'}>{LOCATION_TYPE_LABELS[type] ?? type}</Badge>;
+}
+
 export const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
   OPENING: 'Opening',
   ADJUSTMENT: 'Adjustment',
@@ -31,18 +37,23 @@ export const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
   TRANSFER_RETURN: 'Transfer return',
 };
 
-const MOVEMENT_TONES: Record<MovementType, TagTone> = {
-  OPENING: 'info',
+/**
+ * Movement type tones (UI-REFRESH-001, owner-approved 2026-10-07): Opening
+ * neutral, Receipt success, Transfer in info, Transfer out neutral,
+ * Adjustment warning, Transfer return neutral.
+ */
+export const MOVEMENT_TYPE_TONES: Record<MovementType, BadgeTone> = {
+  OPENING: 'neutral',
   ADJUSTMENT: 'warning',
   RECEIPT: 'success',
   TRANSFER_OUT: 'neutral',
-  TRANSFER_IN: 'neutral',
+  TRANSFER_IN: 'info',
   TRANSFER_RETURN: 'neutral',
 };
 
 export function MovementTypeTag({ type }: { type: MovementType }) {
   // An unknown future type still renders (raw name, neutral) instead of breaking the row.
-  return <Tag label={MOVEMENT_TYPE_LABELS[type] ?? type} tone={MOVEMENT_TONES[type] ?? 'neutral'} />;
+  return <Badge tone={MOVEMENT_TYPE_TONES[type] ?? 'neutral'}>{MOVEMENT_TYPE_LABELS[type] ?? type}</Badge>;
 }
 
 /** `Stock/Badge/Status`: dot + Active / Inactive. */

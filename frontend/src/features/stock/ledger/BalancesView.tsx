@@ -1,15 +1,43 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ErrorState, LoadingState, SearchField } from '../../../design-system/components';
-import { BoxesIcon, InfoIcon, MapPinIcon } from '../../../design-system/icons';
-import { listBalances } from '../api';
+import { useMemo, useRef, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  Button,
+  EmptyState,
+  ErrorState,
+  IconButton,
+  LoadingState,
+  SearchField,
+  getButtonClassName,
+} from '../../../design-system/components';
+import {
+  ColumnsMenu,
+  DataCell,
+  DataGroupRow,
+  DataRow,
+  DataTable,
+  DataTableToolbar,
+  DensityToggle,
+  ResultCount,
+  useSlashFocus,
+  useTableSettings,
+  type ColumnDef,
+  type Density,
+  type TableSettings,
+} from '../../../design-system/data-table';
+import { HistoryIcon, InfoIcon, MapPinIcon, PackageIcon } from '../../../design-system/icons';
 import { ActionMenu } from '../components/ActionMenu';
 import { Checkbox } from '../components/Checkbox';
-import { TextAction } from '../components/TextAction';
-import { describeStockError } from '../format';
+import { LocationTypeBadge } from '../components/Tags';
 import { locationPath, orderLocationTree } from '../locations-tree';
-import { formatQuantity, isZeroQuantity } from '../quantity';
+import { isZeroQuantity } from '../quantity';
 import type { StockBalance, StockLocation } from '../types';
+import { ItemNameCode, QuantityText } from './cells';
 import { LocationFilter } from './LocationFilter';
+
+export type BalancesState =
+  | { status: 'loading' }
+  | { status: 'error'; message: string }
+  | { status: 'live'; balances: StockBalance[]; locationId: string };
 
 interface BalancesViewProps {
   isWide: boolean;
@@ -20,9 +48,11 @@ interface BalancesViewProps {
   onSearchChange: (search: string) => void;
   hideZero: boolean;
   onHideZeroChange: (hide: boolean) => void;
-  reloadToken: number;
-  /** Rendered at the right of the desktop toolbar (the Opening stock button). */
-  toolbarEnd: ReactNode;
+  /** Balances read by the page (the same read also feeds the summary tiles). */
+  state: BalancesState;
+  onRetry: () => void;
+  /** Opens the Opening stock dialog from the empty state; omitted where Opening stock is not offered (mobile, G7). */
+  onAddOpening?: (() => void) | undefined;
   onHistory: (balance: StockBalance) => void;
   onAdjust: (balance: StockBalance) => void;
 }
@@ -30,35 +60,25 @@ interface BalancesViewProps {
 interface Group {
   locationId: string;
   label: string;
+  location: StockLocation | undefined;
   balances: StockBalance[];
 }
 
-type LoadState = { status: 'loading' } | { status: 'error'; message: string } | { status: 'live'; balances: StockBalance[]; locationId: string };
+/** Stable column set (design-system/data-table). All three are required: nothing on this table can be hidden. */
+const COLUMNS: ColumnDef[] = [
+  { id: 'item', label: 'Item', required: true, minWidth: 200 },
+  { id: 'quantity', label: 'Quantity', required: true, minWidth: 112, defaultWidth: 160, align: 'right' },
+  { id: 'actions', label: 'Actions', required: true, minWidth: 132, defaultWidth: 148, align: 'right', resizable: false },
+];
 
-/** G1 / G6 / G7 — balances grouped by location. */
+export const BALANCES_SCREEN_ID = 'stock-balances';
+
+/** Figma R1 / R4 (UI-REFRESH-001) over G1 / G6 / G7 — balances grouped by location. */
 export function BalancesView(props: BalancesViewProps) {
-  const { isWide, locations, locationId, search, hideZero, reloadToken } = props;
-  const [state, setState] = useState<LoadState>({ status: 'loading' });
-  const [retryToken, setRetryToken] = useState(0);
-
-  useEffect(() => {
-    let ignore = false;
-    async function load() {
-      // A reload of the same filter keeps the current rows on screen until the
-      // new ones arrive; a different location filter shows the loading state.
-      setState(current => (current.status === 'live' && current.locationId === locationId ? current : { status: 'loading' }));
-      try {
-        const balances = await listBalances(locationId ? { location_id: locationId } : {});
-        if (!ignore) setState({ status: 'live', balances, locationId });
-      } catch (error) {
-        if (!ignore) setState({ status: 'error', message: describeStockError(error) });
-      }
-    }
-    void load();
-    return () => {
-      ignore = true;
-    };
-  }, [locationId, reloadToken, retryToken]);
+  const { isWide, locations, locationId, search, hideZero, state } = props;
+  const settings = useTableSettings(BALANCES_SCREEN_ID, COLUMNS);
+  const searchRef = useRef<HTMLInputElement>(null);
+  useSlashFocus(searchRef, { onClear: () => props.onSearchChange('') });
 
   const byId = useMemo(() => new Map(locations.map(location => [location.id, location])), [locations]);
 
@@ -82,6 +102,7 @@ export function BalancesView(props: BalancesViewProps) {
         group = {
           locationId: balance.location_id,
           label: location ? locationPath(location, byId) : balance.location_name,
+          location,
           balances: [],
         };
         groups.set(balance.location_id, group);
@@ -96,53 +117,81 @@ export function BalancesView(props: BalancesViewProps) {
 
   const noStockAtAll = view !== null && view.total === 0 && !locationId;
 
-  const toolbar = (
-    <div className={`flex flex-wrap items-center gap-x-3 gap-y-2 ${isWide ? 'px-4 py-3.5' : ''}`}>
-      <LocationFilter
-        locations={locations}
-        value={locationId}
-        onChange={props.onLocationChange}
-        className={isWide ? 'h-9 w-[220px]' : 'h-11 w-full'}
+  const locationFilter = (
+    <LocationFilter
+      locations={locations}
+      value={locationId}
+      onChange={props.onLocationChange}
+      className={isWide ? 'h-9 w-[220px]' : 'h-11 w-full'}
+    />
+  );
+  const filters = !noStockAtAll ? (
+    <>
+      <SearchField
+        ref={searchRef}
+        label="Search item name or code"
+        placeholder="Search item name or code"
+        value={search}
+        onChange={event => props.onSearchChange(event.target.value)}
+        onClear={() => props.onSearchChange('')}
+        {...(isWide ? { shortcutHint: '/' } : {})}
+        className={isWide ? 'w-[280px] [&_input]:h-9' : 'min-w-0 flex-1'}
       />
-      {!noStockAtAll ? (
+      <Checkbox label="Hide zero balances" checked={hideZero} onChange={props.onHideZeroChange} />
+    </>
+  ) : null;
+
+  const resultCount =
+    view && !noStockAtAll ? (
+      <ResultCount>
+        {view.shown} {view.shown === 1 ? 'balance' : 'balances'}
+        {hideZero && view.zeroHidden > 0 ? ` · ${view.zeroHidden} zero hidden` : ''}
+      </ResultCount>
+    ) : null;
+
+  const toolbar = isWide ? (
+    <DataTableToolbar
+      start={
         <>
-          <SearchField
-            label="Search item name or code"
-            placeholder="Search item name or code"
-            value={search}
-            onChange={event => props.onSearchChange(event.target.value)}
-            onClear={() => props.onSearchChange('')}
-            className={isWide ? 'w-[280px] [&_input]:h-9' : 'min-w-0 flex-1'}
-          />
-          <Checkbox label="Hide zero balances" checked={hideZero} onChange={props.onHideZeroChange} />
+          {locationFilter}
+          {filters}
         </>
-      ) : null}
-      {isWide ? <div className="flex-1" /> : null}
-      {isWide ? props.toolbarEnd : null}
+      }
+      end={
+        <>
+          {resultCount}
+          <ColumnsMenu settings={settings} />
+          <DensityToggle settings={settings} />
+        </>
+      }
+    />
+  ) : (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      {locationFilter}
+      {filters}
     </div>
   );
 
   let body: ReactNode;
-  if (state.status === 'loading' || view === null) {
-    body = state.status === 'error' ? (
-      <div className={isWide ? 'px-4 pb-4' : ''}>
-        <ErrorState message={state.message} onRetry={() => setRetryToken(token => token + 1)} />
-      </div>
-    ) : (
-      <LoadingState label="Loading balances…" />
-    );
+  if (state.status === 'error') {
+    body = <ErrorState message={state.message} onRetry={props.onRetry} />;
+  } else if (state.status === 'loading' || view === null) {
+    body = <LoadingState label="Loading balances…" />;
   } else if (noStockAtAll) {
     body = (
-      <div className="flex flex-col items-center gap-2 px-6 pb-12 pt-8 text-center">
-        <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full border border-line bg-canvas-sunken text-ink-secondary">
-          <BoxesIcon className="h-5 w-5" />
-        </span>
-        <p className="text-base font-semibold text-ink">No stock recorded yet</p>
-        <p className="max-w-sm text-[13px] text-ink-secondary">
-          Stock appears here after opening stock, a goods receipt or a transfer is recorded. Locations must exist first
-          (Stock Locations).
-        </p>
-      </div>
+      <EmptyState
+        icon={<PackageIcon />}
+        title="No stock in the ledger yet"
+        message="Start by entering opening stock for each store, kitchen and freezer. After that, receipts, transfers and adjustments will appear here automatically."
+        action={
+          <>
+            {props.onAddOpening ? <Button onClick={props.onAddOpening}>Add opening stock</Button> : null}
+            <Link to="/stock/locations" className={getButtonClassName({ variant: 'secondary' })}>
+              Manage locations
+            </Link>
+          </>
+        }
+      />
     );
   } else if (view.shown === 0) {
     let message = 'No stock at this location yet.';
@@ -150,12 +199,16 @@ export function BalancesView(props: BalancesViewProps) {
     else if (view.zeroHidden > 0) message = 'All balances here are zero. Untick “Hide zero balances” to see them.';
     body = <p className="px-4 py-10 text-center text-[13px] text-ink-muted">{message}</p>;
   } else {
-    body = isWide ? <BalancesTable groups={view.groups} {...props} /> : <BalanceCards groups={view.groups} {...props} />;
+    body = isWide ? (
+      <BalancesTable groups={view.groups} settings={settings} onHistory={props.onHistory} onAdjust={props.onAdjust} />
+    ) : (
+      <BalanceCards groups={view.groups} onHistory={props.onHistory} onAdjust={props.onAdjust} />
+    );
   }
 
   const footer =
     view && !noStockAtAll ? (
-      <p className={`flex gap-1.5 text-xs text-ink-muted ${isWide ? 'px-4 py-3' : 'px-1'}`}>
+      <p className={`flex gap-1.5 text-xs text-ink-muted ${isWide ? 'border-t border-line px-4 py-3' : 'px-1'}`}>
         <InfoIcon className="mt-px h-3.5 w-3.5 shrink-0" />
         <span>
           Quantity only — no value or cost (ADR-0008). Stock in transit (sent, not yet received) is not included.{' '}
@@ -174,95 +227,94 @@ export function BalancesView(props: BalancesViewProps) {
   );
 }
 
-const HEAD = 'px-3 text-[11px] font-semibold uppercase tracking-[0.5px] text-ink-muted';
-
-function Quantity({ balance, large = false }: { balance: StockBalance; large?: boolean }) {
+function GroupHeading({ group }: { group: Group }) {
+  const count = group.balances.length;
   return (
-    <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
-      <span className={`font-semibold text-ink ${large ? 'text-[15px]' : 'text-[13px]'}`}>{formatQuantity(balance.quantity)}</span>
-      <span className="text-[11px] font-medium text-ink-muted">{balance.base_uom}</span>
+    <span className={`flex min-w-0 items-center gap-2 ${group.location?.parent_id ? 'pl-6' : ''}`}>
+      <MapPinIcon className="h-3.5 w-3.5 shrink-0 text-ink-secondary" />
+      <span className="truncate font-semibold text-ink">{group.label}</span>
+      {group.location ? <LocationTypeBadge type={group.location.location_type} /> : null}
+      <span className="shrink-0 font-normal text-ink-muted">
+        {count} {count === 1 ? 'item' : 'items'}
+      </span>
     </span>
   );
 }
 
-function GroupLabel({ group }: { group: Group }) {
+interface RowActions {
+  onHistory: (balance: StockBalance) => void;
+  onAdjust: (balance: StockBalance) => void;
+}
+
+function BalancesTable({ groups, settings, onHistory, onAdjust }: { groups: Group[]; settings: TableSettings } & RowActions) {
+  return (
+    <DataTable settings={settings} ariaLabel="Stock balances" maxHeight="calc(100vh - 360px)">
+      {groups.map(group => (
+        <GroupRows key={group.locationId} group={group} density={settings.density} onHistory={onHistory} onAdjust={onAdjust} />
+      ))}
+    </DataTable>
+  );
+}
+
+function GroupRows({ group, density, onHistory, onAdjust }: { group: Group; density: Density } & RowActions) {
   return (
     <>
-      <MapPinIcon className="h-3.5 w-3.5 shrink-0 text-ink-secondary" />
-      <span className="font-semibold text-ink-secondary">{group.label}</span>
-      <span className="text-ink-muted">
-        · {group.balances.length} {group.balances.length === 1 ? 'item' : 'items'}
-      </span>
+      <DataGroupRow data-testid="balance-group">
+        <GroupHeading group={group} />
+      </DataGroupRow>
+      {group.balances.map(balance => (
+        <DataRow key={`${balance.location_id}:${balance.item_id}`}>
+          <DataCell>
+            <ItemNameCode name={balance.item_name} code={balance.item_code} density={density} />
+          </DataCell>
+          <DataCell numeric>
+            <QuantityText value={balance.quantity} unit={balance.base_uom} />
+          </DataCell>
+          {/* `wrap` so the History tooltip is not clipped by the cell's overflow. */}
+          <DataCell align="right" wrap>
+            <span className="flex items-center justify-end gap-2">
+              <IconButton
+                label={`History of ${balance.item_name} at ${group.label}`}
+                tooltip="History"
+                tooltipSide="left"
+                icon={<HistoryIcon />}
+                onClick={() => onHistory(balance)}
+              />
+              <Button
+                size="xs"
+                variant="secondary"
+                aria-label={`Adjust ${balance.item_name} at ${group.label}`}
+                onClick={() => onAdjust(balance)}
+              >
+                Adjust
+              </Button>
+            </span>
+          </DataCell>
+        </DataRow>
+      ))}
     </>
   );
 }
 
-function BalancesTable({ groups, onHistory, onAdjust }: { groups: Group[] } & BalancesViewProps) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[600px] border-collapse text-left">
-        <thead>
-          <tr className="h-9 border-y border-line bg-canvas-sunken">
-            <th scope="col" className={`${HEAD} pl-4`}>Item</th>
-            <th scope="col" className={`${HEAD} w-[120px] lg:w-[164px]`}>Code</th>
-            <th scope="col" className={`${HEAD} w-[180px] lg:w-[224px] text-right`}>Quantity (base unit)</th>
-            <th scope="col" className={`${HEAD} w-[150px] lg:w-[176px] pr-4 text-right`}>Actions</th>
-          </tr>
-        </thead>
-        {groups.map(group => (
-          <tbody key={group.locationId}>
-            <tr className="h-8 border-b border-line bg-canvas-sunken">
-              <th scope="colgroup" colSpan={4} className="px-4 text-left text-xs font-normal">
-                <span className="flex items-center gap-2">
-                  <GroupLabel group={group} />
-                </span>
-              </th>
-            </tr>
-            {group.balances.map(balance => (
-              <tr key={`${balance.location_id}:${balance.item_id}`} className="h-11 border-b border-line">
-                <td className="px-3 pl-4 text-[13px] font-medium text-ink">{balance.item_name}</td>
-                <td className="px-3 text-xs text-ink-secondary">{balance.item_code}</td>
-                <td className="px-3 text-right">
-                  <Quantity balance={balance} />
-                </td>
-                <td className="px-3 pr-4">
-                  <span className="flex justify-end gap-4">
-                    <TextAction onClick={() => onHistory(balance)} aria-label={`History of ${balance.item_name} at ${group.label}`}>
-                      History
-                    </TextAction>
-                    <TextAction tone="strong" onClick={() => onAdjust(balance)} aria-label={`Adjust ${balance.item_name} at ${group.label}`}>
-                      Adjust
-                    </TextAction>
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        ))}
-      </table>
-    </div>
-  );
-}
-
-function BalanceCards({ groups, onHistory, onAdjust }: { groups: Group[] } & BalancesViewProps) {
+function BalanceCards({ groups, onHistory, onAdjust }: { groups: Group[] } & RowActions) {
   return (
     <div className="flex flex-col gap-3">
       {groups.map(group => (
         <section key={group.locationId} aria-label={group.label} className="flex flex-col gap-2">
-          <h3 className="flex items-center gap-1.5 px-1 text-xs">
-            <GroupLabel group={group} />
+          <h3 className="px-1 text-xs">
+            <GroupHeading group={group} />
           </h3>
           <ul className="flex flex-col gap-2">
             {group.balances.map(balance => (
               <li
                 key={`${balance.location_id}:${balance.item_id}`}
-                className="flex items-center gap-3 rounded-card border border-line bg-canvas py-3 pl-4 pr-2"
+                className="flex items-center gap-3 rounded-card border border-line bg-canvas py-3 pl-4 pr-2 shadow-card"
               >
                 <div className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-[15px] font-semibold text-ink">{balance.item_name}</span>
-                  <span className="text-xs text-ink-secondary">{balance.item_code}</span>
+                  <span className="text-xs text-ink-muted">{balance.item_code}</span>
                 </div>
-                <Quantity balance={balance} large />
+                <QuantityText value={balance.quantity} unit={balance.base_uom} large />
                 <ActionMenu
                   label={`Actions for ${balance.item_name} at ${group.label}`}
                   items={[
