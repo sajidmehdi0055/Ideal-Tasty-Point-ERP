@@ -2,7 +2,9 @@
 
 /*
  * Design tokens — ERP Shell v2 (owner-approved 2026-09-27; Figma file
- * N9KkqXIQuvCUj9NVAj6Cx4, variable collection "ITP / Theme", section 89:2).
+ * N9KkqXIQuvCUj9NVAj6Cx4, variable collection "ITP / Theme", section 89:2),
+ * re-valued for UI-REFRESH-001 "Direction A" (owner-approved 2026-10-07;
+ * Figma section 122:12606, R1 Balances 122:12607).
  *
  * Two layers:
  *  1. `--itp-*` custom properties hold the actual values, once for the Light
@@ -14,8 +16,18 @@
  *     (`bg-white`, `bg-slate-900`, `#1e293b`, …), or they will not theme.
  *
  * The legacy names (canvas, line, ink, primary-*, …) are kept so existing
- * screens keep compiling; they now resolve to the approved Charcoal/Slate
- * values instead of the old blue primary.
+ * screens keep compiling; they resolve to the current Direction A values.
+ *
+ * Status mapping: *-50 = badge/message background, *-700 = text colour,
+ * *-600 = the same text colour (dots/icons).
+ *
+ * Derived values (not in the Direction A table; derived from its colours):
+ *  - action-hover:    Light #2a3bb8 (≈12% darker #3346d3); Dark #4a5ae6 (slightly deeper #5566f0; a lighter hover would drop white text below AA, 3.68:1)
+ *  - action-disabled: Light #8f99e7 (#3346d3 45% toward white); Dark #35408a (#5566f0 50% toward bg/surface)
+ *  - focus-soft:      Light #d6dbfa / Dark #26306a (soft indigo ring around focused inputs)
+ *  - danger-solid:    #c0262d (= Light danger text) in both themes, so white button text stays AA in Dark too
+ *  - danger-solid-hover: #a31f25 (≈15% darker) in both themes
+ *  - neutral-50/600/700: bg/hover, text/muted, text/secondary of each theme
  */
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
@@ -23,98 +35,108 @@
 
 :root {
   color-scheme: light;
-  --itp-bg-app: #f1f5f9;
+  --itp-bg-app: #f6f7fb;
   --itp-bg-surface: #ffffff;
-  --itp-bg-sunken: #f8fafc;
-  --itp-bg-hover: #f1f5f9;
+  --itp-bg-sunken: #fafbfd;
+  --itp-bg-hover: #f1f3f8;
   --itp-text-primary: #0f172a;
   --itp-text-secondary: #475569;
-  --itp-text-muted: #64748b;
-  --itp-border: #e2e8f0;
-  --itp-border-strong: #cbd5e1;
-  --itp-action: #1e293b;
-  --itp-action-hover: #0f172a;
-  --itp-action-disabled: #94a3b8;
+  --itp-text-muted: #5f6b7e;
+  --itp-border: #e6e9f0;
+  --itp-border-strong: #cfd5e0;
+  --itp-action: #3346d3;
+  --itp-action-hover: #2a3bb8;
+  --itp-action-disabled: #8f99e7;
   --itp-on-action: #ffffff;
-  --itp-focus: #334155;
-  --itp-focus-soft: #e2e8f0;
-  --itp-overlay: rgba(15, 23, 42, 0.45);
+  --itp-focus: #3346d3;
+  --itp-focus-soft: #d6dbfa;
+  --itp-overlay: rgba(15, 23, 42, 0.35);
 
-  --itp-sidebar-bg: #1e293b;
-  --itp-sidebar-border: #334155;
-  --itp-sidebar-text: #94a3b8;
-  --itp-sidebar-text-active: #f8fafc;
-  --itp-sidebar-section: #8492a8;
-  --itp-sidebar-item-active: rgba(148, 163, 184, 0.18);
-  --itp-sidebar-item-hover: rgba(148, 163, 184, 0.1);
-  --itp-sidebar-pending-bg: rgba(245, 158, 11, 0.16);
-  --itp-sidebar-pending-text: #fcd34d;
+  --itp-sidebar-bg: #ffffff;
+  --itp-sidebar-border: #e6e9f0;
+  --itp-sidebar-text: #475569;
+  --itp-sidebar-text-active: #3346d3;
+  --itp-sidebar-section: #64748b;
+  --itp-sidebar-item-active: #eef2ff;
+  --itp-sidebar-item-hover: #f1f3f8;
+  --itp-sidebar-indicator: #3346d3;
+  --itp-sidebar-pending-bg: #fff2dc;
+  --itp-sidebar-pending-text: #a15c00;
 
-  --itp-success-50: #ecfdf5;
-  --itp-success-600: #059669;
-  --itp-success-700: #047857;
-  --itp-warning-50: #fffbeb;
-  --itp-warning-600: #d97706;
-  --itp-warning-700: #b45309;
-  --itp-danger-50: #fef2f2;
-  --itp-danger-600: #dc2626;
-  --itp-danger-700: #b91c1c;
-  --itp-danger-solid: #dc2626;
-  --itp-danger-solid-hover: #b91c1c;
-  --itp-info-50: #eff6ff;
-  --itp-info-600: #2563eb;
-  --itp-info-700: #1d4ed8;
-  --itp-neutral-50: #f1f5f9;
-  --itp-neutral-600: #475569;
-  --itp-neutral-700: #334155;
+  --itp-success-50: #e3f6ec;
+  --itp-success-600: #0b7a4b;
+  --itp-success-700: #0b7a4b;
+  --itp-warning-50: #fff2dc;
+  --itp-warning-600: #a15c00;
+  --itp-warning-700: #a15c00;
+  --itp-danger-50: #fde8e8;
+  --itp-danger-600: #c0262d;
+  --itp-danger-700: #c0262d;
+  --itp-danger-solid: #c0262d;
+  --itp-danger-solid-hover: #a31f25;
+  --itp-info-50: #eef2ff;
+  --itp-info-600: #3346d3;
+  --itp-info-700: #3346d3;
+  --itp-neutral-50: #f1f3f8;
+  --itp-neutral-600: #5f6b7e;
+  --itp-neutral-700: #475569;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --itp-bg-app: #0b1120;
-  --itp-bg-surface: #131c2e;
-  --itp-bg-sunken: #0f1726;
-  --itp-bg-hover: #1b2539;
-  --itp-text-primary: #e2e8f0;
-  --itp-text-secondary: #a3b1c6;
-  --itp-text-muted: #8391a7;
-  --itp-border: #243049;
-  --itp-border-strong: #334155;
-  --itp-action: #e2e8f0;
-  --itp-action-hover: #f8fafc;
-  --itp-action-disabled: #475569;
-  --itp-on-action: #0f172a;
-  --itp-focus: #cbd5e1;
-  --itp-focus-soft: #243049;
-  --itp-overlay: rgba(0, 0, 0, 0.6);
+  --itp-bg-app: #0d1017;
+  --itp-bg-surface: #151a24;
+  --itp-bg-sunken: #121721;
+  --itp-bg-hover: #1b2130;
+  --itp-text-primary: #e7eaf2;
+  --itp-text-secondary: #b4bccb;
+  --itp-text-muted: #8d97ab;
+  --itp-border: #252c3a;
+  --itp-border-strong: #343c4d;
+  --itp-action: #5566f0;
+  --itp-action-hover: #4a5ae6;
+  --itp-action-disabled: #35408a;
+  --itp-on-action: #ffffff;
+  --itp-focus: #8a98ff;
+  --itp-focus-soft: #26306a;
+  --itp-overlay: rgba(0, 0, 0, 0.55);
 
-  --itp-sidebar-bg: #070b14;
-  --itp-sidebar-border: #1a2233;
-  --itp-sidebar-text: #94a3b8;
-  --itp-sidebar-text-active: #f8fafc;
-  --itp-sidebar-section: #6b7a92;
-  --itp-sidebar-item-active: rgba(148, 163, 184, 0.14);
-  --itp-sidebar-item-hover: rgba(148, 163, 184, 0.08);
-  --itp-sidebar-pending-bg: rgba(245, 158, 11, 0.14);
-  --itp-sidebar-pending-text: #fcd34d;
+  --itp-sidebar-bg: #10141d;
+  --itp-sidebar-border: #1f2532;
+  --itp-sidebar-text: #97a1b5;
+  --itp-sidebar-text-active: #c3cbff;
+  --itp-sidebar-section: #828ca1;
+  --itp-sidebar-item-active: #1d2546;
+  --itp-sidebar-item-hover: #171d29;
+  --itp-sidebar-indicator: #8a98ff;
+  --itp-sidebar-pending-bg: #352611;
+  --itp-sidebar-pending-text: #f3b35a;
 
-  --itp-success-50: rgba(16, 185, 129, 0.14);
-  --itp-success-600: #34d399;
-  --itp-success-700: #6ee7b7;
-  --itp-warning-50: rgba(245, 158, 11, 0.14);
-  --itp-warning-600: #fbbf24;
-  --itp-warning-700: #fcd34d;
-  --itp-danger-50: rgba(239, 68, 68, 0.14);
-  --itp-danger-600: #f87171;
-  --itp-danger-700: #fca5a5;
-  --itp-danger-solid: #dc2626;
-  --itp-danger-solid-hover: #b91c1c;
-  --itp-info-50: rgba(59, 130, 246, 0.16);
-  --itp-info-600: #60a5fa;
-  --itp-info-700: #93c5fd;
-  --itp-neutral-50: #1b2539;
-  --itp-neutral-600: #a3b1c6;
-  --itp-neutral-700: #cbd5e1;
+  --itp-success-50: #10301f;
+  --itp-success-600: #4fd39a;
+  --itp-success-700: #4fd39a;
+  --itp-warning-50: #352611;
+  --itp-warning-600: #f3b35a;
+  --itp-warning-700: #f3b35a;
+  --itp-danger-50: #3a1517;
+  --itp-danger-600: #ff7b7f;
+  --itp-danger-700: #ff7b7f;
+  --itp-danger-solid: #c0262d;
+  --itp-danger-solid-hover: #a31f25;
+  --itp-info-50: #1d2546;
+  --itp-info-600: #aab6ff;
+  --itp-info-700: #aab6ff;
+  --itp-neutral-50: #1b2130;
+  --itp-neutral-600: #8d97ab;
+  --itp-neutral-700: #b4bccb;
+}
+
+/* Theme-independent layout tokens (UI-REFRESH-001): table row heights and page gutter. */
+:root {
+  --itp-row-comfortable: 48px;
+  --itp-row-compact: 36px;
+  --itp-row-header: 40px;
+  --itp-gutter: 28px;
 }
 
 @theme inline {
@@ -130,14 +152,14 @@
   --color-ink-muted: var(--itp-text-muted);
   --color-overlay: var(--itp-overlay);
 
-  /* Primary action (Charcoal/Slate; inverts to light-on-dark in Dark) */
+  /* Primary action (indigo, Direction A) */
   --color-action: var(--itp-action);
   --color-action-hover: var(--itp-action-hover);
   --color-action-disabled: var(--itp-action-disabled);
   --color-on-action: var(--itp-on-action);
   --color-focus: var(--itp-focus);
 
-  /* Legacy primary-* names, remapped to the approved slate action/focus set */
+  /* Legacy primary-* names, remapped to the action/focus set */
   --color-primary-50: var(--itp-bg-sunken);
   --color-primary-100: var(--itp-focus-soft);
   --color-primary-200: var(--itp-focus-soft);
@@ -157,6 +179,7 @@
   --color-sidebar-section: var(--itp-sidebar-section);
   --color-sidebar-item-active: var(--itp-sidebar-item-active);
   --color-sidebar-item-hover: var(--itp-sidebar-item-hover);
+  --color-sidebar-indicator: var(--itp-sidebar-indicator);
   --color-sidebar-pending-bg: var(--itp-sidebar-pending-bg);
   --color-sidebar-pending-text: var(--itp-sidebar-pending-text);
 
@@ -178,20 +201,53 @@
   --color-neutral-50: var(--itp-neutral-50);
   --color-neutral-600: var(--itp-neutral-600);
   --color-neutral-700: var(--itp-neutral-700);
+
+  /* Layout: h-row-comfortable / h-row-compact / h-row-header, px-gutter */
+  --spacing-row-comfortable: var(--itp-row-comfortable);
+  --spacing-row-compact: var(--itp-row-compact);
+  --spacing-row-header: var(--itp-row-header);
+  --spacing-gutter: var(--itp-gutter);
 }
 
 @theme {
-  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
-  /* Consistent control/card corner radius */
-  --radius-control: 0.375rem;
-  --radius-card: 0.5rem;
+  /* Corner radii: control 9px, card 14px, dialog 16px; pills use rounded-full. */
+  --radius-control: 9px;
+  --radius-card: 14px;
+  --radius-dialog: 16px;
 
-  /* Consistent elevation */
-  --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.06), 0 1px 3px 0 rgb(15 23 42 / 0.08);
-  --shadow-dropdown: 0 4px 6px -1px rgb(15 23 42 / 0.1), 0 2px 4px -2px rgb(15 23 42 / 0.08);
-  --shadow-modal: 0 20px 25px -5px rgb(15 23 42 / 0.15), 0 8px 10px -6px rgb(15 23 42 / 0.1);
-  --shadow-peek: 6px 0 28px 0 rgb(2 8 23 / 0.28);
+  /* Elevation (softened for Direction A) */
+  --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.05);
+  --shadow-dropdown: 0 6px 16px -4px rgb(15 23 42 / 0.1), 0 2px 4px -2px rgb(15 23 42 / 0.06);
+  --shadow-modal: 0 24px 48px -12px rgb(15 23 42 / 0.18), 0 8px 16px -8px rgb(15 23 42 / 0.08);
+  --shadow-peek: 6px 0 28px 0 rgb(2 8 23 / 0.2);
+}
+
+/*
+ * Manrope variable font (wght 200–800), self-hosted; no CDN at runtime.
+ * Source, version and SIL OFL 1.1 licence: src/assets/fonts/manrope/README.md.
+ * unicode-range values copied from @fontsource-variable/manrope@5.3.0.
+ * Number columns use Tailwind's `tabular-nums` utility so digits line up.
+ */
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url("../assets/fonts/manrope/manrope-latin-ext-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url("../assets/fonts/manrope/manrope-latin-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 body {
