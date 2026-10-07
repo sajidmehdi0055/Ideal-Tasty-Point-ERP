@@ -16,7 +16,6 @@ import {
   useSlashFocus,
   useTableSettings,
 } from '../../../design-system/data-table';
-import { PlusIcon } from '../../../design-system/icons';
 import { ApiError } from '../../../lib/api-client';
 import { listUoms, createUom, updateUom } from './api';
 import { UOM_COLUMNS, UomTable } from './UomTable';
@@ -164,13 +163,12 @@ export function UomMasterPanel({ tabs }: UomMasterPanelProps = {}) {
   const countText = searching ? `${filteredUoms.length} of ${uoms.length} units` : `${uoms.length} units`;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <PageIntro
         title="Units of measure"
         description="Units used for item base units, pack sizes and stock quantities. Names are unique."
         actions={
           <Button variant="primary" onClick={openCreate}>
-            <PlusIcon className="h-4 w-4" />
             New unit
           </Button>
         }
@@ -188,7 +186,7 @@ export function UomMasterPanel({ tabs }: UomMasterPanelProps = {}) {
               value={search}
               onChange={event => setSearch(event.target.value)}
               onClear={() => setSearch('')}
-              className="w-full max-w-xs"
+              className="w-full max-w-[280px] [&_input]:h-9"
             />
           }
           end={
@@ -222,7 +220,6 @@ export function UomMasterPanel({ tabs }: UomMasterPanelProps = {}) {
               action={
                 uoms.length === 0 ? (
                   <Button variant="primary" size="sm" onClick={openCreate}>
-                    <PlusIcon className="h-4 w-4" />
                     New unit
                   </Button>
                 ) : undefined

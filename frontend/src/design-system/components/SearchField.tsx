@@ -26,7 +26,7 @@ export function SearchField({ label, value, onClear, shortcutHint, className = '
         type="search"
         aria-label={label}
         value={value}
-        className="h-10 w-full rounded-control border border-line bg-canvas py-2 pl-9 pr-8 text-sm text-ink outline-none transition-colors placeholder:text-ink-muted focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+        className="h-10 w-full rounded-control border border-line-strong bg-canvas py-2 pl-9 pr-8 text-[13px] text-ink outline-none transition-colors placeholder:text-ink-muted focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
         {...rest}
       />
       {showClear ? (
@@ -41,7 +41,7 @@ export function SearchField({ label, value, onClear, shortcutHint, className = '
       ) : shortcutHint && !value ? (
         <kbd
           aria-hidden="true"
-          className="pointer-events-none absolute right-2 flex h-5 min-w-5 items-center justify-center rounded-[5px] border border-line-strong px-1 font-sans text-[11px] font-semibold text-ink-muted"
+          className="pointer-events-none absolute right-2 flex h-5 min-w-5 items-center justify-center rounded-[5px] border border-line-strong bg-canvas-sunken px-1.5 font-sans text-[11.5px] font-bold text-ink-muted"
         >
           {shortcutHint}
         </kbd>

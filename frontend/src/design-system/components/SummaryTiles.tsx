@@ -31,11 +31,11 @@ export function SummaryTiles({ tiles, ariaLabel = 'Summary' }: SummaryTilesProps
           key={tile.id}
           className="flex min-w-0 flex-col gap-0.5 rounded-card border border-line bg-canvas px-[18px] py-4 shadow-card"
         >
-          <dt className="truncate text-[12.5px] font-semibold text-ink-muted">{tile.label}</dt>
-          <dd className={`text-[26px] font-extrabold leading-tight tabular-nums ${valueTone[tile.tone ?? 'default']}`}>
+          <dt className="truncate text-[12.5px] leading-[normal] font-semibold text-ink-muted">{tile.label}</dt>
+          <dd className={`text-[26px] leading-[normal] font-extrabold tabular-nums ${valueTone[tile.tone ?? 'default']}`}>
             {tile.value}
           </dd>
-          {tile.note ? <dd className="truncate text-xs text-ink-muted">{tile.note}</dd> : null}
+          {tile.note ? <dd className="truncate text-xs leading-[normal] text-ink-muted">{tile.note}</dd> : null}
         </div>
       ))}
     </dl>

@@ -160,7 +160,10 @@ export function Modal({
       onClose={() => {
         // Safety net: if the browser ever closes the dialog by itself (e.g. a
         // forced close request), keep the owner's `open` state in sync.
-        if (!closingByOwnerRef.current && latest.current.open) onClose();
+        // The `close` event is queued, so a close-then-reopen (React StrictMode
+        // re-running the effect in dev) must not count: only sync when it is
+        // still closed when the event arrives.
+        if (!closingByOwnerRef.current && latest.current.open && !dialogRef.current?.open) onClose();
       }}
       onCancel={event => {
         // Never let the browser close the dialog by itself: the guards above decide.
@@ -172,7 +175,7 @@ export function Modal({
       }}
       aria-labelledby={titleId}
       data-size={size}
-      className={`m-0 h-full max-h-none w-full max-w-none overflow-hidden rounded-none border-0 bg-canvas p-0 shadow-modal backdrop:bg-overlay md:m-auto md:h-auto md:w-full md:rounded-dialog md:border md:border-line ${WIDTH_CLASS[size]}`}
+      className={`m-0 h-full max-h-none w-full max-w-none overflow-hidden rounded-none border-0 bg-canvas p-0 shadow-modal backdrop:bg-overlay md:m-auto md:h-fit md:w-full md:rounded-dialog md:border md:border-line ${WIDTH_CLASS[size]}`}
     >
       <ModalContext.Provider value={controls}>
         <div

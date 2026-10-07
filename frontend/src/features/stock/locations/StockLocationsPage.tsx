@@ -19,7 +19,7 @@ import {
   useSlashFocus,
   useTableSettings,
 } from '../../../design-system/data-table';
-import { LockIcon, PlusIcon, WarehouseIcon } from '../../../design-system/icons';
+import { LockIcon, WarehouseIcon } from '../../../design-system/icons';
 import { ApiError } from '../../../lib/api-client';
 import { useDevSession } from '../../../lib/session';
 import { useMediaQuery } from '../../../lib/use-media-query';
@@ -236,7 +236,7 @@ function StockLocationsContent({ isOwner }: { isOwner: boolean }) {
       onChange={event => setSearch(event.target.value)}
       onClear={() => setSearch('')}
       {...(isWide ? { shortcutHint: '/' } : {})}
-      className={isWide ? 'w-[280px]' : 'min-w-0 flex-1'}
+      className={isWide ? 'w-[280px] [&_input]:h-9' : 'min-w-0 flex-1'}
     />
   );
   const showInactiveBox = !isEmpty ? (
@@ -288,7 +288,6 @@ function StockLocationsContent({ isOwner }: { isOwner: boolean }) {
         message="Add your main store first, then kitchens and the freezers inside them. Stock can only be recorded against a location."
         action={
           <Button onClick={openCreate}>
-            <PlusIcon className="h-4 w-4" />
             New location
           </Button>
         }
@@ -327,7 +326,6 @@ function StockLocationsContent({ isOwner }: { isOwner: boolean }) {
         description={PAGE_DESCRIPTION}
         actions={
           <Button onClick={openCreate} className="font-semibold">
-            <PlusIcon className="h-4 w-4" />
             New location
           </Button>
         }

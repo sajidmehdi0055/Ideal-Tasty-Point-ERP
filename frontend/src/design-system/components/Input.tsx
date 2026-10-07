@@ -16,7 +16,7 @@ export function Input({ label, error, hint, required, className = '', ...rest }:
           required={required}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
-          className={`h-10 rounded-control border px-3 text-sm text-ink outline-none transition-colors placeholder:text-ink-muted focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-canvas-muted disabled:text-ink-muted ${error ? 'border-danger-600' : 'border-line'} ${className}`}
+          className={`h-10 rounded-control border px-3 text-[13px] text-ink outline-none transition-colors placeholder:text-ink-muted focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-canvas-muted disabled:text-ink-muted ${error ? 'border-danger-600' : 'border-line-strong'} ${className}`}
           {...rest}
         />
       )}

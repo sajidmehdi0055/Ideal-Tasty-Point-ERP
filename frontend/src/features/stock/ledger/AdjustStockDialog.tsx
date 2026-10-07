@@ -115,8 +115,8 @@ export function AdjustStockDialog({ balance, locationLabel, onSaved, onClose }: 
     const selected = direction === value;
     return (
       <label
-        className={`flex h-8 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-control text-[13px] transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus ${
-          selected ? 'bg-canvas font-semibold text-ink shadow-card' : 'font-medium text-ink-secondary hover:text-ink'
+        className={`flex h-[30px] flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[4px] text-[13px] transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus ${
+          selected ? 'bg-canvas font-semibold text-ink shadow-card' : 'font-medium text-ink-muted hover:text-ink'
         }`}
       >
         <input
@@ -154,15 +154,15 @@ export function AdjustStockDialog({ balance, locationLabel, onSaved, onClose }: 
       )}
     >
       <form id="stock-adjust-form" noValidate onSubmit={event => void handleSubmit(event)} className="flex flex-col gap-4">
-        <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-1 rounded-control bg-canvas-sunken px-3 py-2.5 text-xs">
+        <dl className="grid grid-cols-[110px_1fr] gap-x-2 gap-y-2 rounded-control bg-canvas-sunken px-3.5 py-3 text-xs leading-[normal]">
           <dt className="text-ink-muted">Item</dt>
           <dd className="text-[13px] font-semibold text-ink">
             {balance.item_name} · {balance.item_code}
           </dd>
           <dt className="text-ink-muted">Location</dt>
-          <dd className="text-[13px] text-ink">{locationLabel}</dd>
+          <dd className="text-[13px] font-medium text-ink">{locationLabel}</dd>
           <dt className="text-ink-muted">Current balance</dt>
-          <dd className="text-[13px] text-ink">
+          <dd className="text-[13px] font-medium text-ink">
             {formatQuantity(balance.quantity)} {unit}
           </dd>
         </dl>
@@ -178,8 +178,8 @@ export function AdjustStockDialog({ balance, locationLabel, onSaved, onClose }: 
         ) : null}
 
         <fieldset className="flex flex-col gap-1.5" aria-describedby={errors.direction ? `${directionId}-error` : undefined}>
-          <legend className="mb-1.5 text-sm font-medium text-ink">Change</legend>
-          <div className="flex gap-1 rounded-card border border-line bg-canvas-sunken p-0.5">
+          <legend className="mb-1.5 text-xs font-semibold text-ink">Change</legend>
+          <div className="flex rounded-control border border-line bg-canvas-sunken p-[3px]">
             {segment('increase', 'Increase', PlusIcon)}
             {segment('decrease', 'Decrease', MinusIcon)}
           </div>
@@ -202,7 +202,7 @@ export function AdjustStockDialog({ balance, locationLabel, onSaved, onClose }: 
         />
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor={reasonId} className="text-sm font-medium text-ink">
+          <label htmlFor={reasonId} className="text-xs font-semibold text-ink">
             Reason (required)
           </label>
           <textarea
@@ -213,11 +213,11 @@ export function AdjustStockDialog({ balance, locationLabel, onSaved, onClose }: 
             disabled={submitting}
             aria-invalid={errors.reason ? true : undefined}
             aria-describedby={`${reasonId}-hint`}
-            className={`resize-y rounded-control border px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-canvas-muted ${
-              errors.reason ? 'border-danger-600' : 'border-line'
+            className={`resize-y rounded-control border px-3 py-2 text-[13px] leading-5 text-ink outline-none transition-colors focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-canvas-muted ${
+              errors.reason ? 'border-danger-600' : 'border-line-strong'
             }`}
           />
-          <div id={`${reasonId}-hint`} className="flex items-start justify-between gap-3 text-xs">
+          <div id={`${reasonId}-hint`} className="flex items-start justify-between gap-3 text-[11px]">
             {errors.reason ? (
               <p role="alert" className="font-medium text-danger-600">
                 {errors.reason}
@@ -232,13 +232,13 @@ export function AdjustStockDialog({ balance, locationLabel, onSaved, onClose }: 
         </div>
 
         <div
-          className={`flex items-center justify-between gap-3 rounded-control px-3 py-2.5 text-xs ${
+          className={`flex items-center justify-between gap-3 rounded-control px-3.5 py-2.5 text-xs ${
             negativePreview ? 'bg-danger-50' : 'bg-canvas-sunken'
           }`}
           data-testid="adjust-preview"
         >
           <span className="text-ink-muted">Balance after saving</span>
-          <span className="flex items-center gap-2 text-[13px] text-ink-secondary">
+          <span className="flex items-center gap-2 text-[13px] font-medium text-ink-secondary">
             {formatQuantity(balance.quantity)} {unit}
             <ArrowRightIcon className="h-3.5 w-3.5" />
             <span className={`font-semibold ${negativePreview ? 'text-danger-700' : 'text-ink'}`}>
@@ -247,7 +247,7 @@ export function AdjustStockDialog({ balance, locationLabel, onSaved, onClose }: 
           </span>
         </div>
 
-        <p className="flex gap-2 text-xs text-ink-muted">
+        <p className="flex gap-2 text-xs leading-[17px] text-ink-muted">
           <InfoIcon className="mt-px h-3.5 w-3.5 shrink-0" />
           An adjustment is a permanent ledger entry. It cannot be edited later — a mistake is corrected with another
           adjustment.

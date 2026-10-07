@@ -61,7 +61,7 @@ export function ColumnsMenu({ settings }: { settings: TableSettings }) {
         onClick={() => setOpen(value => !value)}
         className={getButtonClassName({
           variant: 'secondary',
-          size: 'sm',
+          size: 'xs',
           className: hiddenCount > 0 ? 'border-action text-action' : '',
         })}
       >
@@ -79,9 +79,9 @@ export function ColumnsMenu({ settings }: { settings: TableSettings }) {
           id={panelId}
           role="dialog"
           aria-labelledby={headingId}
-          className="absolute right-0 top-full z-30 mt-1 w-56 rounded-control border border-line bg-canvas py-2 shadow-dropdown"
+          className="absolute right-0 top-full z-30 mt-1 w-[264px] rounded-[12px] border border-line bg-canvas py-2 shadow-dropdown"
         >
-          <p id={headingId} className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+          <p id={headingId} className="px-3.5 pb-2 pt-1.5 text-[11px] font-bold uppercase text-ink-muted">
             Show columns
           </p>
           <ul>
@@ -90,7 +90,7 @@ export function ColumnsMenu({ settings }: { settings: TableSettings }) {
               return (
                 <li key={column.id}>
                   <label
-                    className={`flex h-8 items-center gap-2.5 px-3 text-sm ${
+                    className={`flex h-[34px] items-center gap-2.5 px-3.5 text-[13.5px] font-medium ${
                       locked ? 'cursor-not-allowed text-ink-muted' : 'cursor-pointer text-ink hover:bg-canvas-hover'
                     }`}
                   >
@@ -113,15 +113,15 @@ export function ColumnsMenu({ settings }: { settings: TableSettings }) {
               );
             })}
           </ul>
-          <div className="mt-1 flex items-center justify-between border-t border-line px-3 pt-2">
+          <div className="flex items-center justify-between border-t border-line px-3.5 pb-1 pt-2.5">
             <button
               type="button"
               onClick={settings.reset}
-              className="rounded-control text-[13px] font-medium text-action hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+              className="rounded-control text-[13px] font-semibold text-action hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             >
               Reset to default
             </button>
-            <span className="text-[11px] text-ink-muted">sizes + columns</span>
+            <span className="text-[11.5px] font-medium text-ink-muted">sizes + columns</span>
           </div>
         </div>
       ) : null}

@@ -122,7 +122,7 @@ export function ItemPicker({ value, onChange, error, disabled = false }: ItemPic
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={inputId} className="text-sm font-medium text-ink">
+      <label htmlFor={inputId} className="text-xs font-semibold text-ink">
         Item
       </label>
       <div className="relative">
@@ -150,8 +150,8 @@ export function ItemPicker({ value, onChange, error, disabled = false }: ItemPic
           onClick={openList}
           onKeyDown={handleKeyDown}
           onBlur={() => setOpen(false)}
-          className={`h-10 w-full rounded-control border bg-canvas pl-3 pr-9 text-sm text-ink outline-none transition-colors placeholder:text-ink-muted focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-canvas-muted disabled:text-ink-muted ${
-            error ? 'border-danger-600' : 'border-line'
+          className={`h-10 w-full rounded-control border bg-canvas pl-3 pr-9 text-[13px] text-ink outline-none transition-colors placeholder:text-ink-muted focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-canvas-muted disabled:text-ink-muted ${
+            error ? 'border-danger-600' : 'border-line-strong'
           }`}
         />
         <ChevronDownIcon className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-ink-secondary" />
@@ -211,7 +211,7 @@ export function ItemPicker({ value, onChange, error, disabled = false }: ItemPic
           {error}
         </p>
       ) : (
-        <p id={hintId} className="text-xs text-ink-muted">
+        <p id={hintId} className="text-[11px] text-ink-muted">
           Active items only. Type part of the name or code.
         </p>
       )}

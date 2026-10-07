@@ -55,18 +55,18 @@ export const MOVEMENTS_SCREEN_ID = 'stock-movements';
 
 // Two stable column sets for one screen: with the History item chip the Item
 // column is left out (G2), as before. Item and Quantity are required.
-const TIME: ColumnDef = { id: 'time', label: 'Time', minWidth: 72, defaultWidth: 88 };
+const TIME: ColumnDef = { id: 'time', label: 'Time', minWidth: 72, defaultWidth: 90 };
 const ITEM: ColumnDef = { id: 'item', label: 'Item', required: true, minWidth: 180 };
 const LOCATION: ColumnDef = { id: 'location', label: 'Location', minWidth: 140, defaultWidth: 200 };
-const TYPE: ColumnDef = { id: 'type', label: 'Type', minWidth: 120, defaultWidth: 150 };
-const QUANTITY: ColumnDef = { id: 'quantity', label: 'Quantity', required: true, minWidth: 110, defaultWidth: 130, align: 'right' };
+const TYPE: ColumnDef = { id: 'type', label: 'Type', minWidth: 120, defaultWidth: 170 };
+const QUANTITY: ColumnDef = { id: 'quantity', label: 'Quantity', required: true, minWidth: 110, defaultWidth: 150, align: 'right' };
 const COLUMNS_WITH_ITEM: ColumnDef[] = [
   TIME,
   ITEM,
   LOCATION,
   TYPE,
   QUANTITY,
-  { id: 'reason', label: 'Reason', minWidth: 160, defaultWidth: 260 },
+  { id: 'reason', label: 'Reason', minWidth: 160, defaultWidth: 300 },
 ];
 const COLUMNS_FOR_ONE_ITEM: ColumnDef[] = [
   TIME,
@@ -183,6 +183,8 @@ export function MovementsView({ isWide, locations, locationId, onLocationChange,
 
   const toolbar = isWide ? (
     <DataTableToolbar
+      // Figma R1 / R6: the ledger toolbar is 64px (14px padding); other screens use 60px.
+      className="py-3.5!"
       start={filters}
       end={
         <>
@@ -255,7 +257,7 @@ function itemLabel(info: ItemInfo | undefined) {
 }
 
 function Reason({ reason }: { reason: string | null }) {
-  return reason ? <span title={reason}>{reason}</span> : <span className="text-ink-muted">—</span>;
+  return reason ? <span title={reason} className="text-ink-muted">{reason}</span> : <span className="text-ink-muted">—</span>;
 }
 
 interface MovementGroupProps {
@@ -271,23 +273,25 @@ function MovementGroup({ label, movements, items, locationName, isVisible, densi
   return (
     <>
       <DataGroupRow data-testid="movement-day">
-        <span className="font-semibold text-ink">{label}</span>
+        <span className="text-[12.5px] font-bold text-ink-secondary">{label}</span>
       </DataGroupRow>
       {movements.map(movement => {
         const info = items.get(movement.item_id);
         return (
           <DataRow key={movement.id}>
             {isVisible('time') ? (
-              <DataCell className="text-ink-secondary tabular-nums" title={formatDateTime(movement.created_at)}>
+              <DataCell className="font-medium text-ink-muted tabular-nums" title={formatDateTime(movement.created_at)}>
                 {formatTime(movement.created_at)}
               </DataCell>
             ) : null}
             {isVisible('item') ? (
               <DataCell>
-                {info ? <ItemNameCode name={info.name} code={info.code} density={density} /> : 'Unknown item'}
+                {info ? <ItemNameCode name={info.name} code={info.code} density={density} large /> : 'Unknown item'}
               </DataCell>
             ) : null}
-            {isVisible('location') ? <DataCell>{locationName(movement.location_id)}</DataCell> : null}
+            {isVisible('location') ? (
+              <DataCell className="text-[13.5px]! font-medium text-ink-secondary">{locationName(movement.location_id)}</DataCell>
+            ) : null}
             {isVisible('type') ? (
               <DataCell>
                 <MovementTypeTag type={movement.movement_type} />

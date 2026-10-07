@@ -62,7 +62,7 @@ describe('Button sizes and variants', () => {
       </Button>,
     );
     const button = screen.getByRole('button', { name: 'Deactivate' });
-    expect(button.className).toContain('h-[30px]');
+    expect(button.className).toContain('h-[31px]');
     expect(button.className).toContain('text-danger-600');
   });
 });

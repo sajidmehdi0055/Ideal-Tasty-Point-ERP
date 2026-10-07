@@ -131,7 +131,7 @@ export function ItemListPage() {
 
   if (status === 'forbidden') {
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-5">
         {intro}
         <NoAccessState who="Owner or Manager" message="Only Owner or Manager can view items. Ask the owner for access." />
       </div>
@@ -143,7 +143,7 @@ export function ItemListPage() {
     : `${items.length} ${items.length === 1 ? 'item' : 'items'}`;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       {intro}
 
       {tiles ? <SummaryTiles tiles={tiles} ariaLabel="Item summary" /> : null}
@@ -160,7 +160,7 @@ export function ItemListPage() {
               onChange={event => setSearch(event.target.value)}
               onClear={() => setSearch('')}
               maxLength={ITEM_SEARCH_MAX_LENGTH}
-              className="w-full max-w-xs"
+              className="w-full max-w-[280px] [&_input]:h-9"
             />
           }
           end={

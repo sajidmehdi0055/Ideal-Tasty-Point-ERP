@@ -127,7 +127,7 @@ export function DataTable({ settings, ariaLabel, caption, children, maxHeight, c
                     // Explicit name so the resize handle inside does not become part of the header name.
                     aria-label={column.label}
                     data-column-id={column.id}
-                    className={`sticky top-0 h-row-header bg-canvas-sunken px-4 py-0 align-middle text-xs font-semibold uppercase tracking-wide whitespace-nowrap text-ink-muted shadow-[inset_0_-1px_0_var(--color-line)] ${
+                    className={`sticky top-0 h-row-header bg-canvas-sunken px-4 py-0 align-middle text-[11px] font-semibold uppercase tracking-[0.5px] whitespace-nowrap text-ink-muted shadow-[inset_0_-1px_0_var(--color-line)] ${
                       activeHandle === column.id ? 'z-20' : 'z-10'
                     } ${column.align === 'right' ? 'text-right' : 'text-left'}`}
                   >
@@ -328,7 +328,7 @@ export function DataGroupRow({ children, className = '', ...rest }: DataGroupRow
   const { visibleCount } = useDataTable();
   return (
     <tr {...rest} className={`bg-canvas-sunken ${className}`}>
-      <td colSpan={visibleCount} className="h-8 px-4 py-1 text-xs font-semibold text-ink-secondary">
+      <td colSpan={visibleCount} className="h-9 px-4 py-1 text-xs font-semibold text-ink-secondary">
         {children}
       </td>
     </tr>
@@ -349,7 +349,7 @@ export function DataCell({ align, numeric = false, wrap = false, className = '',
   return (
     <td
       {...rest}
-      className={`px-4 py-0 align-middle text-sm text-ink ${wrap ? '' : 'overflow-hidden text-ellipsis whitespace-nowrap'} ${
+      className={`px-4 py-0 align-middle text-[13px] text-ink ${wrap ? '' : 'overflow-hidden text-ellipsis whitespace-nowrap'} ${
         right ? 'text-right' : 'text-left'
       } ${numeric ? 'tabular-nums' : ''} ${focusRing} ${className}`}
     >

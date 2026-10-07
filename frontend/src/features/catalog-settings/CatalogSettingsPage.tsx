@@ -55,7 +55,7 @@ export function CatalogSettingsPage() {
   }
 
   const tabs = (
-    <div role="tablist" aria-label="Catalog Settings" className="flex gap-1 border-b border-line px-4">
+    <div role="tablist" aria-label="Catalog Settings" className="flex gap-6 border-b border-line px-4">
       {TABS.map(tab => {
         const selected = activeTab === tab.key;
         return (
@@ -69,8 +69,8 @@ export function CatalogSettingsPage() {
               refocusTab.current = tab.key !== activeTab;
               setActiveTab(tab.key);
             }}
-            className={`-mb-px flex items-center gap-2 border-b-2 px-2.5 py-3 text-[13.5px] transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus ${
-              selected ? 'border-action font-semibold text-ink' : 'border-transparent font-medium text-ink-muted hover:text-ink'
+            className={`-mb-px flex items-center gap-1.5 border-b-2 pb-2.5 pt-3 text-[13.5px] leading-[normal] transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus ${
+              selected ? 'border-action font-bold text-ink' : 'border-transparent font-medium text-ink-muted hover:text-ink'
             }`}
           >
             {tab.label}
@@ -85,7 +85,7 @@ export function CatalogSettingsPage() {
 
   const pending = PENDING_COPY[activeTab];
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <PageIntro title={pending.title} description="Not available yet — this tab is pending." />
       <div className="rounded-card border border-line bg-canvas shadow-card">
         {tabs}

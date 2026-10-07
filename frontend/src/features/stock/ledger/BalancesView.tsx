@@ -67,8 +67,8 @@ interface Group {
 /** Stable column set (design-system/data-table). All three are required: nothing on this table can be hidden. */
 const COLUMNS: ColumnDef[] = [
   { id: 'item', label: 'Item', required: true, minWidth: 200 },
-  { id: 'quantity', label: 'Quantity', required: true, minWidth: 112, defaultWidth: 160, align: 'right' },
-  { id: 'actions', label: 'Actions', required: true, minWidth: 132, defaultWidth: 148, align: 'right', resizable: false },
+  { id: 'quantity', label: 'Quantity', required: true, minWidth: 112, defaultWidth: 224, align: 'right' },
+  { id: 'actions', label: 'Actions', required: true, minWidth: 132, defaultWidth: 192, align: 'right', resizable: false },
 ];
 
 export const BALANCES_SCREEN_ID = 'stock-balances';
@@ -151,6 +151,8 @@ export function BalancesView(props: BalancesViewProps) {
 
   const toolbar = isWide ? (
     <DataTableToolbar
+      // Figma R1 / R6: the ledger toolbar is 64px (14px padding); other screens use 60px.
+      className="py-3.5!"
       start={
         <>
           {locationFilter}
@@ -232,7 +234,7 @@ function GroupHeading({ group }: { group: Group }) {
   return (
     <span className={`flex min-w-0 items-center gap-2 ${group.location?.parent_id ? 'pl-6' : ''}`}>
       <MapPinIcon className="h-3.5 w-3.5 shrink-0 text-ink-secondary" />
-      <span className="truncate font-semibold text-ink">{group.label}</span>
+      <span className="truncate font-bold text-ink-secondary">{group.label}</span>
       {group.location ? <LocationTypeBadge type={group.location.location_type} /> : null}
       <span className="shrink-0 font-normal text-ink-muted">
         {count} {count === 1 ? 'item' : 'items'}
@@ -272,17 +274,20 @@ function GroupRows({ group, density, onHistory, onAdjust }: { group: Group; dens
           </DataCell>
           {/* `wrap` so the History tooltip is not clipped by the cell's overflow. */}
           <DataCell align="right" wrap>
-            <span className="flex items-center justify-end gap-2">
+            <span className="flex items-center justify-end gap-1.5">
               <IconButton
                 label={`History of ${balance.item_name} at ${group.label}`}
                 tooltip="History"
                 tooltipSide="left"
                 icon={<HistoryIcon />}
                 onClick={() => onHistory(balance)}
+                // Figma R1 / R4: 30px icon button, 24px tall in Compact.
+                className={density === 'compact' ? 'h-6! w-[30px]!' : 'h-[30px]! w-[30px]!'}
               />
               <Button
                 size="xs"
                 variant="secondary"
+                className={density === 'compact' ? 'h-[25px]!' : ''}
                 aria-label={`Adjust ${balance.item_name} at ${group.label}`}
                 onClick={() => onAdjust(balance)}
               >

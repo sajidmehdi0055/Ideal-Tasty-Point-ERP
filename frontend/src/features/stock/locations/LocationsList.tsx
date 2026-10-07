@@ -9,11 +9,11 @@ import { LOCATION_TYPE_LABELS, type LocationType, type StockLocation } from '../
 /** Columns of the Stock Locations table (screenId `stock-locations`). Location + Actions can never be hidden. */
 export const LOCATION_COLUMNS: readonly ColumnDef[] = [
   { id: 'location', label: 'Location', required: true, minWidth: 200 },
-  { id: 'type', label: 'Type', minWidth: 96, defaultWidth: 136 },
+  { id: 'type', label: 'Type', minWidth: 96, defaultWidth: 140 },
   { id: 'parent', label: 'Parent', minWidth: 120, defaultWidth: 200 },
   { id: 'items', label: 'Items in stock', minWidth: 120, defaultWidth: 150, align: 'right' },
-  { id: 'status', label: 'Status', minWidth: 104, defaultWidth: 136 },
-  { id: 'actions', label: 'Actions', required: true, minWidth: 200, defaultWidth: 216, align: 'right', resizable: false },
+  { id: 'status', label: 'Status', minWidth: 104, defaultWidth: 140 },
+  { id: 'actions', label: 'Actions', required: true, minWidth: 200, defaultWidth: 230, align: 'right', resizable: false },
 ];
 
 /** Location type pill: Store / Kitchen neutral, Freezer info (as in the Direction A Locations frame). */
@@ -55,7 +55,7 @@ export function LocationsTable({
             <DataCell key="location" title={location.name}>
               <span className={`flex min-w-0 items-center gap-1.5 ${depth === 1 ? 'pl-5' : ''}`}>
                 {depth === 1 ? <CornerDownRightIcon className="h-3.5 w-3.5 shrink-0 text-ink-muted" /> : null}
-                <span className={`truncate text-ink ${depth === 0 ? 'font-semibold' : 'font-medium'}`}>{location.name}</span>
+                <span className="truncate text-sm font-semibold text-ink">{location.name}</span>
               </span>
             </DataCell>
           ),
@@ -65,12 +65,12 @@ export function LocationsTable({
             </DataCell>
           ),
           parent: (
-            <DataCell key="parent" className={parent ? 'text-ink-secondary' : 'text-ink-muted'}>
+            <DataCell key="parent" className="text-[13.5px]! font-medium text-ink-muted">
               {parent?.name ?? '—'}
             </DataCell>
           ),
           items: (
-            <DataCell key="items" numeric className={count > 0 ? 'font-semibold' : 'text-ink-muted'}>
+            <DataCell key="items" numeric className="text-sm! font-bold">
               {count}
             </DataCell>
           ),

@@ -14,8 +14,8 @@ interface DataTableToolbarProps {
 export function DataTableToolbar({ start, end, className = '' }: DataTableToolbarProps) {
   return (
     <div className={`flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 ${className}`}>
-      {start ? <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{start}</div> : null}
-      {end ? <div className="ml-auto flex flex-wrap items-center justify-end gap-2">{end}</div> : null}
+      {start ? <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">{start}</div> : null}
+      {end ? <div className="ml-auto flex flex-wrap items-center justify-end gap-3">{end}</div> : null}
     </div>
   );
 }
@@ -23,7 +23,7 @@ export function DataTableToolbar({ start, end, className = '' }: DataTableToolba
 /** "8 balances · 3 zero hidden". Polite live region so filter changes are announced. */
 export function ResultCount({ children }: { children: ReactNode }) {
   return (
-    <p aria-live="polite" className="text-[13px] whitespace-nowrap text-ink-muted tabular-nums">
+    <p aria-live="polite" className="text-[12.5px] font-medium whitespace-nowrap text-ink-muted tabular-nums">
       {children}
     </p>
   );
@@ -49,7 +49,7 @@ const DENSITY_OPTIONS: { value: Density; label: string }[] = [
 export function DensityToggle({ settings }: { settings: TableSettings }) {
   if (!settings.enabled) return null;
   return (
-    <div role="group" aria-label="Row density" className="inline-flex rounded-control bg-canvas-muted p-0.5">
+    <div role="group" aria-label="Row density" className="inline-flex gap-0.5 rounded-control bg-canvas-muted p-[3px]">
       {DENSITY_OPTIONS.map(option => {
         const selected = settings.density === option.value;
         return (
@@ -58,8 +58,8 @@ export function DensityToggle({ settings }: { settings: TableSettings }) {
             type="button"
             aria-pressed={selected}
             onClick={() => settings.setDensity(option.value)}
-            className={`h-7 rounded-[7px] px-2.5 text-[13px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus ${
-              selected ? 'bg-canvas text-ink shadow-card' : 'text-ink-muted hover:text-ink'
+            className={`h-[27px] rounded-[7px] px-2.5 text-[12.5px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus ${
+              selected ? 'bg-canvas font-semibold text-ink shadow-card' : 'font-medium text-ink-muted hover:text-ink'
             }`}
           >
             {option.label}

@@ -291,7 +291,7 @@ function StockLedgerContent({ now }: { now: Date | undefined }) {
             onClick={() => setTab(entry.key)}
             className={
               isWide
-                ? `-mb-px border-b-2 pb-3 pt-3.5 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus ${
+                ? `-mb-px border-b-2 pb-2.5 pt-3 text-[13px] leading-[normal] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus ${
                     selected ? 'border-action font-semibold text-ink' : 'border-transparent font-medium text-ink-muted hover:text-ink'
                   }`
                 : `h-9 flex-1 rounded-control text-[13px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus ${

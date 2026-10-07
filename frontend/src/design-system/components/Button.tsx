@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react';
 import { Spinner } from './Spinner';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'danger-text' | 'ghost' | 'dark';
-/** `xs` = Button/Small in the Direction A Figma (30px tall; row actions such as "Adjust"). */
+/** `xs` = Button/Small in the Direction A Figma (31px tall; row actions such as "Adjust"). */
 export type ButtonSize = 'xs' | 'sm' | 'md';
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -19,9 +19,9 @@ const variantClasses: Record<ButtonVariant, string> = {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  xs: 'h-[30px] px-2.5 text-[13px] gap-1',
-  sm: 'h-8 px-3 text-sm gap-1.5',
-  md: 'h-10 px-4 text-sm gap-2',
+  xs: 'h-[31px] px-3 text-[12.5px] gap-1',
+  sm: 'h-8 px-3 text-[13px] gap-1.5',
+  md: 'h-10 px-4 text-[13px] gap-2',
 };
 
 /**
@@ -31,7 +31,7 @@ const sizeClasses: Record<ButtonSize, string> = {
  */
 export function getButtonClassName(options: { variant?: ButtonVariant; size?: ButtonSize; className?: string } = {}) {
   const { variant = 'primary', size = 'md', className = '' } = options;
-  return `inline-flex items-center justify-center rounded-control font-medium transition-colors disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${variantClasses[variant]} ${sizeClasses[size]} ${className}`;
+  return `inline-flex items-center justify-center rounded-control font-semibold transition-colors disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${variantClasses[variant]} ${sizeClasses[size]} ${className}`;
 }
 
 interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {

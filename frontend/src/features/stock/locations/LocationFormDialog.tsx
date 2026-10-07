@@ -164,7 +164,7 @@ export function LocationFormDialog({ mode, location, locations, onSubmit, onClos
 
         {mode === 'create' ? (
           <fieldset className="flex flex-col gap-1.5" aria-describedby={errors.location_type ? `${typeGroupId}-error` : undefined}>
-            <legend className="mb-1.5 text-sm font-medium text-ink">Type</legend>
+            <legend className="mb-1.5 text-xs font-semibold text-ink">Type</legend>
             <div className="flex flex-col gap-2">
               {LOCATION_TYPES.map(option => {
                 const selected = type === option;
