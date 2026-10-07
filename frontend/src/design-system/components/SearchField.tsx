@@ -1,11 +1,16 @@
-import type { InputHTMLAttributes } from 'react';
+import type { InputHTMLAttributes, Ref } from 'react';
 
 interface SearchFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id' | 'type'> {
   label: string;
   onClear?: () => void;
+  /** Forwarded to the <input> (e.g. for data-table's useSlashFocus). */
+  ref?: Ref<HTMLInputElement>;
+  /** Keyboard shortcut chip shown at the right while the box is empty, e.g. "/". Visual only. */
+  shortcutHint?: string;
 }
 
-export function SearchField({ label, value, onClear, className = '', ...rest }: SearchFieldProps) {
+export function SearchField({ label, value, onClear, shortcutHint, className = '', ...rest }: SearchFieldProps) {
+  const showClear = Boolean(onClear && value);
   return (
     <div className={`relative flex items-center ${className}`}>
       <svg
@@ -24,7 +29,7 @@ export function SearchField({ label, value, onClear, className = '', ...rest }: 
         className="h-10 w-full rounded-control border border-line bg-canvas py-2 pl-9 pr-8 text-sm text-ink outline-none transition-colors placeholder:text-ink-muted focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
         {...rest}
       />
-      {onClear && value ? (
+      {showClear ? (
         <button
           type="button"
           onClick={onClear}
@@ -33,6 +38,13 @@ export function SearchField({ label, value, onClear, className = '', ...rest }: 
         >
           ✕
         </button>
+      ) : shortcutHint && !value ? (
+        <kbd
+          aria-hidden="true"
+          className="pointer-events-none absolute right-2 flex h-5 min-w-5 items-center justify-center rounded-[5px] border border-line-strong px-1 font-sans text-[11px] font-semibold text-ink-muted"
+        >
+          {shortcutHint}
+        </kbd>
       ) : null}
     </div>
   );
