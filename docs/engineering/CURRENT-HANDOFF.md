@@ -21,7 +21,7 @@ QA/Testing subagent with no implementation involvement, own clone `Ideal-Tasty-P
 2. **Not built in this slice:** Movements search/type filter and "Show inactive" on Items/UOM. Both are recorded as follow-up NOTEs F-1 and F-2. Dimmed inactive locations are approved.
 3. **Push:** approved for `feat/ui-refresh-001` only, and only if the focused QA of the units change passes. No merge to main.
 
-Units-change verification: typecheck exit 0, lint exit 0, vitest **32 files / 423 tests**, build OK, no `itp-erp:dev-identity` in dist. Focused QA: see the push record below.
+Units-change verification: typecheck exit 0, lint exit 0, vitest **32 files / 423 tests**, build OK, no `itp-erp:dev-identity` in dist. Focused QA (same independent QA subagent, own clone) on 817c095: **PASS**, with 1 MINOR: the item-picker option assertion was a substring match, so showing the raw code again went uncaught. Fixed in d085b59 (exact match plus a no-"LITER" check, and doc wording "no unit is sent"); confirmation **PASS** (mutation now caught, 32 / 423). Push: approved by the owner on this condition, done only after the owner confirms.
 
 ## Next recommended action
 
