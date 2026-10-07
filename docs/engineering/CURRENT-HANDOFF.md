@@ -1,4 +1,31 @@
-# Current Handoff — MERGE-003 (UI-STOCK-003 Opening stock dialog merged to main, c82d4ad)
+# Current Handoff — UI-REFRESH-001 (Direction A visual refresh — frontend implemented, not pushed, not merged)
+
+Date: 2026-10-07. Branch: `feat/ui-refresh-001` (from main d77ac09 == origin/main), worktree `Ideal-Tasty-Point-ERP-ui-refresh-001`. Track: PARALLEL TRACK — frontend only; no backend, API, migration, auth, business-rule or npm dependency change.
+Authority: owner approved the design 2026-10-07 (Figma `N9KkqXIQuvCUj9NVAj6Cx4`, section `122:12606`) and gave the UI-REFRESH-001 brief, which authorises commits on this branch only; push/merge need owner approval. Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
+
+## What
+
+Tokens (Light/Dark values, names unchanged), vendored Manrope (OFL), one format helper, shared components (PageIntro, SummaryTiles, Badge, Tooltip/IconButton, small buttons, dialog sizes 440/640 with unsaved-changes guard, Toast, states), DataTable features (density, sticky header, resize/fit, show/hide columns with locked required columns, per-screen storage, `/` shortcut, truncation banner), and the restyled Shell, Stock Ledger (Balances + Movements), Stock Locations, Item Master, Catalog Settings and AI panel width. Details, tiles, contract gaps and deviations: [ui-refresh-001-implementation.md](ui-refresh-001-implementation.md). Only new API call: `GET /api/inventory/transfers?status=SENT` (count for "Transfers in transit").
+
+## Verification (owner's Windows machine, Node v24.18.1, `frontend/`)
+
+`npm ci` OK · typecheck PASS · lint PASS · vitest **32 files / 423 tests** (main baseline 22 / 263) · build OK · `itp-erp:dev-identity` in dist: none · `git diff d77ac09 -- backend package.json package-lock.json frontend/package.json frontend/package-lock.json`: empty. Visual: Playwright/Chromium (scratchpad only) with mocked API, Light + Dark at 1440 / 1024 / 390, compared with the Figma frames; no horizontal page scroll at 390.
+
+## Independent review (UI-REFRESH-001-REVIEW-001)
+
+QA/Testing subagent with no implementation involvement, own clone `Ideal-Tasty-Point-ERP-qa-ui-refresh-001`, own runs on e93fcd3: **FAIL** — 1 MAJOR (required Actions column pushed out of view at 1024 px on Items / Locations / Movements), 3 MINOR (Modal native-close sync untested; locked-column accessible name missing a space; this handoff not yet written) + NOTEs. Tokens match the brief exactly; TZ-independence checked under UTC / New York / Kiritimati; 20+ mutations caught. All MAJOR/MINOR fixed in 1f8ee96 (+ NOTE focus-ring transition; toast wording in the doc). Focused re-review of 1f8ee96 + these docs (same QA subagent, own clone): **PASS**, no new findings — 32 files / 423 tests, Chromium Light + Dark at 1024 / 1440 on all five list screens with no inner or page horizontal scroll, user widths kept, new mutations caught. Remaining NOTEs: long Movements location paths truncate with an ellipsis at 1024; toast timer restarts (not resumes) after hover; the ledger "Locations" tile counts active locations while the Locations screen counts all; dev-identity select shortens the mobile title (dev only).
+
+## Open owner decision (non-blocking)
+
+- Unit text inside the Adjust / Opening dialogs: stored code ("LITER") as in Figma R2, or display label ("L") as in the brief's format rule.
+
+## Next recommended action
+
+1. Owner approval → push `feat/ui-refresh-001` → controlled merge into main → post-merge verification.
+
+---
+
+## Previous handoff — MERGE-003 (UI-STOCK-003 Opening stock dialog merged to main, c82d4ad)
 
 Date: 2026-10-07. Branch: main. Track: PARALLEL TRACK (frontend + docs only).
 Authority: owner approval 2026-10-07 (Option 1): merge UI-STOCK-003 with `--no-ff`, push main for this merge only, no branch/worktree deletion, UI-REFRESH-001 not started. Same-provider review limitation applies (Codex/Antigravity paused, GOV-MANAGER-SUBAGENT-001).
