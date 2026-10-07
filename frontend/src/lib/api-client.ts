@@ -16,6 +16,8 @@ interface ErrorBody {
   issues?: { path: (string | number)[]; message: string }[];
 }
 
+export const SERVER_UNREACHABLE_MESSAGE = 'Could not reach the server. Check that the backend is running, then try again.';
+
 function describeStatus(status: number): string {
   switch (status) {
     case 400:
@@ -43,7 +45,7 @@ async function requestWithHeaders<T>(path: string, init?: RequestInit): Promise<
       headers: { 'Content-Type': 'application/json', ...init?.headers },
     });
   } catch {
-    throw new ApiError(0, 'NETWORK_ERROR', 'Could not reach the server. Is the backend running?');
+    throw new ApiError(0, 'NETWORK_ERROR', SERVER_UNREACHABLE_MESSAGE);
   }
 
   if (response.status === 204) return { data: undefined as T, headers: response.headers };
@@ -53,7 +55,14 @@ async function requestWithHeaders<T>(path: string, init?: RequestInit): Promise<
   try {
     body = text ? JSON.parse(text) : undefined;
   } catch {
+    // A 5xx without a JSON body did not come from the ERP API (e.g. the Vite
+    // dev proxy or a gateway when the backend is down): report it as such.
+    if (response.status >= 500) throw new ApiError(response.status, 'NETWORK_ERROR', SERVER_UNREACHABLE_MESSAGE);
     throw new ApiError(response.status, 'INVALID_RESPONSE', 'The server returned an unexpected response.');
+  }
+  // Same for an empty 5xx body: the ERP API always sends a JSON error body.
+  if (body === undefined && response.status >= 500) {
+    throw new ApiError(response.status, 'NETWORK_ERROR', SERVER_UNREACHABLE_MESSAGE);
   }
 
   if (!response.ok) {

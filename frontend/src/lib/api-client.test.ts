@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { apiClient, ApiError } from './api-client';
+import { apiClient, ApiError, SERVER_UNREACHABLE_MESSAGE } from './api-client';
 
 async function captureError(promise: Promise<unknown>): Promise<ApiError> {
   try {
@@ -60,9 +60,39 @@ describe('apiClient', () => {
     expect(error.code).toBe('NETWORK_ERROR');
   });
 
-  it('classifies a non-JSON response (e.g. a broken proxy returning HTML) instead of throwing a raw SyntaxError', async () => {
+  it('uses the same server-unreachable message when fetch itself fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('fetch failed')));
+    const error = await captureError(apiClient.get('/api/x'));
+    expect(error).toMatchObject({ status: 0, code: 'NETWORK_ERROR', message: SERVER_UNREACHABLE_MESSAGE });
+  });
+
+  it('maps an empty 500 body (Vite dev proxy with the backend down) to NETWORK_ERROR', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 500 })));
+    const error = await captureError(apiClient.post('/api/inventory/items', {}));
+    expect(error).toMatchObject({ status: 500, code: 'NETWORK_ERROR', message: SERVER_UNREACHABLE_MESSAGE });
+    expect(error.message).not.toBe('Something went wrong.');
+  });
+
+  it('maps an HTML 502 (gateway / broken proxy) to NETWORK_ERROR instead of throwing a raw SyntaxError', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>502 Bad Gateway</html>', { status: 502 })));
     const error = await captureError(apiClient.get('/api/x'));
-    expect(error).toMatchObject({ status: 502, code: 'INVALID_RESPONSE' });
+    expect(error).toMatchObject({ status: 502, code: 'NETWORK_ERROR', message: SERVER_UNREACHABLE_MESSAGE });
+  });
+
+  it('keeps a JSON 500 error body from the API unchanged', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: 'INTERNAL_ERROR', message: 'Operation failed' }), { status: 500 }),
+      ),
+    );
+    const error = await captureError(apiClient.post('/api/x', {}));
+    expect(error).toMatchObject({ status: 500, code: 'INTERNAL_ERROR', message: 'Operation failed' });
+  });
+
+  it('still classifies a non-JSON body on a non-5xx status as INVALID_RESPONSE', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>ok</html>', { status: 200 })));
+    const error = await captureError(apiClient.get('/api/x'));
+    expect(error).toMatchObject({ status: 200, code: 'INVALID_RESPONSE' });
   });
 });
