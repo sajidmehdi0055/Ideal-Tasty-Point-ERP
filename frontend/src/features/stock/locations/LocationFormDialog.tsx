@@ -117,23 +117,28 @@ export function LocationFormDialog({ mode, location, locations, onSubmit, onClos
 
   const title = mode === 'create' ? 'New location' : `Rename “${location?.name ?? ''}”`;
 
+  // Unsaved changes: anything typed or chosen in New location; a changed name in Rename.
+  const dirty =
+    mode === 'create' ? name.trim() !== '' || type !== '' || parentId !== '' : name.trim() !== (location?.name ?? '');
+
   return (
     <Modal
       open
-      size="lg"
+      size="medium"
       title={title}
       onClose={onClose}
       dismissible={!submitting}
-      footer={
+      dirty={dirty}
+      footer={({ requestClose }) => (
         <>
-          <Button variant="secondary" onClick={onClose} disabled={submitting}>
+          <Button variant="secondary" onClick={requestClose} disabled={submitting}>
             Cancel
           </Button>
           <Button type="submit" form="stock-location-form" loading={submitting}>
             {mode === 'create' ? 'Create location' : 'Save'}
           </Button>
         </>
-      }
+      )}
     >
       <form id="stock-location-form" noValidate onSubmit={event => void handleSubmit(event)} className="flex flex-col gap-4">
         {formError ? (

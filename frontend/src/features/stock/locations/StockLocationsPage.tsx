@@ -1,5 +1,24 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Button, ErrorState, LoadingState, SearchField } from '../../../design-system/components';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Button,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  NoAccessState,
+  PageIntro,
+  SearchField,
+  SummaryTiles,
+  useToast,
+  type SummaryTile,
+} from '../../../design-system/components';
+import {
+  ColumnsMenu,
+  DataTableToolbar,
+  DensityToggle,
+  ResultCount,
+  useSlashFocus,
+  useTableSettings,
+} from '../../../design-system/data-table';
 import { LockIcon, PlusIcon, WarehouseIcon } from '../../../design-system/icons';
 import { ApiError } from '../../../lib/api-client';
 import { useDevSession } from '../../../lib/session';
@@ -9,10 +28,10 @@ import { Checkbox } from '../components/Checkbox';
 import { describeActiveChangeError, describeStockError } from '../format';
 import { orderLocationTree } from '../locations-tree';
 import { isPositiveQuantity } from '../quantity';
-import type { StockLocation } from '../types';
+import { LOCATION_TYPE_LABELS, type StockLocation } from '../types';
 import { CannotDeactivateDialog, DeactivateDialog, isBlockedReason, type BlockedReason } from './DeactivateDialogs';
 import { LocationFormDialog, type LocationFormValues } from './LocationFormDialog';
-import { LocationCards, LocationsTable } from './LocationsList';
+import { LOCATION_COLUMNS, LocationCards, LocationsTable } from './LocationsList';
 
 type Status = 'loading' | 'live' | 'error';
 
@@ -22,22 +41,40 @@ type DialogState =
   | { kind: 'deactivate'; location: StockLocation }
   | { kind: 'blocked'; location: StockLocation; reason: BlockedReason };
 
-/** Stock Locations screen (UI-STOCK-001 L1–L8). Reads and writes are Owner / Manager; `active` is Owner only. */
+const PAGE_TITLE = 'Stores, kitchens and freezers';
+const PAGE_DESCRIPTION =
+  'Where stock is kept. Freezers sit under their store or kitchen. A location with stock cannot be deactivated.';
+
+function plural(count: number, one: string, many: string) {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+/** Summary tiles — counts from the already-loaded location list (inactive locations included). */
+function locationTiles(locations: StockLocation[]): SummaryTile[] {
+  const inactive = locations.filter(location => !location.active).length;
+  const ofType = (type: StockLocation['location_type']) => locations.filter(location => location.location_type === type).length;
+  return [
+    { id: 'locations', label: 'Locations', value: locations.length, note: `${inactive} inactive` },
+    { id: 'stores', label: 'Stores', value: ofType('STORE'), note: 'top-level storage areas' },
+    { id: 'kitchens', label: 'Kitchens', value: ofType('KITCHEN'), note: 'top-level kitchen areas' },
+    { id: 'freezers', label: 'Freezers', value: ofType('FREEZER'), note: 'inside a store or kitchen', tone: 'info' },
+  ];
+}
+
+/** Stock Locations screen (UI-STOCK-001 L1–L8, Direction A refresh). Reads and writes are Owner / Manager; `active` is Owner only. */
 export function StockLocationsPage() {
   const { canEditItems, identity } = useDevSession();
   if (!canEditItems) {
-    return (
-      <ErrorState
-        title="You don't have access to Stock Locations"
-        message="Your current role doesn't have permission — only Owner or Manager can view or manage stock locations."
-      />
-    );
+    return <NoAccessState title="You don't have access to Stock Locations" who="Owner and Manager" />;
   }
   return <StockLocationsContent isOwner={identity.role === 'OWNER'} />;
 }
 
 function StockLocationsContent({ isOwner }: { isOwner: boolean }) {
   const isWide = useMediaQuery('(min-width: 768px)');
+  const toast = useToast();
+  const settings = useTableSettings('stock-locations', LOCATION_COLUMNS);
+  const searchRef = useRef<HTMLInputElement>(null);
   const [locations, setLocations] = useState<StockLocation[]>([]);
   const [itemsInStock, setItemsInStock] = useState<Map<string, number>>(new Map());
   const [status, setStatus] = useState<Status>('loading');
@@ -49,6 +86,8 @@ function StockLocationsContent({ isOwner }: { isOwner: boolean }) {
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [actionError, setActionError] = useState<string>();
   const [busyId, setBusyId] = useState<string>();
+
+  useSlashFocus(searchRef, { onClear: () => setSearch('') });
 
   useEffect(() => {
     let ignore = false;
@@ -87,13 +126,20 @@ function StockLocationsContent({ isOwner }: { isOwner: boolean }) {
     );
   }, [locations, search, showInactive]);
 
-  const inactiveCount = locations.filter(location => !location.active).length;
+  const tiles = useMemo(() => locationTiles(locations), [locations]);
 
   async function handleFormSubmit(values: LocationFormValues) {
     if (dialog?.kind === 'rename') {
+      const previous = dialog.location.name;
       await updateLocation(dialog.location.id, { name: values.name });
+      toast.success({ title: 'Location renamed', detail: `${previous} → ${values.name}` });
     } else {
       await createLocation(values);
+      const parent = values.parent_id ? locations.find(candidate => candidate.id === values.parent_id) : undefined;
+      toast.success({
+        title: 'Location created',
+        detail: `${values.name} · ${LOCATION_TYPE_LABELS[values.location_type]}${parent ? ` under ${parent.name}` : ''}`,
+      });
     }
     setDialog(null);
     reload();
@@ -115,6 +161,7 @@ function StockLocationsContent({ isOwner }: { isOwner: boolean }) {
   async function confirmDeactivate(location: StockLocation) {
     try {
       await updateLocation(location.id, { active: false });
+      toast.success({ title: 'Location deactivated', detail: `${location.name} · Active → Inactive` });
       setDialog(null);
       reload();
     } catch (error) {
@@ -132,8 +179,10 @@ function StockLocationsContent({ isOwner }: { isOwner: boolean }) {
     setBusyId(location.id);
     try {
       await updateLocation(location.id, { active: true });
+      toast.success({ title: 'Location activated', detail: `${location.name} · Inactive → Active` });
       reload();
     } catch (error) {
+      // No dialog belongs to Activate, so the reason stays visible above the list until the next action.
       const message =
         error instanceof ApiError && error.code === 'PARENT_INACTIVE'
           ? 'Activate its parent store or kitchen first. (409 · PARENT_INACTIVE)'
@@ -143,6 +192,11 @@ function StockLocationsContent({ isOwner }: { isOwner: boolean }) {
       setBusyId(undefined);
     }
   }
+
+  const openCreate = () => {
+    setActionError(undefined);
+    setDialog({ kind: 'create' });
+  };
 
   const listProps = {
     rows,
@@ -157,21 +211,7 @@ function StockLocationsContent({ isOwner }: { isOwner: boolean }) {
     onActivate: (location: StockLocation) => void activate(location),
   };
 
-  const newButton = isWide ? (
-    <Button onClick={() => setDialog({ kind: 'create' })} className="h-9 shrink-0 font-semibold">
-      <PlusIcon className="h-4 w-4" />
-      New location
-    </Button>
-  ) : (
-    <button
-      type="button"
-      onClick={() => setDialog({ kind: 'create' })}
-      aria-label="New location"
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-action text-on-action hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-    >
-      <PlusIcon className="h-5 w-5" />
-    </button>
-  );
+  const isEmpty = status === 'live' && locations.length === 0;
 
   const ownerNote = !isOwner ? (
     <p className="flex items-center gap-1.5 text-xs text-ink-muted">
@@ -180,16 +220,23 @@ function StockLocationsContent({ isOwner }: { isOwner: boolean }) {
     </p>
   ) : null;
 
-  const isEmpty = status === 'live' && locations.length === 0;
+  const resultCount =
+    status === 'live'
+      ? rows.length === locations.length
+        ? plural(locations.length, 'location', 'locations')
+        : `${rows.length} of ${plural(locations.length, 'location', 'locations')}`
+      : null;
 
   const searchField = (
     <SearchField
+      ref={searchRef}
       label="Search locations by name"
       placeholder={isWide ? 'Search locations by name' : 'Search locations'}
       value={search}
       onChange={event => setSearch(event.target.value)}
       onClear={() => setSearch('')}
-      className={isWide ? 'w-[300px] [&_input]:h-9' : 'min-w-0 flex-1'}
+      {...(isWide ? { shortcutHint: '/' } : {})}
+      className={isWide ? 'w-[280px]' : 'min-w-0 flex-1'}
     />
   );
   const showInactiveBox = !isEmpty ? (
@@ -197,53 +244,55 @@ function StockLocationsContent({ isOwner }: { isOwner: boolean }) {
   ) : null;
 
   const toolbar = isWide ? (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3.5">
-      {searchField}
-      {showInactiveBox}
-      {ownerNote}
-      <div className="flex-1" />
-      {newButton}
-    </div>
-  ) : (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        {searchField}
-        {newButton}
-      </div>
-      {showInactiveBox || ownerNote ? (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1">
+    <DataTableToolbar
+      start={
+        <>
+          {searchField}
           {showInactiveBox}
           {ownerNote}
-        </div>
-      ) : null}
+        </>
+      }
+      end={
+        <>
+          {resultCount ? <ResultCount>{resultCount}</ResultCount> : null}
+          <ColumnsMenu settings={settings} />
+          <DensityToggle settings={settings} />
+        </>
+      }
+    />
+  ) : (
+    <div className="flex flex-col gap-2">
+      {searchField}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1">
+        {showInactiveBox}
+        {ownerNote}
+        {resultCount ? (
+          <span className="ml-auto">
+            <ResultCount>{resultCount}</ResultCount>
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 
   let body;
   if (status === 'loading') {
-    body = <LoadingState label="Loading locations…" />;
+    body = <LoadingState label="Loading locations…" rows={6} />;
   } else if (status === 'error') {
-    body = (
-      <div className={isWide ? 'p-4' : ''}>
-        <ErrorState message={loadError} onRetry={reload} />
-      </div>
-    );
+    body = <ErrorState title="Couldn't load stock locations" message={loadError} onRetry={reload} />;
   } else if (isEmpty) {
     body = (
-      <div className="flex flex-col items-center gap-2 px-6 pb-12 pt-8 text-center">
-        <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full border border-line bg-canvas-sunken text-ink-secondary">
-          <WarehouseIcon className="h-5 w-5" />
-        </span>
-        <p className="text-base font-semibold text-ink">No stock locations yet</p>
-        <p className="max-w-sm text-[13px] text-ink-secondary">
-          Add your main store first, then kitchens and the freezers inside them. Stock can only be recorded against a
-          location.
-        </p>
-        <Button onClick={() => setDialog({ kind: 'create' })} size="sm" className="mt-2 font-semibold">
-          <PlusIcon className="h-4 w-4" />
-          New location
-        </Button>
-      </div>
+      <EmptyState
+        icon={<WarehouseIcon />}
+        title="No stock locations yet"
+        message="Add your main store first, then kitchens and the freezers inside them. Stock can only be recorded against a location."
+        action={
+          <Button onClick={openCreate}>
+            <PlusIcon className="h-4 w-4" />
+            New location
+          </Button>
+        }
+      />
     );
   } else if (rows.length === 0) {
     body = (
@@ -252,17 +301,14 @@ function StockLocationsContent({ isOwner }: { isOwner: boolean }) {
       </p>
     );
   } else {
-    body = isWide ? <LocationsTable {...listProps} /> : <LocationCards {...listProps} />;
+    body = isWide ? <LocationsTable settings={settings} {...listProps} /> : <LocationCards {...listProps} />;
   }
 
   const footer =
     status === 'live' && !isEmpty ? (
-      <div className={`flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted ${isWide ? 'px-4 py-3' : 'px-1'}`}>
-        <p>
-          {locations.length} {locations.length === 1 ? 'location' : 'locations'} · {inactiveCount} inactive
-        </p>
-        <p>“Items in stock” = items with a balance above zero (from stock balances).</p>
-      </div>
+      <p className={`text-xs text-ink-muted ${isWide ? 'border-t border-line px-4 py-3' : 'px-1'}`}>
+        “Items in stock” = items with a balance above zero{isOwner ? ' · activate / deactivate is Owner only' : ''}
+      </p>
     ) : null;
 
   const errorBanner = actionError ? (
@@ -275,9 +321,22 @@ function StockLocationsContent({ isOwner }: { isOwner: boolean }) {
   ) : null;
 
   return (
-    <>
+    <div className="flex flex-col gap-5">
+      <PageIntro
+        title={PAGE_TITLE}
+        description={PAGE_DESCRIPTION}
+        actions={
+          <Button onClick={openCreate} className="font-semibold">
+            <PlusIcon className="h-4 w-4" />
+            New location
+          </Button>
+        }
+      />
+
+      {status === 'live' ? <SummaryTiles tiles={tiles} ariaLabel="Locations summary" /> : null}
+
       {isWide ? (
-        <section aria-label="Stock locations" className="overflow-hidden rounded-card border border-line bg-canvas">
+        <section aria-label="Stock locations" className="rounded-card border border-line bg-canvas shadow-card">
           {toolbar}
           {errorBanner}
           {body}
@@ -287,7 +346,7 @@ function StockLocationsContent({ isOwner }: { isOwner: boolean }) {
         <section aria-label="Stock locations" className="flex flex-col gap-3">
           {toolbar}
           {errorBanner}
-          {body}
+          {status === 'error' || isEmpty ? <div className="rounded-card border border-line bg-canvas">{body}</div> : body}
           {footer}
         </section>
       )}
@@ -316,6 +375,6 @@ function StockLocationsContent({ isOwner }: { isOwner: boolean }) {
           onClose={() => setDialog(null)}
         />
       ) : null}
-    </>
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ToastProvider } from '../../../design-system/components';
 import { ApiError } from '../../../lib/api-client';
 import { stubMatchMedia } from '../../../test/media';
 import * as stockApi from '../api';
@@ -20,7 +21,11 @@ import {
 vi.mock('../api');
 
 function renderPage() {
-  return renderWithSession(<StockLocationsPage />);
+  return renderWithSession(
+    <ToastProvider>
+      <StockLocationsPage />
+    </ToastProvider>,
+  );
 }
 
 function rowFor(name: string) {
@@ -52,7 +57,7 @@ describe('StockLocationsPage (UI-STOCK-002, desktop)', () => {
     expect(within(rowFor('Freezer 1')).getAllByRole('cell')[3]).toHaveTextContent('1');
     expect(within(rowFor('Freezer 2')).getAllByRole('cell')[3]).toHaveTextContent('0');
     expect(within(rowFor('Freezer 1')).getAllByRole('cell')[2]).toHaveTextContent('Main Store');
-    expect(screen.getByText('6 locations · 2 inactive')).toBeInTheDocument();
+    expect(screen.getByText('6 locations')).toBeInTheDocument();
   });
 
   it('gives the Owner Rename + Deactivate / Activate and no Owner-only note', async () => {

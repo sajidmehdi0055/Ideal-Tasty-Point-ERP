@@ -6,7 +6,7 @@ interface SearchFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, '
   /** Forwarded to the <input> (e.g. for data-table's useSlashFocus). */
   ref?: Ref<HTMLInputElement>;
   /** Keyboard shortcut chip shown at the right while the box is empty, e.g. "/". Visual only. */
-  shortcutHint?: string;
+  shortcutHint?: string | undefined;
 }
 
 export function SearchField({ label, value, onClear, shortcutHint, className = '', ...rest }: SearchFieldProps) {

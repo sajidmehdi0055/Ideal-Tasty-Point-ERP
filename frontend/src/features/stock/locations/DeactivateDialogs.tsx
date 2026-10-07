@@ -41,21 +41,21 @@ export function DeactivateDialog({ location, onConfirm, onClose }: DeactivateDia
   return (
     <Modal
       open
-      size="lg"
+      size="small"
       title={`Deactivate “${location.name}”?`}
       icon={<PowerIcon className="h-4 w-4 shrink-0 text-danger-700" />}
       onClose={onClose}
       dismissible={!submitting}
-      footer={
+      footer={({ requestClose }) => (
         <>
-          <Button variant="secondary" onClick={onClose} disabled={submitting}>
+          <Button variant="secondary" onClick={requestClose} disabled={submitting}>
             Cancel
           </Button>
           <Button variant="danger" onClick={() => void handleConfirm()} loading={submitting}>
             Deactivate
           </Button>
         </>
-      }
+      )}
     >
       <div className="flex flex-col gap-3 text-[13px] text-ink-secondary">
         {error ? (
@@ -111,7 +111,7 @@ export function CannotDeactivateDialog({ location, reason, itemsInStock, onClose
   return (
     <Modal
       open
-      size="lg"
+      size="small"
       title={`Cannot deactivate “${location.name}”`}
       icon={<TriangleAlertIcon className="h-4 w-4 shrink-0 text-warning-700" />}
       onClose={onClose}
