@@ -278,6 +278,17 @@ describe('Header', () => {
     expect(within(crumbs).getByText('Catalog Settings')).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('heading', { level: 1, name: 'Catalog Settings' })).toBeInTheDocument();
   });
+
+  it('uses the Direction A title (20px / 800) and the 28px page gutter (UI-REFRESH-001)', () => {
+    stubMatchMedia({ wide: true, hover: true });
+    renderShell('/stock/ledger');
+    const title = screen.getByRole('heading', { level: 1, name: 'Stock Ledger' });
+    expect(title).toHaveClass('font-extrabold', 'md:text-[20px]');
+    const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(crumbs).getByText('Stock')).toBeInTheDocument();
+    expect(within(crumbs).getByRole('list')).toHaveClass('text-xs', 'text-ink-muted');
+    expect(screen.getByRole('main')).toHaveClass('md:p-gutter');
+  });
 });
 
 describe('AppShell — edge cases from independent review', () => {
@@ -349,5 +360,20 @@ describe('AppShell — edge cases from independent review', () => {
     await userEvent.click(expand);
     fireEvent.click(screen.getByTestId('sidebar-scrim'));
     await waitFor(() => expect(expand).toHaveFocus());
+  });
+});
+
+describe('Icon-only shell buttons have a tooltip (UI-REFRESH-001 spec 1c)', () => {
+  it('mobile menu and drawer close buttons show their tooltip on focus', async () => {
+    stubMatchMedia({ wide: false, hover: false });
+    renderShell();
+    const menu = screen.getByRole('button', { name: 'Open navigation' });
+    act(() => menu.focus());
+    expect(menu.parentElement!.querySelector('[role="tooltip"]')).toHaveTextContent('Open navigation');
+    expect(menu.parentElement!.querySelector('[role="tooltip"]')).toBeVisible();
+    await userEvent.click(menu);
+    const close = screen.getByRole('button', { name: 'Close navigation' });
+    act(() => close.focus());
+    expect(close.parentElement!.querySelector('[role="tooltip"]')).toBeVisible();
   });
 });

@@ -287,7 +287,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Inert while a modal overlay is open, so Tab/Shift+Tab can't reach it. */}
         <div className="flex min-h-screen min-w-0 flex-1 flex-col" inert={contentInert} data-testid="shell-content">
           <Header showMenuButton={!isWide} onOpenNav={() => setDrawerOpen(true)} triggerRef={navTriggerRef} />
-          <main className="flex-1 p-4 md:p-6">
+          {/* Page gutter: 16px on phones, 28px (--itp-gutter) from tablet up. */}
+          <main className="flex-1 p-4 md:p-gutter">
             <div className="mx-auto w-full max-w-[1600px]">{children}</div>
           </main>
         </div>

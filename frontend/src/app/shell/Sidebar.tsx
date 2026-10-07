@@ -1,6 +1,7 @@
 import { Fragment, useLayoutEffect, useRef, type Ref } from 'react';
 import { NavLink } from 'react-router-dom';
 import { NAV_SECTIONS } from './nav-items';
+import { Tooltip } from '../../design-system/components/Tooltip';
 import {
   ChevronDownIcon,
   PanelLeftCloseIcon,
@@ -37,7 +38,7 @@ function Brand() {
       {/* Placeholder mark: the official Ideal Tasty Point logo goes here unchanged once supplied. */}
       <span aria-hidden="true" className="h-8 w-8 shrink-0 rounded-control bg-sidebar-border" />
       <span className="flex min-w-0 flex-1 flex-col leading-tight">
-        <span className="truncate text-sm font-semibold text-sidebar-text-active">Ideal Tasty Point</span>
+        <span className="truncate text-sm font-bold text-ink">Ideal Tasty Point</span>
         <span className="text-[11px] font-medium text-sidebar-text">ERP</span>
       </span>
     </>
@@ -102,14 +103,16 @@ export function SidebarPanel({
       <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-sidebar-border px-4">
         <Brand />
         {variant === 'drawer' ? (
-          <button
-            type="button"
-            aria-label="Close navigation"
-            onClick={onClose}
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-control text-sidebar-text hover:bg-sidebar-item-hover hover:text-sidebar-text-active ${focusRing}`}
-          >
-            <XIcon className="h-[18px] w-[18px]" />
-          </button>
+          <Tooltip content="Close navigation" side="bottom" describe={false}>
+            <button
+              type="button"
+              aria-label="Close navigation"
+              onClick={onClose}
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-control text-sidebar-text hover:bg-sidebar-item-hover hover:text-ink ${focusRing}`}
+            >
+              <XIcon className="h-[18px] w-[18px]" />
+            </button>
+          </Tooltip>
         ) : null}
       </div>
 
@@ -150,8 +153,8 @@ export function SidebarPanel({
                         className={({ isActive }) =>
                           `relative flex h-9 items-center gap-2.5 rounded-control pl-3 pr-2 text-[13px] transition-colors ${focusRing} ${
                             isActive
-                              ? 'bg-sidebar-item-active font-semibold text-sidebar-text-active before:absolute before:left-0 before:top-2 before:h-5 before:w-[3px] before:rounded-r-sm before:bg-sidebar-text-active'
-                              : 'font-medium text-sidebar-text hover:bg-sidebar-item-hover hover:text-sidebar-text-active'
+                              ? 'bg-sidebar-item-active font-semibold text-sidebar-text-active before:absolute before:-left-3 before:top-2 before:h-5 before:w-[3px] before:rounded-r-sm before:bg-sidebar-indicator'
+                              : 'font-medium text-sidebar-text hover:bg-sidebar-item-hover hover:text-ink'
                           }`
                         }
                       >
@@ -177,7 +180,7 @@ export function SidebarPanel({
           <button
             type="button"
             onClick={variant === 'peek' ? onPin : onCollapse}
-            className={`flex h-9 w-full items-center gap-2.5 rounded-control px-3 text-[13px] font-medium text-sidebar-text hover:bg-sidebar-item-hover hover:text-sidebar-text-active ${focusRing}`}
+            className={`flex h-9 w-full items-center gap-2.5 rounded-control px-3 text-[13px] font-medium text-sidebar-text hover:bg-sidebar-item-hover hover:text-ink ${focusRing}`}
           >
             {variant === 'peek' ? (
               <PinIcon className="h-[18px] w-[18px] shrink-0" />
@@ -225,10 +228,10 @@ export function SidebarRail({ onExpand, expandLabel, expandRef, onLinkFocus }: S
                   aria-label={item.pending ? `${item.label} (pending)` : item.label}
                   onFocus={onLinkFocus ? () => onLinkFocus(index) : undefined}
                   className={({ isActive }) =>
-                    `group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors ${focusRing} ${
+                    `group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-control transition-colors ${focusRing} ${
                       isActive
-                        ? 'bg-sidebar-item-active text-sidebar-text-active before:absolute before:-left-3 before:top-2.5 before:h-5 before:w-[3px] before:rounded-r-sm before:bg-sidebar-text-active'
-                        : 'text-sidebar-text hover:bg-sidebar-item-hover hover:text-sidebar-text-active'
+                        ? 'bg-sidebar-item-active text-sidebar-text-active before:absolute before:-left-3 before:top-2.5 before:h-5 before:w-[3px] before:rounded-r-sm before:bg-sidebar-indicator'
+                        : 'text-sidebar-text hover:bg-sidebar-item-hover hover:text-ink'
                     }`
                   }
                 >
@@ -252,15 +255,17 @@ export function SidebarRail({ onExpand, expandLabel, expandRef, onLinkFocus }: S
         ))}
       </nav>
       <div className="flex w-full shrink-0 justify-center border-t border-sidebar-border pt-2">
-        <button
-          ref={expandRef}
-          type="button"
-          aria-label={expandLabel}
-          onClick={onExpand}
-          className={`flex h-10 w-10 items-center justify-center rounded-lg text-sidebar-text hover:bg-sidebar-item-hover hover:text-sidebar-text-active ${focusRing}`}
-        >
-          <PanelLeftOpenIcon className="h-5 w-5" />
-        </button>
+        <Tooltip content={expandLabel} side="right" describe={false}>
+          <button
+            ref={expandRef}
+            type="button"
+            aria-label={expandLabel}
+            onClick={onExpand}
+            className={`flex h-10 w-10 items-center justify-center rounded-control text-sidebar-text hover:bg-sidebar-item-hover hover:text-ink ${focusRing}`}
+          >
+            <PanelLeftOpenIcon className="h-5 w-5" />
+          </button>
+        </Tooltip>
       </div>
     </div>
   );

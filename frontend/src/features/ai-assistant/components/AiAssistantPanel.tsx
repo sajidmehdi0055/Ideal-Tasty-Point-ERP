@@ -7,7 +7,9 @@ import {
   SparklesIcon,
   XIcon,
 } from '../../../design-system/icons';
+import { Tooltip } from '../../../design-system/components/Tooltip';
 import { useMediaQuery } from '../../../lib/use-media-query';
+import { useResizableWidth } from '../../../lib/use-resizable-width';
 import { useAiAssistant, useAiTriggerRef, type AiAssistantContextValue } from '../AiAssistantProvider';
 import type { AiBlockedKind } from '../errors';
 import { moduleLabel } from '../module';
@@ -15,13 +17,21 @@ import { providerLabel } from '../tool-labels';
 import { Composer } from './Composer';
 import { TurnView } from './Messages';
 import { BlockedState, Welcome } from './PanelContent';
+import {
+  AI_PANEL_DEFAULT_WIDTH,
+  AI_PANEL_MAX_WIDTH,
+  AI_PANEL_MIN_WIDTH,
+  AI_PANEL_WIDTH_KEY,
+  PanelResizeHandle,
+} from './PanelResizeHandle';
 
 export type AiPanelVariant = 'desktop' | 'touch' | 'mobile';
 
 /**
  * Layout follows input type like ERP Shell v2 (UI-AI-001 "Behaviour"):
  *  - desktop (≥ 768 px, mouse): 440 px under the header, over the content, no
- *    scrim, non-modal; Expand → 760 px.
+ *    scrim, non-modal; Expand → 760 px. UI-REFRESH-001: the left edge can be
+ *    dragged to any width from 440 to 760 px (remembered on this device).
  *  - touch (≥ 768 px, no hover — tablet): 480 px full-height sheet with scrim, modal.
  *  - mobile (< 768 px): full-screen sheet, modal, same components.
  */
@@ -88,19 +98,22 @@ function IconButton({
   active?: boolean;
   touch: boolean;
 }) {
+  // Icon-only: the design-system Tooltip shows the label on hover and focus
+  // (visual only — the aria-label already names the button).
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      title={label}
-      className={`flex shrink-0 items-center justify-center rounded-control text-ink-secondary hover:bg-canvas-hover hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40 ${
-        touch ? 'h-9 w-9' : 'h-7 w-7'
-      } ${active ? 'bg-canvas-hover' : ''}`}
-    >
-      <Icon className="h-4 w-4" />
-    </button>
+    <Tooltip content={label} side="bottom" describe={false}>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+        className={`flex shrink-0 items-center justify-center rounded-control text-ink-secondary hover:bg-canvas-hover hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40 ${
+          touch ? 'h-9 w-9' : 'h-7 w-7'
+        } ${active ? 'bg-canvas-hover' : ''}`}
+      >
+        <Icon className="h-4 w-4" />
+      </button>
+    </Tooltip>
   );
 }
 
@@ -123,6 +136,15 @@ function PanelBody({ ai, variant }: { ai: AiAssistantContextValue; variant: AiPa
   const blocked = effectiveBlocked(ai);
   const { closePanel } = ai;
   const triggerRef = useAiTriggerRef();
+  const panelWidth = useResizableWidth({
+    storageKey: AI_PANEL_WIDTH_KEY,
+    min: AI_PANEL_MIN_WIDTH,
+    max: AI_PANEL_MAX_WIDTH,
+    defaultWidth: AI_PANEL_DEFAULT_WIDTH,
+  });
+  // Only the desktop side panel is resizable; the touch/mobile sheets keep
+  // their fixed layout, and Expand keeps its fixed 760 px.
+  const resizable = variant === 'desktop' && !ai.expanded;
 
   const close = useCallback(() => {
     closePanel();
@@ -199,7 +221,17 @@ function PanelBody({ ai, variant }: { ai: AiAssistantContextValue; variant: AiPa
         data-variant={variant}
         data-expanded={ai.expanded ? 'true' : 'false'}
         className={`${position} flex flex-col bg-canvas`}
+        // The 440 px class is the default; a remembered width overrides it.
+        style={resizable ? { width: `${panelWidth.width}px` } : undefined}
       >
+        {resizable ? (
+          <PanelResizeHandle
+            width={panelWidth.width}
+            onPreview={panelWidth.preview}
+            onCommit={panelWidth.commit}
+            onReset={panelWidth.reset}
+          />
+        ) : null}
         <div className="flex h-[52px] shrink-0 items-center gap-2.5 border-b border-line pl-4 pr-3">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-control bg-action text-on-action">
             <SparklesIcon className="h-4 w-4" />
@@ -233,18 +265,19 @@ function PanelBody({ ai, variant }: { ai: AiAssistantContextValue; variant: AiPa
                 ) : null}
               </>
             ) : null}
-            <button
-              ref={closeRef}
-              type="button"
-              onClick={close}
-              aria-label="Close AI Assistant"
-              title="Close"
-              className={`flex shrink-0 items-center justify-center rounded-control text-ink-secondary hover:bg-canvas-hover hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus ${
-                touch ? 'h-9 w-9' : 'h-7 w-7'
-              }`}
-            >
-              <XIcon className="h-4 w-4" />
-            </button>
+            <Tooltip content="Close" side="bottom" describe={false}>
+              <button
+                ref={closeRef}
+                type="button"
+                onClick={close}
+                aria-label="Close AI Assistant"
+                className={`flex shrink-0 items-center justify-center rounded-control text-ink-secondary hover:bg-canvas-hover hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus ${
+                  touch ? 'h-9 w-9' : 'h-7 w-7'
+                }`}
+              >
+                <XIcon className="h-4 w-4" />
+              </button>
+            </Tooltip>
           </div>
         </div>
 

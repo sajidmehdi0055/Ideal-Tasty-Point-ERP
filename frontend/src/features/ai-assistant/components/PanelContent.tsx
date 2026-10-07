@@ -35,7 +35,7 @@ export function Welcome({ onPick }: { onPick: (text: string) => void }) {
   return (
     <div className="flex w-full flex-col gap-3.5">
       <div className="flex flex-col gap-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-card bg-action text-on-action">
+        <div className="flex h-9 w-9 items-center justify-center rounded-control bg-action text-on-action">
           <SparklesIcon className="h-5 w-5" />
         </div>
         <p className="text-[17px] font-semibold leading-6 text-ink">Ask about your inventory data</p>

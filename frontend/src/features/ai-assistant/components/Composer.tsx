@@ -1,4 +1,5 @@
 import { useLayoutEffect, type KeyboardEvent, type RefObject } from 'react';
+import { Tooltip } from '../../../design-system/components/Tooltip';
 import { SendIcon } from '../../../design-system/icons';
 import { MAX_MESSAGE_CHARS } from '../limits';
 
@@ -51,7 +52,7 @@ export function Composer({ value, onChange, onSend, locked, waitHint, serverErro
   return (
     <div className="flex shrink-0 flex-col gap-1.5 border-t border-line bg-canvas px-4 py-3" data-testid="ai-composer">
       <div
-        className={`flex items-end gap-2 rounded-card border py-2 pl-3 pr-2 ${
+        className={`flex items-end gap-2 rounded-control border py-2 pl-3 pr-2 ${
           tooLong
             ? 'border-danger-700 focus-within:ring-1 focus-within:ring-danger-700'
             : 'border-line-strong focus-within:border-focus focus-within:ring-1 focus-within:ring-focus'
@@ -70,17 +71,19 @@ export function Composer({ value, onChange, onSend, locked, waitHint, serverErro
           aria-invalid={tooLong || undefined}
           className="max-h-30 min-h-8 flex-1 resize-none self-center bg-transparent py-1.5 text-[13px] leading-5 text-ink outline-none placeholder:overflow-hidden placeholder:text-ellipsis placeholder:whitespace-nowrap placeholder:text-ink-muted disabled:cursor-not-allowed"
         />
-        <button
-          type="button"
-          onClick={onSend}
-          disabled={!canSend}
-          aria-label="Send question"
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-control transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus disabled:cursor-not-allowed ${
-            canSend ? 'bg-action text-on-action hover:bg-action-hover' : 'bg-canvas-hover text-ink-muted'
-          }`}
-        >
-          <SendIcon className="h-4 w-4" />
-        </button>
+        <Tooltip content="Send question" describe={false}>
+          <button
+            type="button"
+            onClick={onSend}
+            disabled={!canSend}
+            aria-label="Send question"
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-control transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus disabled:cursor-not-allowed ${
+              canSend ? 'bg-action text-on-action hover:bg-action-hover' : 'bg-canvas-hover text-ink-muted'
+            }`}
+          >
+            <SendIcon className="h-4 w-4" />
+          </button>
+        </Tooltip>
       </div>
       <div className={`flex items-center gap-2 text-[11px] ${hintIsError ? 'text-danger-700' : 'text-ink-muted'}`}>
         <p id="ai-composer-hint" className="min-w-0 flex-1 leading-[15px]" aria-live="polite">

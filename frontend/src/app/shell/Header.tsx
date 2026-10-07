@@ -4,6 +4,7 @@ import { useDevSession, type DevRole } from '../../lib/session';
 // DEV-only import, used exclusively inside the `import.meta.env.DEV` branch
 // below — keep it that way so this stays tree-shaken out of production.
 import { DEV_ROLES } from '../../lib/dev-session';
+import { Tooltip } from '../../design-system/components/Tooltip';
 import { ChevronRightIcon, MenuIcon } from '../../design-system/icons';
 import { getBreadcrumb } from './breadcrumbs';
 import { ThemeToggle } from './ThemeToggle';
@@ -31,17 +32,19 @@ export function Header({ showMenuButton, onOpenNav, triggerRef }: HeaderProps) {
   const { identity, setRole } = useDevSession();
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-2 border-b border-line bg-canvas px-2 md:gap-4 md:px-6">
+    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-2 border-b border-line bg-canvas px-2 md:gap-4 md:px-gutter">
       {showMenuButton ? (
-        <button
-          ref={triggerRef}
-          type="button"
-          onClick={onOpenNav}
-          aria-label="Open navigation"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control text-ink hover:bg-canvas-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus"
-        >
-          <MenuIcon className="h-5 w-5" />
-        </button>
+        <Tooltip content="Open navigation" side="bottom" describe={false}>
+          <button
+            ref={triggerRef}
+            type="button"
+            onClick={onOpenNav}
+            aria-label="Open navigation"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control text-ink hover:bg-canvas-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus"
+          >
+            <MenuIcon className="h-5 w-5" />
+          </button>
+        </Tooltip>
       ) : null}
       <div className="min-w-0 flex-1">
         {crumbs.length > 1 ? (
@@ -59,7 +62,8 @@ export function Header({ showMenuButton, onOpenNav, triggerRef }: HeaderProps) {
             </ol>
           </nav>
         ) : null}
-        <h1 className="truncate text-base font-semibold text-ink md:text-lg">{title}</h1>
+        {/* UI-REFRESH-001 (Direction A): 20px / 800 title on tablet and desktop. */}
+        <h1 className="truncate text-base font-extrabold leading-tight tracking-tight text-ink md:text-[20px]">{title}</h1>
       </div>
       <div className="flex shrink-0 items-center gap-2 md:gap-3">
         <AskAiButton />
