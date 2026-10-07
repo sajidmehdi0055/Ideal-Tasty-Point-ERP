@@ -79,6 +79,27 @@ At 1024 px the default column widths (Items, Locations, Movements) were wider th
 - **Units in the Adjust / Opening stock dialogs:** use the display label (L, kg, pcs) per the format rule, not the stored code that Figma R2 draws. Done in a follow-up commit. It covers the dialog summary, preview, quantity label/hint, the NEGATIVE_BALANCE message, the Opening item-picker options, and also the Movements "Balance now" line, which still showed the stored code. Only display text changed; request bodies are unchanged (no unit is sent).
 - **Dimmed inactive location rows:** approved.
 
+## Owner bug fix (2026-10-08): backend not reachable
+
+**Bug.** While the owner was testing, creating an item showed only "Something went wrong." The backend on port 3000 was not running. The Vite dev proxy answered with an empty 5xx body, and `api-client.ts` turned that into the generic status text.
+
+**Owner's rule.** A 5xx response with an empty or non-JSON body means the server was not reached. The client now throws `ApiError(status, 'NETWORK_ERROR', 'Could not reach the server. Check that the backend is running, then try again.')`. That text is the exported constant `SERVER_UNREACHABLE_MESSAGE`. A failed `fetch` (status 0) now uses the same text.
+
+**Unchanged:**
+- JSON error bodies, including the AI codes such as 503 `AI_DISABLED` and 500 `AI_AUDIT_FAILED`.
+- An empty 4xx still gets the status text; a non-JSON 4xx is still `INVALID_RESPONSE`.
+- An empty 2xx still resolves.
+
+**Test changed.** The old test "HTML 502 → INVALID_RESPONSE" now expects `NETWORK_ERROR`, as the owner's rule requires.
+
+**Screens.** All screen error describers pass `error.message` through. The Items form, Item list, UOM, Stock and the AI panel's generic card therefore show the new text.
+
+**Tests:**
+- `lib/api-client.test.ts`: empty 500, HTML 502, JSON 500 "Operation failed", and the boundaries (empty 404, HTML 404, empty 200).
+- `__tests__/server-unreachable.test.tsx`: the real api-client with only `fetch` stubbed. It covers Item form create, UOM load, Stock Ledger load and an AI question.
+
+Commits: acbabcc, plus the boundary tests and this note.
+
 ## Follow-up NOTEs (deliberate deviations, not built in this slice)
 
 - **NOTE F-1:** Movements toolbar search + "All types" filter (Figma R6).

@@ -90,6 +90,23 @@ describe('apiClient', () => {
     expect(error).toMatchObject({ status: 500, code: 'INTERNAL_ERROR', message: 'Operation failed' });
   });
 
+  it('keeps the status text for an empty 4xx body (only 5xx means "server not reachable")', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 404 })));
+    const error = await captureError(apiClient.get('/api/x'));
+    expect(error).toMatchObject({ status: 404, code: 'UNKNOWN_ERROR', message: 'Not found.' });
+  });
+
+  it('keeps INVALID_RESPONSE for a non-JSON 4xx body', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>404</html>', { status: 404 })));
+    const error = await captureError(apiClient.get('/api/x'));
+    expect(error).toMatchObject({ status: 404, code: 'INVALID_RESPONSE' });
+  });
+
+  it('still resolves an empty 2xx body', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 200 })));
+    await expect(apiClient.get('/api/x')).resolves.toBeUndefined();
+  });
+
   it('still classifies a non-JSON body on a non-5xx status as INVALID_RESPONSE', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>ok</html>', { status: 200 })));
     const error = await captureError(apiClient.get('/api/x'));

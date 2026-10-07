@@ -23,9 +23,26 @@ QA/Testing subagent with no implementation involvement, own clone `Ideal-Tasty-P
 
 Units-change verification: typecheck exit 0, lint exit 0, vitest **32 files / 423 tests**, build OK, no `itp-erp:dev-identity` in dist. Focused QA (same independent QA subagent, own clone) on 817c095: **PASS**, with 1 MINOR: the item-picker option assertion was a substring match, so showing the raw code again went uncaught. Fixed in d085b59 (exact match plus a no-"LITER" check, and doc wording "no unit is sent"); confirmation **PASS** (mutation now caught, 32 / 423). Push: approved by the owner on this condition, done only after the owner confirms.
 
+## Owner bug fix (2026-10-08): backend not reachable
+
+**Bug.** While testing, the owner saw only "Something went wrong." on item create. The backend was down, and the Vite dev proxy answered with an empty 5xx body.
+
+**Fix (acbabcc).** In `api-client.ts`, a 5xx with an empty or non-JSON body is now `NETWORK_ERROR` with the text "Could not reach the server. Check that the backend is running, then try again." JSON error bodies are unchanged. Every screen passes this message through. Details: [ui-refresh-001-implementation.md](ui-refresh-001-implementation.md#owner-bug-fix-2026-10-08-backend-not-reachable).
+
+**Focused QA on acbabcc:** **PASS**. Same independent QA subagent, own clone, 33 / 431 tests. Two MINORs:
+- No regression tests for the empty-4xx / HTML-4xx / empty-2xx boundaries.
+- This fix was not yet in the docs.
+
+Both are fixed in the follow-up commit (boundary tests and these notes).
+
+**Chromium check with no backend:** item create, `/items`, `/catalog-settings`, `/stock/ledger` and `/stock/locations` show the new message.
+
+**Push:** the owner's latest instruction (2026-10-08) is no push or merge without the owner's explicit approval.
+
 ## Next recommended action
 
-1. Owner checks the UI locally, then approves a controlled merge into main, followed by post-merge verification.
+1. The owner checks the UI locally. A demo environment is proposed and awaits owner approval.
+2. Owner approval → push `feat/ui-refresh-001` → controlled merge into main → post-merge verification.
 
 ---
 
