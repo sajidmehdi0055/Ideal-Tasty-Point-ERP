@@ -98,15 +98,14 @@ export function ColumnsMenu({ settings }: { settings: TableSettings }) {
                       type="checkbox"
                       checked={settings.isVisible(column.id)}
                       disabled={locked}
+                      // Explicit name: sibling text nodes would otherwise run together ("Item(required…").
+                      aria-label={locked ? `${column.label} (required, cannot be hidden)` : undefined}
                       onChange={() => settings.toggleColumn(column.id)}
                       className="h-4 w-4 accent-action"
                     />
                     <span className="flex-1 truncate">{column.label}</span>
                     {locked ? (
-                      <>
-                        <LockIcon className="h-3.5 w-3.5 text-ink-muted" data-testid={`lock-${column.id}`} />
-                        <span className="sr-only">(required, cannot be hidden)</span>
-                      </>
+                      <LockIcon className="h-3.5 w-3.5 text-ink-muted" data-testid={`lock-${column.id}`} />
                     ) : null}
                   </label>
                 </li>

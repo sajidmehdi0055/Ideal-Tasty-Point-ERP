@@ -32,7 +32,7 @@
  * Do not wrap the toolbar in `overflow: hidden` (the Columns popover would be clipped).
  */
 export type { ColumnDef, Density } from './types';
-export { clampWidth, DEFAULT_MAX_COLUMN_WIDTH } from './types';
+export { clampWidth, DEFAULT_MAX_COLUMN_WIDTH, fitColumnWidths } from './types';
 export { useTableSettings, TABLE_SETTINGS_MEDIA_QUERY } from './useTableSettings';
 export type { TableSettings } from './useTableSettings';
 export { tableSettingsKey, TABLE_SETTINGS_VERSION } from './storage';

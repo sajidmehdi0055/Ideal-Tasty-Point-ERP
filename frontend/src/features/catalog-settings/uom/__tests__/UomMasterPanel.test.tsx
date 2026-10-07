@@ -271,7 +271,7 @@ describe('UomMasterPanel', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /^Columns/ }));
     for (const name of ['Unit', 'Actions']) {
-      const box = screen.getByRole('checkbox', { name: new RegExp(`^${name}\\s*\\(required`) });
+      const box = screen.getByRole('checkbox', { name: `${name} (required, cannot be hidden)` });
       expect(box).toBeChecked();
       expect(box).toBeDisabled();
     }

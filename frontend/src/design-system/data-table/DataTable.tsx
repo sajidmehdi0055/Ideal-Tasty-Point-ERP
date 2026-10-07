@@ -3,6 +3,7 @@ import {
   useContext,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -12,7 +13,7 @@ import {
   type ReactNode,
   type TdHTMLAttributes,
 } from 'react';
-import { clampWidth, type ColumnDef, type Density } from './types';
+import { clampWidth, fitColumnWidths, type ColumnDef, type Density } from './types';
 import type { TableSettings } from './useTableSettings';
 
 interface DataTableContextValue {
@@ -52,12 +53,29 @@ interface DataTableProps {
  * the screen renders.
  */
 export function DataTable({ settings, ariaLabel, caption, children, maxHeight, className = '' }: DataTableProps) {
-  const { visibleColumns, enabled, widthOf, setWidth, density } = settings;
+  const { visibleColumns, enabled, storedWidthOf, setWidth, density } = settings;
   const tableRef = useRef<HTMLTableElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const colRefs = useRef(new Map<string, HTMLTableColElement>());
   const [activeHandle, setActiveHandle] = useState<string | null>(null);
+  const [available, setAvailable] = useState<number | undefined>(undefined);
 
-  const minTableWidth = enabled
+  // Width of the scroll container, so default column widths can shrink to fit it (e.g. at 1024px).
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !enabled) return;
+    const measure = () => setAvailable(el.clientWidth || undefined);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [enabled]);
+
+  const fitted = enabled ? fitColumnWidths(visibleColumns, storedWidthOf, available) : undefined;
+  const widthOf = (id: string) => fitted?.get(id);
+
+  const minTableWidth = fitted
     ? visibleColumns.reduce((sum, column) => sum + (widthOf(column.id) ?? column.minWidth), 0)
     : undefined;
 
@@ -91,7 +109,7 @@ export function DataTable({ settings, ariaLabel, caption, children, maxHeight, c
 
   return (
     <DataTableContext.Provider value={{ density, visibleCount: visibleColumns.length }}>
-      <div className={`overflow-auto ${className}`} style={maxHeight === undefined ? undefined : { maxHeight }}>
+      <div ref={scrollRef} className={`overflow-auto ${className}`} style={maxHeight === undefined ? undefined : { maxHeight }}>
         <table
           ref={tableRef}
           aria-label={ariaLabel}

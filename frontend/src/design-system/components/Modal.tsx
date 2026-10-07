@@ -117,6 +117,8 @@ export function Modal({
     if (!dialog.open) dialog.showModal();
     return () => {
       if (dialog.open) {
+        // Guards a close() whose `close` event fires synchronously (jsdom, some polyfills):
+        // the owner already knows. Browsers queue the event; the !dialog.open check covers those.
         closingByOwnerRef.current = true;
         dialog.close();
         closingByOwnerRef.current = false;

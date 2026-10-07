@@ -253,3 +253,15 @@
 body {
   @apply bg-canvas-muted text-ink antialiased;
 }
+
+/*
+ * Focus ring (UI-REFRESH-001 review NOTE 11): Tailwind's `transition-colors`
+ * also animates outline-color, so a keyboard focus ring faded in from the text
+ * colour. While focus is visible, transition everything except the outline.
+ */
+@layer utilities {
+  .transition-colors:focus-visible,
+  .transition-colors:has(:focus-visible) {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  }
+}

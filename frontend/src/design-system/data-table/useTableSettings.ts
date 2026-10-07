@@ -28,6 +28,8 @@ export interface TableSettings {
   toggleColumn: (id: string) => void;
   /** Width in px to apply, or undefined to let the column flex (always undefined when `enabled` is false). */
   widthOf: (id: string) => number | undefined;
+  /** Width the user stored for this column (resize / fit), or undefined when it uses its default. Undefined when `enabled` is false. */
+  storedWidthOf: (id: string) => number | undefined;
   /** Stores a width for a column (clamped to its min/max). */
   setWidth: (id: string, px: number) => void;
   /** "Reset to default": clears stored widths and hidden columns. Density is kept. */
@@ -87,6 +89,11 @@ export function useTableSettings(screenId: string, columns: readonly ColumnDef[]
     [byId, enabled, stored.widths],
   );
 
+  const storedWidthOf = useCallback(
+    (id: string) => (enabled && byId.has(id) ? stored.widths[id] : undefined),
+    [byId, enabled, stored.widths],
+  );
+
   const setWidth = useCallback(
     (id: string, px: number) => {
       const column = byId.get(id);
@@ -115,6 +122,7 @@ export function useTableSettings(screenId: string, columns: readonly ColumnDef[]
     hiddenCount: enabled ? stored.hidden.length : 0,
     toggleColumn,
     widthOf,
+    storedWidthOf,
     setWidth,
     reset,
   };

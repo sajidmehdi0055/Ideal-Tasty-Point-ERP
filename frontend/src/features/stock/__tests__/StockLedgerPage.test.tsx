@@ -486,7 +486,7 @@ describe('Stock Ledger — Direction A refresh (UI-REFRESH-001)', () => {
     await userEvent.click(screen.getByRole('button', { name: /^Columns/ }));
     let menu = screen.getByRole('dialog', { name: 'Show columns' });
     for (const name of ['Item', 'Quantity', 'Actions']) {
-      expect(within(menu).getByRole('checkbox', { name: new RegExp(`^${name}`) })).toBeDisabled();
+      expect(within(menu).getByRole('checkbox', { name: `${name} (required, cannot be hidden)` })).toBeDisabled();
     }
     await userEvent.keyboard('{Escape}');
 
@@ -494,8 +494,8 @@ describe('Stock Ledger — Direction A refresh (UI-REFRESH-001)', () => {
     const table = await screen.findByRole('table', { name: 'Stock movements' });
     await userEvent.click(screen.getByRole('button', { name: /^Columns/ }));
     menu = screen.getByRole('dialog', { name: 'Show columns' });
-    expect(within(menu).getByRole('checkbox', { name: /^Item/ })).toBeDisabled();
-    expect(within(menu).getByRole('checkbox', { name: /^Quantity/ })).toBeDisabled();
+    expect(within(menu).getByRole('checkbox', { name: 'Item (required, cannot be hidden)' })).toBeDisabled();
+    expect(within(menu).getByRole('checkbox', { name: 'Quantity (required, cannot be hidden)' })).toBeDisabled();
     const time = within(menu).getByRole('checkbox', { name: /^Time/ });
     expect(time).toBeEnabled();
     await userEvent.click(time);

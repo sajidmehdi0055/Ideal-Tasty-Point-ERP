@@ -252,7 +252,7 @@ describe('ItemListPage', () => {
 
       await userEvent.click(screen.getByRole('button', { name: /^Columns/ }));
       for (const name of ['Item', 'Actions']) {
-        const box = screen.getByRole('checkbox', { name: new RegExp(`^${name}\\s*\\(required`) });
+        const box = screen.getByRole('checkbox', { name: `${name} (required, cannot be hidden)` });
         expect(box).toBeChecked();
         expect(box).toBeDisabled();
       }

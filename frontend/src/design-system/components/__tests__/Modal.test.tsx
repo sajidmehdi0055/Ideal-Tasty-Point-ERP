@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { StrictMode, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Modal, type ModalSize } from "../Modal";
 import { Button } from "../Button";
@@ -227,5 +227,62 @@ describe("Modal", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(opener).toHaveFocus();
     });
+  });
+});
+
+describe("Modal and the native close event", () => {
+  /** Real browsers queue the `close` event as a task; the jsdom shim fires it synchronously. */
+  function asyncNativeClose() {
+    return vi.spyOn(HTMLDialogElement.prototype, "close").mockImplementation(function (this: HTMLDialogElement) {
+      this.removeAttribute("open");
+      setTimeout(() => this.dispatchEvent(new Event("close")), 0);
+    });
+  }
+
+  it("stays open under React.StrictMode (effect re-run closes and reopens) and does not call onClose", async () => {
+    asyncNativeClose();
+    const onClose = vi.fn();
+    // Mounted already open, like the app's dialogs ({adjusting ? <AdjustStockDialog /> : null}).
+    render(
+      <StrictMode>
+        <Modal open title="Adjust stock" onClose={onClose}>
+          <input aria-label="Quantity" />
+        </Modal>
+      </StrictMode>,
+    );
+    const dialog = screen.getByRole("dialog", { name: "Adjust stock" });
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 10));
+    });
+    expect(dialog).toHaveAttribute("open");
+    expect(screen.getByRole("dialog", { name: "Adjust stock" })).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["synchronous (jsdom shim)", false],
+    ["queued (browser)", true],
+  ] as const)("a close the browser does by itself calls onClose exactly once — %s event", async (_label, queued) => {
+    if (queued) asyncNativeClose();
+    const onClose = vi.fn();
+    render(<Harness onClose={onClose} />);
+    const { dialog } = await openDialog();
+    await act(async () => {
+      (dialog as HTMLDialogElement).close();
+      await new Promise(resolve => setTimeout(resolve, 10));
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("closing from the owner (Cancel) calls onClose exactly once", async () => {
+    const onClose = vi.fn();
+    render(<Harness onClose={onClose} />);
+    await openDialog();
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 10));
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

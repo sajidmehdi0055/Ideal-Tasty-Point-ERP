@@ -96,6 +96,28 @@ describe('DataTable on a desktop (fine pointer, ≥1024px)', () => {
     stubMatchMedia({ hover: true });
   });
 
+  it('shrinks default widths to fit a narrow container but keeps widths the user stored', () => {
+    // Defaults 80 + 160 (flexible, min) + 120 + 160 + 110 = 630px; container 560px.
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(560);
+    const { unmount } = render(<Harness />);
+    expect(colWidth('time')).toBe('70px');
+    expect(colWidth('type')).toBe('105px');
+    expect(colWidth('reason')).toBe('130px');
+    expect(colWidth('qty')).toBe('95px');
+    expect(colWidth('item')).toBe('');
+    expect(screen.getByRole('table')).toHaveStyle({ minWidth: '560px' });
+    unmount();
+
+    window.localStorage.setItem(
+      tableSettingsKey('test-screen'),
+      JSON.stringify({ v: 1, density: 'comfortable', widths: { reason: 200 }, hidden: [] }),
+    );
+    render(<Harness />);
+    expect(colWidth('reason')).toBe('200px'); // the user's width wins
+    expect(colWidth('time')).toBe('60px');
+    expect(colWidth('qty')).toBe('80px');
+  });
+
   it('renders a sticky 40px header and density-aware rows (comfortable by default)', () => {
     render(<Harness />);
     const header = screen.getByRole('columnheader', { name: 'Item' });
@@ -173,7 +195,7 @@ describe('DataTable on a desktop (fine pointer, ≥1024px)', () => {
     expect(screen.getByRole('columnheader', { name: 'Quantity' })).toBeInTheDocument();
     expect(columnsButton()).toHaveTextContent(/^Columns$/);
     await user.click(columnsButton());
-    const item = screen.getByRole('checkbox', { name: /Item/ });
+    const item = screen.getByRole('checkbox', { name: 'Item (required, cannot be hidden)' });
     expect(item).toBeChecked();
     expect(item).toBeDisabled();
     expect(screen.getByTestId('lock-item')).toBeInTheDocument();
