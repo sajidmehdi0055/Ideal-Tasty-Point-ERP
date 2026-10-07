@@ -13,7 +13,7 @@ import {
   type ColumnDef,
 } from '../../../design-system/data-table';
 import { InfoIcon, XIcon } from '../../../design-system/icons';
-import { formatDateTime, formatDayGroupLabel, formatQuantity, formatTime, groupByKarachiDay } from '../../../lib/format';
+import { formatDateTime, formatDayGroupLabel, formatQuantity, formatTime, groupByKarachiDay, unitLabel } from '../../../lib/format';
 import { listBalances, listMovements } from '../api';
 import { MovementTypeTag } from '../components/Tags';
 import { describeStockError } from '../format';
@@ -141,7 +141,7 @@ export function MovementsView({ isWide, locations, locationId, onLocationChange,
       total += value;
       if (value !== 0n) places += 1;
     }
-    return { text: `${formatQuantity(toDecimalString(total)).text} ${rows[0]?.base_uom ?? ''}`, places };
+    return { text: `${formatQuantity(toDecimalString(total)).text} ${rows[0] ? unitLabel(rows[0].base_uom) : ''}`, places };
   }, [state, item]);
 
   const locationName = (id: string) => {

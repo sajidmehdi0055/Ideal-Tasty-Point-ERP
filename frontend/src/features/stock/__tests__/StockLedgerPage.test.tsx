@@ -121,7 +121,7 @@ describe('StockLedgerPage (UI-STOCK-002, desktop)', () => {
     expect(stockApi.listMovements).toHaveBeenLastCalledWith({ item_id: 'item-oil' });
     expect(await screen.findByText('Cooking Oil (CO-001)')).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Location' })).toHaveValue('');
-    expect(await screen.findByText('Balance now: 86.5 LITER (2 locations)')).toBeInTheDocument();
+    expect(await screen.findByText('Balance now: 86.5 L (2 locations)')).toBeInTheDocument();
 
     const table = await screen.findByRole('table');
     expect(within(table).queryByRole('columnheader', { name: 'Item' })).not.toBeInTheDocument();
@@ -141,7 +141,7 @@ describe('StockLedgerPage (UI-STOCK-002, desktop)', () => {
 
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Location' }), MAIN.id);
     expect(stockApi.listMovements).toHaveBeenLastCalledWith({ item_id: 'item-oil', location_id: MAIN.id });
-    expect(await screen.findByText('Balance now: 72 LITER (1 location)')).toBeInTheDocument();
+    expect(await screen.findByText('Balance now: 72 L (1 location)')).toBeInTheDocument();
   });
 
   it('without an item filter shows every movement with an Item column; the chip can be cleared', async () => {
@@ -228,22 +228,24 @@ describe('Adjust stock dialog (G3 / G5)', () => {
   it('summarises the row and previews the balance after saving with exact decimals', async () => {
     const dialog = await openAdjust();
     expect(within(dialog).getByText('Cooking Oil · CO-001')).toBeInTheDocument();
-    expect(within(dialog).getByText('72 LITER', { selector: 'dd' })).toBeInTheDocument();
+    expect(within(dialog).getByText('72 L', { selector: 'dd' })).toBeInTheDocument();
     const preview = within(dialog).getByTestId('adjust-preview');
-    expect(preview).toHaveTextContent('72 LITER—');
+    expect(preview).toHaveTextContent('72 L—');
+    // Owner decision 2026-10-08: display label in the dialog, never the stored code.
+    expect(dialog).not.toHaveTextContent('LITER');
 
     await userEvent.click(within(dialog).getByRole('radio', { name: 'Decrease' }));
-    await userEvent.type(within(dialog).getByLabelText('Quantity (LITER)'), '2.5');
-    expect(preview).toHaveTextContent('72 LITER69.5 LITER');
+    await userEvent.type(within(dialog).getByLabelText('Quantity (L)'), '2.5');
+    expect(preview).toHaveTextContent('72 L69.5 L');
     expect(preview).toHaveClass('bg-canvas-sunken');
 
     await userEvent.click(within(dialog).getByRole('radio', { name: 'Increase' }));
-    expect(preview).toHaveTextContent('74.5 LITER');
+    expect(preview).toHaveTextContent('74.5 L');
 
     await userEvent.click(within(dialog).getByRole('radio', { name: 'Decrease' }));
-    await userEvent.clear(within(dialog).getByLabelText('Quantity (LITER)'));
-    await userEvent.type(within(dialog).getByLabelText('Quantity (LITER)'), '80');
-    expect(preview).toHaveTextContent('−8 LITER');
+    await userEvent.clear(within(dialog).getByLabelText('Quantity (L)'));
+    await userEvent.type(within(dialog).getByLabelText('Quantity (L)'), '80');
+    expect(preview).toHaveTextContent('−8 L');
     expect(preview).toHaveClass('bg-danger-50');
   });
 
@@ -254,14 +256,14 @@ describe('Adjust stock dialog (G3 / G5)', () => {
     expect(within(dialog).getByText('Enter a quantity.')).toBeInTheDocument();
     expect(within(dialog).getByText('A reason is required.')).toBeInTheDocument();
 
-    await userEvent.type(within(dialog).getByLabelText('Quantity (LITER)'), '1.1234567');
+    await userEvent.type(within(dialog).getByLabelText('Quantity (L)'), '1.1234567');
     await userEvent.type(within(dialog).getByLabelText('Reason (required)'), '   ');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save adjustment' }));
     expect(within(dialog).getByText(/up to 6 decimals, e\.g\. 2\.5/)).toBeInTheDocument();
     expect(within(dialog).getByText('A reason is required.')).toBeInTheDocument();
 
-    await userEvent.clear(within(dialog).getByLabelText('Quantity (LITER)'));
-    await userEvent.type(within(dialog).getByLabelText('Quantity (LITER)'), '0');
+    await userEvent.clear(within(dialog).getByLabelText('Quantity (L)'));
+    await userEvent.type(within(dialog).getByLabelText('Quantity (L)'), '0');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save adjustment' }));
     expect(within(dialog).getByText('Quantity must be above zero.')).toBeInTheDocument();
 
@@ -281,7 +283,7 @@ describe('Adjust stock dialog (G3 / G5)', () => {
     );
     const dialog = await openAdjust();
     await userEvent.click(within(dialog).getByRole('radio', { name: 'Increase' }));
-    await userEvent.type(within(dialog).getByLabelText('Quantity (LITER)'), '1');
+    await userEvent.type(within(dialog).getByLabelText('Quantity (L)'), '1');
     await userEvent.click(within(dialog).getByLabelText('Reason (required)'));
     await userEvent.paste(`${'y'.repeat(500)}   `);
     expect(within(dialog).getByText('500 / 500')).toBeInTheDocument();
@@ -295,7 +297,7 @@ describe('Adjust stock dialog (G3 / G5)', () => {
     );
     const dialog = await openAdjust();
     await userEvent.click(within(dialog).getByRole('radio', { name: 'Decrease' }));
-    await userEvent.type(within(dialog).getByLabelText('Quantity (LITER)'), ' 2.5 ');
+    await userEvent.type(within(dialog).getByLabelText('Quantity (L)'), ' 2.5 ');
     await userEvent.type(within(dialog).getByLabelText('Reason (required)'), '  Spilled tin  ');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save adjustment' }));
 
@@ -317,15 +319,15 @@ describe('Adjust stock dialog (G3 / G5)', () => {
     vi.mocked(stockApi.createAdjustment).mockRejectedValue(new ApiError(409, 'NEGATIVE_BALANCE', 'x'));
     const dialog = await openAdjust();
     await userEvent.click(within(dialog).getByRole('radio', { name: 'Decrease' }));
-    await userEvent.type(within(dialog).getByLabelText('Quantity (LITER)'), '80');
+    await userEvent.type(within(dialog).getByLabelText('Quantity (L)'), '80');
     await userEvent.type(within(dialog).getByLabelText('Reason (required)'), 'Monthly count correction');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save adjustment' }));
     expect(
       await within(dialog).findByText(
-        'Not enough stock: Main Store has 72 LITER of Cooking Oil. A balance cannot go below zero. (409 · NEGATIVE_BALANCE)',
+        'Not enough stock: Main Store has 72 L of Cooking Oil. A balance cannot go below zero. (409 · NEGATIVE_BALANCE)',
       ),
     ).toBeInTheDocument();
-    expect(within(dialog).getByLabelText('Quantity (LITER)')).toHaveAttribute('aria-invalid', 'true');
+    expect(within(dialog).getByLabelText('Quantity (L)')).toHaveAttribute('aria-invalid', 'true');
   });
 
   it.each([
@@ -336,7 +338,7 @@ describe('Adjust stock dialog (G3 / G5)', () => {
     vi.mocked(stockApi.createAdjustment).mockRejectedValue(new ApiError(code === 'NOT_FOUND' ? 404 : 409, code, 'x'));
     const dialog = await openAdjust();
     await userEvent.click(within(dialog).getByRole('radio', { name: 'Increase' }));
-    await userEvent.type(within(dialog).getByLabelText('Quantity (LITER)'), '1');
+    await userEvent.type(within(dialog).getByLabelText('Quantity (L)'), '1');
     await userEvent.type(within(dialog).getByLabelText('Reason (required)'), 'Found a tin');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save adjustment' }));
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(text);
@@ -349,7 +351,7 @@ describe('Adjust stock dialog (G3 / G5)', () => {
     const dialog = await openAdjust('Adjust Chicken Breast at Main Store › Freezer 1');
     expect(within(dialog).getByText('Main Store › Freezer 1')).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole('radio', { name: 'Increase' }));
-    await userEvent.type(within(dialog).getByLabelText('Quantity (KG)'), '1');
+    await userEvent.type(within(dialog).getByLabelText('Quantity (kg)'), '1');
     await userEvent.type(within(dialog).getByLabelText('Reason (required)'), 'Recount');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save adjustment' }));
     expect(await within(dialog).findByText('Too long')).toBeInTheDocument();

@@ -15,13 +15,17 @@ Tokens (Light/Dark values, names unchanged), vendored Manrope (OFL), one format 
 
 QA/Testing subagent with no implementation involvement, own clone `Ideal-Tasty-Point-ERP-qa-ui-refresh-001`, own runs on e93fcd3: **FAIL** — 1 MAJOR (required Actions column pushed out of view at 1024 px on Items / Locations / Movements), 3 MINOR (Modal native-close sync untested; locked-column accessible name missing a space; this handoff not yet written) + NOTEs. Tokens match the brief exactly; TZ-independence checked under UTC / New York / Kiritimati; 20+ mutations caught. All MAJOR/MINOR fixed in 1f8ee96 (+ NOTE focus-ring transition; toast wording in the doc). Focused re-review of 1f8ee96 + these docs (same QA subagent, own clone): **PASS**, no new findings — 32 files / 423 tests, Chromium Light + Dark at 1024 / 1440 on all five list screens with no inner or page horizontal scroll, user widths kept, new mutations caught. Remaining NOTEs: long Movements location paths truncate with an ellipsis at 1024; toast timer restarts (not resumes) after hover; the ledger "Locations" tile counts active locations while the Locations screen counts all; dev-identity select shortens the mobile title (dev only).
 
-## Open owner decision (non-blocking)
+## Owner decisions (2026-10-08)
 
-- Unit text inside the Adjust / Opening dialogs: stored code ("LITER") as in Figma R2, or display label ("L") as in the brief's format rule.
+1. **Units:** the Adjust and Opening dialogs use display labels (L, kg, pcs), changed in a follow-up commit. The Movements "Balance now" line was changed the same way.
+2. **Not built in this slice:** Movements search/type filter and "Show inactive" on Items/UOM. Both are recorded as follow-up NOTEs F-1 and F-2. Dimmed inactive locations are approved.
+3. **Push:** approved for `feat/ui-refresh-001` only, and only if the focused QA of the units change passes. No merge to main.
+
+Units-change verification: typecheck exit 0, lint exit 0, vitest **32 files / 423 tests**, build OK, no `itp-erp:dev-identity` in dist. Focused QA: see the push record below.
 
 ## Next recommended action
 
-1. Owner approval → push `feat/ui-refresh-001` → controlled merge into main → post-merge verification.
+1. Owner checks the UI locally, then approves a controlled merge into main, followed by post-merge verification.
 
 ---
 

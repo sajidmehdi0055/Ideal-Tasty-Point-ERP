@@ -2,6 +2,7 @@ import { useId, useState, type FormEvent } from 'react';
 import { Button, Input, Modal } from '../../../design-system/components';
 import { ArrowRightIcon, CircleAlertIcon, InfoIcon, MinusIcon, PlusIcon } from '../../../design-system/icons';
 import { ApiError } from '../../../lib/api-client';
+import { unitLabel } from '../../../lib/format';
 import { createAdjustment } from '../api';
 import { codeSuffix, describeStockError } from '../format';
 import { formatQuantity, formatQuantityValue, parseQuantity, QUANTITY_INPUT_PATTERN } from '../quantity';
@@ -41,7 +42,7 @@ export function AdjustStockDialog({ balance, locationLabel, onSaved, onClose }: 
   const [formError, setFormError] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
 
-  const unit = balance.base_uom;
+  const unit = unitLabel(balance.base_uom);
   const current = parseQuantity(balance.quantity);
   const trimmedQuantity = quantity.trim();
   const amount = QUANTITY_INPUT_PATTERN.test(trimmedQuantity) ? parseQuantity(trimmedQuantity) : null;

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Button, Input, Modal, Select } from '../../../design-system/components';
 import { CircleAlertIcon, InfoIcon } from '../../../design-system/icons';
 import { ApiError } from '../../../lib/api-client';
+import { unitLabel } from '../../../lib/format';
 import type { Item } from '../../items/types';
 import { createOpening } from '../api';
 import { codeSuffix, describeStockError } from '../format';
@@ -50,7 +51,7 @@ export function OpeningStockDialog({ locations, onSaved, onClose }: OpeningStock
   const activeRows = orderLocationTree(locations).filter(row => row.location.active);
   const location = byId.get(locationId);
   const locationLabel = location ? locationPath(location, byId) : '';
-  const unit = item?.base_uom;
+  const unit = item ? unitLabel(item.base_uom) : undefined;
   const trimmedQuantity = quantity.trim();
   const amount = QUANTITY_INPUT_PATTERN.test(trimmedQuantity) ? parseQuantity(trimmedQuantity) : null;
 

@@ -1,5 +1,6 @@
 import { useEffect, useId, useState, type KeyboardEvent } from 'react';
 import { ChevronDownIcon } from '../../../design-system/icons';
+import { unitLabel } from '../../../lib/format';
 import { listItems } from '../../items/api';
 import type { Item } from '../../items/types';
 import { describeStockError } from '../format';
@@ -176,7 +177,7 @@ export function ItemPicker({ value, onChange, error, disabled = false }: ItemPic
                 >
                   <span className="truncate font-medium text-ink">{item.item_name}</span>
                   <span className="shrink-0 text-xs text-ink-muted">
-                    {item.item_code} · {item.base_uom}
+                    {item.item_code} · {unitLabel(item.base_uom)}
                   </span>
                 </li>
               ))}

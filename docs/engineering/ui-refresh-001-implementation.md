@@ -51,7 +51,7 @@ Balances tiles: **Items in stock** = distinct items with a balance above zero in
 
 - Movements toolbar search and "All types" filter, and "Show inactive" on Items/UOM, not built (not in the approved scope).
 - Button `md` stays 40 px (matches inputs); table customisation incl. the density toggle hidden below 1024 px / touch.
-- Inactive location rows stay dimmed (existing tested behaviour). Tab label "UOM Master" kept. History tooltip "History" (Figma "Movement history").
+- Inactive location rows stay dimmed (existing tested behaviour; owner-approved 2026-10-08). Tab label "UOM Master" kept. History tooltip "History" (Figma "Movement history").
 - Resize line covers the header only; Items "Active" tile note avoids a purchasing rule that is not approved.
 
 ## Visual check
@@ -74,9 +74,15 @@ Playwright (playwright-core in the session scratchpad only) on the Vite dev serv
 
 At 1024 px the default column widths (Items, Locations, Movements) were wider than the table, which pushed the required Actions column out of view (found by the independent review). `fitColumnWidths` now shrinks default widths toward each column's minimum when they do not fit; widths the user set are kept (inner table scroll only then). Verified in Chromium on all five list screens at 1024 and 1440.
 
-## Open owner decision (non-blocking)
+## Owner decisions (2026-10-08)
 
-- Adjust / Opening stock dialogs show the stored unit code ("72 LITER", "Quantity (KG)") as Figma R2 draws it, while the brief's format rule says display labels (kg, L) everywhere except UOM Master. Kept as Figma; a one-line change if the owner wants labels there too.
+- **Units in the Adjust / Opening stock dialogs:** use the display label (L, kg, pcs) per the format rule, not the stored code that Figma R2 draws. Done in a follow-up commit. It covers the dialog summary, preview, quantity label/hint, the NEGATIVE_BALANCE message, the Opening item-picker options, and also the Movements "Balance now" line, which still showed the stored code. Only display text changed; requests still send the stored codes as before.
+- **Dimmed inactive location rows:** approved.
+
+## Follow-up NOTEs (deliberate deviations, not built in this slice)
+
+- **NOTE F-1:** Movements toolbar search + "All types" filter (Figma R6).
+- **NOTE F-2:** "Show inactive" filter on Item Master and UOM Master (Figma). The Items API already supports `active`.
 
 ## Verification and independent review
 

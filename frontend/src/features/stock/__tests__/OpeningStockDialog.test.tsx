@@ -48,7 +48,7 @@ async function pickItem(dialog: HTMLElement, search: string, name: string) {
 async function fillForm(dialog: HTMLElement, quantity = '12') {
   await userEvent.selectOptions(within(dialog).getByRole('combobox', { name: 'Location' }), FREEZER_2.id);
   await pickItem(dialog, 'oil', 'Cooking Oil');
-  await userEvent.type(within(dialog).getByLabelText('Quantity (LITER)'), quantity);
+  await userEvent.type(within(dialog).getByLabelText('Quantity (L)'), quantity);
 }
 
 describe('Opening stock dialog (UI-STOCK-003, G4)', () => {
@@ -111,7 +111,7 @@ describe('Opening stock dialog (UI-STOCK-003, G4)', () => {
     // Debounced: one request for the typed term, not one per keystroke.
     expect(vi.mocked(itemsApi.listItems).mock.calls.map(([query]) => query?.search)).toEqual(['', 'oil']);
     const option = await within(dialog).findByRole('option', { name: /Cooking Oil/ });
-    expect(option).toHaveTextContent('CO-001 · LITER');
+    expect(option).toHaveTextContent('CO-001 · L');
     expect(within(dialog).queryByRole('option', { name: /Basmati Rice/ })).not.toBeInTheDocument();
 
     await userEvent.keyboard('{ArrowDown}');
@@ -119,7 +119,9 @@ describe('Opening stock dialog (UI-STOCK-003, G4)', () => {
     await userEvent.keyboard('{Enter}');
     expect(input).toHaveValue('Cooking Oil · CO-001');
     expect(input).toHaveAttribute('aria-expanded', 'false');
-    expect(within(dialog).getByLabelText('Quantity (LITER)')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Quantity (L)')).toBeInTheDocument();
+    // Owner decision 2026-10-08: display label in the dialog, never the stored code.
+    expect(dialog).not.toHaveTextContent('LITER');
     expect(stockApi.createOpening).not.toHaveBeenCalled();
     expect(screen.getByRole('dialog', { name: 'Opening stock' })).toBeInTheDocument();
   });
@@ -280,7 +282,7 @@ describe('Opening stock dialog (UI-STOCK-003, G4)', () => {
           ? within(dialog).getByRole('combobox', { name: 'Item' })
           : target === 'Location'
             ? within(dialog).getByRole('combobox', { name: 'Location' })
-            : within(dialog).getByLabelText('Quantity (LITER)');
+            : within(dialog).getByLabelText('Quantity (L)');
       expect(field).toHaveAttribute('aria-invalid', 'true');
       expect(field).toHaveAccessibleDescription(text);
     }
